@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>基础语法 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="flag-bar"></div>
+  <div class="container">
+    <a class="back-link" href="../index.html">← 返回首页</a>
+
+    <h1>基础语法 <span class="en">Basic Grammar</span></h1>
+    <p>按顺序一课一课学：先看讲解和表格，再做练习。点 🔊 听发音。<br>
+      <span class="en">Study one lesson at a time: read, then practice. Tap 🔊 to listen.</span></p>
+
+    <!-- 选课区（由 JS 生成） -->
+    <div class="lesson-list" id="lesson-list"></div>
+
+    <!-- 本课内容（由 JS 生成） -->
+    <div id="lesson-box"></div>
+  </div>
+
+  <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../data/grammar.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    // 小工具：做一个“点一下就朗读”的按钮
+    function sayButton(text, label) {
+      var b = el("button", "say", label || text);
+      b.type = "button";
+      b.title = "点击朗读 / Click to listen";
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        if (window.speakSpanish) window.speakSpanish(text);
+      };
+      return b;
+    }
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    // 中文 + 英文两行（英文用灰色）
+    function bilingual(className, zh, en) {
+      var p = el("p", className);
+      if (zh) p.appendChild(el("span", "", zh));
+      if (zh && en) p.appendChild(el("br"));
+      if (en) p.appendChild(el("span", "en", en));
+      return p;
+    }
+
+    // 练习题里的空格写法：___（三个或更多下划线）
+    var BLANK_RE = /_{3,}/;
+    // 把空格换成正确答案，得到完整句子（朗读用；“=” 换成逗号读起来更自然）
+    function fullSentence(ex) {
+      return String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer]).replace(/\s*=\s*/g, ", ");
+    }
+
+    // ---------- 学习进度钩子（try/catch 在 js/storage.js 里） ----------
+    // 每答完一题调用一次；index 是这道题在 data/grammar.js 里 exercises 的原始下标
+    function onGrammarAnswered(lessonId, index, correct) {
+      if (window.Progress) window.Progress.touchGrammar(lessonId); // 只记“最近学过”，不算完成
+    }
+    // 一课的练习全部答完时调用一次：记成绩（best 取最高分），刷新选课按钮上的标记
+    function onGrammarLessonDone(lessonId, score, total) {
+      if (window.Progress) window.Progress.recordGrammar(lessonId, score, total);
+      updateLessonMarks();
+    }
+
+    // ---------- 数据 ----------
+    var LESSONS = window.GRAMMAR_LESSONS;
+    var lessonIndex = 0;
+    // 每课的答题记录：answers[课下标][题下标] = 选了第几个（-1 表示还没答）
+    var answers = [];
+
+    function hasData() {
+      if (!LESSONS || !LESSONS.length) return false;
+      for (var i = 0; i < LESSONS.length; i++) {
+        if (LESSONS[i]) return true;
+      }
+      return false;
+    }
+
+    // 一道题的数据是否完整（不完整就跳过，不让页面出错）
+    function validExercise(ex) {
+      return ex && typeof ex.prompt === "string" && ex.options && ex.options.length &&
+        typeof ex.answer === "number" && ex.answer >= 0 && ex.answer < ex.options.length;
+    }
+    function lessonExercises(ls) {
+      var out = [];
+      var arr = (ls && ls.exercises) || [];
+      for (var i = 0; i < arr.length; i++) {
+        if (validExercise(arr[i])) out.push(arr[i]);
+      }
+      return out;
+    }
+    // 和 lessonExercises 一一对应：每道题在原始 exercises 数组里的下标
+    function lessonExerciseIndexes(ls) {
+      var out = [];
+      var arr = (ls && ls.exercises) || [];
+      for (var i = 0; i < arr.length; i++) {
+        if (validExercise(arr[i])) out.push(i);
+      }
+      return out;
+    }
+
+    function resetAnswers(idx) {
+      var exs = lessonExercises(LESSONS[idx]);
+      answers[idx] = [];
+      for (var i = 0; i < exs.length; i++) answers[idx].push(-1);
+    }
+
+    // ---------- 选课区 ----------
+    var lessonBox = $("lesson-list");
+    var box = $("lesson-box");
+
+    function buildLessons() {
+      for (var i = 0; i < LESSONS.length; i++) {
+        (function (idx) {
+          var ls = LESSONS[idx] || {};
+          var b = el("button", "lesson-btn");
+          b.type = "button";
+          b.appendChild(el("span", "lesson-num", String(idx + 1)));
+          b.appendChild(el("span", "lesson-title", ls.titleZh || "（未命名）"));
+          b.appendChild(el("span", "en", ls.titleEn || ""));
+          var mark = el("span", "lesson-mastered");
+          mark.setAttribute("data-idx", String(idx));
+          b.appendChild(mark);
+          if (!LESSONS[idx]) b.disabled = true;
+          b.onclick = function () {
+            selectLesson(idx, true);
+          };
+          lessonBox.appendChild(b);
+        })(i);
+      }
+      updateLessonMarks();
+    }
+
+    // 选课按钮上的完成标记：“✓ 已完成 · 最好 8 / 10”或“还没完成”
+    function updateLessonMarks() {
+      var spans = lessonBox.querySelectorAll(".lesson-mastered");
+      for (var i = 0; i < spans.length; i++) {
+        var ls = LESSONS[Number(spans[i].getAttribute("data-idx"))];
+        var g = ls && ls.id && window.Progress ? window.Progress.getGrammar(ls.id) : null;
+        if (g && g.done) {
+          spans[i].textContent = "✓ 已完成 · 最好 " + g.best + " / " + g.total;
+          spans[i].classList.add("all-done");
+        } else {
+          spans[i].textContent = "还没完成 / Not done";
+          spans[i].classList.remove("all-done");
+        }
+      }
+    }
+
+    function selectLesson(idx, scroll) {
+      if (idx < 0 || idx >= LESSONS.length || !LESSONS[idx]) return;
+      lessonIndex = idx;
+      if (!answers[idx]) resetAnswers(idx);
+      var btns = lessonBox.querySelectorAll(".lesson-btn");
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].classList.toggle("active", j === idx);
+      }
+      renderLesson();
+      if (scroll && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // 找上一课 / 下一课（跳过空的）
+    function neighbor(step) {
+      var i = lessonIndex + step;
+      while (i >= 0 && i < LESSONS.length && !LESSONS[i]) i += step;
+      return i >= 0 && i < LESSONS.length ? i : -1;
+    }
+
+    // ---------- 渲染一课 ----------
+    function renderLesson() {
+      var ls = LESSONS[lessonIndex];
+      box.innerHTML = "";
+
+      var head = el("h2", "", (lessonIndex + 1) + ". " + (ls.titleZh || "") + " ");
+      head.appendChild(el("span", "en", ls.titleEn || ""));
+      box.appendChild(head);
+
+      // 1) 介绍
+      if (ls.introZh || ls.introEn) {
+        box.appendChild(bilingual("gram-intro", ls.introZh, ls.introEn));
+      }
+
+      // 2) 表格
+      var tables = ls.tables || [];
+      for (var t = 0; t < tables.length; t++) {
+        if (tables[t]) box.appendChild(renderTable(tables[t]));
+      }
+
+      // 3) 要点
+      var points = ls.points || [];
+      if (points.length) {
+        var h = el("h3", "gram-sub", "要点 ");
+        h.appendChild(el("span", "en", "Key points"));
+        box.appendChild(h);
+        for (var p = 0; p < points.length; p++) {
+          if (points[p]) box.appendChild(renderPoint(points[p], p));
+        }
+      }
+
+      // 4) 练习
+      var hx = el("h3", "gram-sub", "练习 ");
+      hx.appendChild(el("span", "en", "Practice"));
+      box.appendChild(hx);
+      box.appendChild(renderExercises());
+
+      // 上一课 / 下一课
+      var nav = el("div", "card-nav gram-lesson-nav");
+      var pi = neighbor(-1), ni = neighbor(1);
+      var prevBtn = el("button", "btn btn-light", "← 上一课 / Previous");
+      prevBtn.type = "button";
+      prevBtn.disabled = pi === -1;
+      prevBtn.onclick = function () { selectLesson(pi, true); };
+      var nextBtn = el("button", "btn", "下一课 / Next →");
+      nextBtn.type = "button";
+      nextBtn.disabled = ni === -1;
+      nextBtn.onclick = function () { selectLesson(ni, true); };
+      nav.appendChild(prevBtn);
+      nav.appendChild(el("span", "card-progress", (lessonIndex + 1) + " / " + LESSONS.length));
+      nav.appendChild(nextBtn);
+      box.appendChild(nav);
+    }
+
+    // 第一列表头为空的表（如冠词表、ser/estar 对比表）：第一列是说明，不点读；
+    // 第 2 列起，不含中文字符的格子（如 el、la、unos）可以点读
+    function headerlessTable(headers) {
+      return headers.length > 0 && !String(headers[0] || "").trim();
+    }
+    var CHINESE_RE = /[㐀-鿿豈-﫿　-〿＀-￯]/;
+    function cellIsSpanish(text) {
+      return !!text && !CHINESE_RE.test(text) && /[a-záéíóúüñ]/i.test(text);
+    }
+    // 形如“西语（中文）”的格子，例如“Soy Ana.（我是安娜。）”：
+    // 全角“（”之前是西语（不含中文）、括号里是中文 → 返回 { es, zh }，否则返回 null
+    function splitMixedCell(text) {
+      var m = /^([^（]+?)\s*(（[^（）]*）)\s*$/.exec(String(text || ""));
+      if (!m) return null;
+      if (!cellIsSpanish(m[1]) || !/[㐀-鿿]/.test(m[2])) return null; // 括号里要有汉字
+      return { es: m[1], zh: m[2] };
+    }
+    // 朗读表格格子：“él / ella / usted” 读成 “él, ella, usted”
+    function speakableCell(text) {
+      return String(text).replace(/\s+\/\s+/g, ", ");
+    }
+
+    // 判断某一列是不是西语（可以点读）
+    // 规则：第一列表头为空的表见上面 headerlessTable（逐格判断）；
+    //      否则第一列（西语 / 人称）可点读，表头是西语动词（ser、estar、hablar…）的列也可点读
+    function spanishColumns(headers) {
+      var cols = [];
+      var h0 = String(headers[0] || "").trim();
+      if (!h0) return cols;
+      cols.push(0);
+      for (var i = 1; i < headers.length; i++) {
+        var h = String(headers[i] || "").trim().toLowerCase();
+        if (/^[a-záéíóúñ]+(ar|er|ir)(\s|$)/.test(h) || /西语|español/.test(h)) cols.push(i);
+      }
+      return cols;
+    }
+
+    function renderTable(tb) {
+      var wrap = el("div", "gram-table-block");
+      if (tb.captionZh || tb.captionEn) {
+        var cap = el("div", "gram-caption", tb.captionZh || "");
+        if (tb.captionEn) cap.appendChild(el("span", "en", " " + tb.captionEn));
+        wrap.appendChild(cap);
+      }
+      var scroller = el("div", "gram-table-wrap");
+      var table = el("table", "gram-table");
+      var headers = tb.headers || [];
+      var esCols = spanishColumns(headers);
+      var perCell = headerlessTable(headers);
+
+      if (headers.length) {
+        var thead = el("thead");
+        var tr = el("tr");
+        for (var i = 0; i < headers.length; i++) {
+          var th = el("th", "", headers[i] || "");
+          th.setAttribute("scope", "col");
+          tr.appendChild(th);
+        }
+        thead.appendChild(tr);
+        table.appendChild(thead);
+      }
+
+      var tbody = el("tbody");
+      var rows = tb.rows || [];
+      for (var r = 0; r < rows.length; r++) {
+        var row = rows[r] || [];
+        var trr = el("tr");
+        for (var c = 0; c < row.length; c++) {
+          var text = row[c] == null ? "" : String(row[c]);
+          var cell = el(c === 0 ? "th" : "td");
+          if (c === 0) cell.setAttribute("scope", "row");
+          var canSay = perCell ? (c > 0 && cellIsSpanish(text)) : (text && esCols.indexOf(c) !== -1);
+          var mixed = canSay ? null : splitMixedCell(text);
+          if (canSay) {
+            cell.appendChild(sayButton(speakableCell(text), text));
+          } else if (mixed) {
+            // “Soy Ana.（我是安娜。）”：只读西语部分，中文照常显示
+            cell.appendChild(sayButton(speakableCell(mixed.es), mixed.es));
+            cell.appendChild(el("span", "gram-cell-zh", mixed.zh));
+          } else {
+            cell.textContent = text;
+          }
+          trr.appendChild(cell);
+        }
+        tbody.appendChild(trr);
+      }
+      table.appendChild(tbody);
+      scroller.appendChild(table);
+      wrap.appendChild(scroller);
+      return wrap;
+    }
+
+    function renderPoint(pt, idx) {
+      var card = el("div", "tip-card gram-point");
+      var title = el("div", "gram-point-zh");
+      title.appendChild(el("span", "gram-point-num", String(idx + 1)));
+      title.appendChild(document.createTextNode(pt.zh || ""));
+      card.appendChild(title);
+      if (pt.en) card.appendChild(el("p", "en gram-point-en", pt.en));
+      var exs = pt.examples || [];
+      if (exs.length) {
+        var list = el("ul", "gram-examples");
+        for (var i = 0; i < exs.length; i++) {
+          var ex = exs[i];
+          if (!ex) continue;
+          var li = el("li", "gram-example");
+          if (ex.es) li.appendChild(sayButton(ex.es));
+          var mean = el("div", "gram-example-meaning");
+          if (ex.zh) mean.appendChild(el("span", "", ex.zh));
+          if (ex.en) mean.appendChild(el("span", "en", (ex.zh ? " / " : "") + ex.en));
+          li.appendChild(mean);
+          list.appendChild(li);
+        }
+        card.appendChild(list);
+      }
+      return card;
+    }
+
+    // ---------- 练习 ----------
+    var scoreEl; // 本课得分那一行
+
+    function lessonScore() {
+      var exs = lessonExercises(LESSONS[lessonIndex]);
+      var a = answers[lessonIndex];
+      var s = 0, done = 0;
+      for (var i = 0; i < exs.length; i++) {
+        if (a[i] !== -1) {
+          done++;
+          if (a[i] === exs[i].answer) s++;
+        }
+      }
+      return { score: s, done: done, total: exs.length };
+    }
+
+    function renderExercises() {
+      var wrap = el("div", "gram-exercises");
+      var exs = lessonExercises(LESSONS[lessonIndex]);
+      if (!exs.length) {
+        wrap.appendChild(el("div", "notice", "这一课暂时没有练习。 / No exercises for this lesson yet."));
+        return wrap;
+      }
+      for (var i = 0; i < exs.length; i++) {
+        wrap.appendChild(renderExercise(exs[i], i));
+      }
+
+      scoreEl = el("div", "quiz-result gram-score");
+      wrap.appendChild(scoreEl);
+      updateScore();
+
+      var row = el("div", "card-nav");
+      var redo = el("button", "btn btn-light", "🔁 重做本课练习 / Redo");
+      redo.type = "button";
+      redo.onclick = function () {
+        resetAnswers(lessonIndex);
+        renderLesson();
+        var first = box.querySelector(".gram-exercise");
+        if (first && first.scrollIntoView) first.scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+      row.appendChild(redo);
+      wrap.appendChild(row);
+      return wrap;
+    }
+
+    function updateScore() {
+      if (!scoreEl) return;
+      var r = lessonScore();
+      scoreEl.innerHTML = "";
+      scoreEl.appendChild(el("div", "quiz-result-label", "本课得分 / Score"));
+      scoreEl.appendChild(el("div", "quiz-result-score", r.score + " / " + r.total));
+      if (r.done < r.total) {
+        scoreEl.appendChild(el("div", "en", "已答 " + r.done + " / " + r.total + " 题 / Answered " + r.done + " of " + r.total));
+      } else {
+        var ratio = r.total ? r.score / r.total : 0;
+        var msg = ratio === 1 ? ["满分！太棒了！", "Perfect score!"] :
+          ratio >= 0.7 ? ["很好！看看错题的解释再试一次。", "Well done! Check the explanations and try again."] :
+          ["慢慢来，再读一遍要点，然后重做练习。", "Take your time: reread the key points and redo the practice."];
+        scoreEl.appendChild(el("div", "quiz-result-msg", msg[0]));
+        scoreEl.appendChild(el("div", "quiz-result-msg en", msg[1]));
+      }
+      scoreEl.classList.toggle("gram-score-done", r.done === r.total);
+    }
+
+    function renderExercise(ex, idx) {
+      var card = el("div", "gram-exercise");
+      var chosen = answers[lessonIndex][idx];
+
+      var head = el("div", "gram-ex-num", "第 " + (idx + 1) + " 题 / Q" + (idx + 1));
+      card.appendChild(head);
+
+      // 题目：把 ___ 显示成空格框
+      var prompt = el("div", "gram-prompt");
+      var parts = String(ex.prompt).split(BLANK_RE);
+      var blanks = [];
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i]) prompt.appendChild(document.createTextNode(parts[i]));
+        if (i < parts.length - 1) {
+          var b = el("span", "gram-blank");
+          b.setAttribute("aria-label", "空格 / blank");
+          prompt.appendChild(b);
+          blanks.push(b);
+        }
+      }
+      card.appendChild(prompt);
+      if (ex.promptZh || ex.promptEn) card.appendChild(bilingual("gram-prompt-meaning", ex.promptZh, ex.promptEn));
+
+      // 选项
+      var optBox = el("div", "gram-options");
+      var btns = [];
+      for (var k = 0; k < ex.options.length; k++) {
+        (function (o) {
+          var ob = el("button", "quiz-option");
+          ob.type = "button";
+          ob.appendChild(el("span", "quiz-option-num", String.fromCharCode(65 + o)));
+          ob.appendChild(el("span", "quiz-option-text", String(ex.options[o])));
+          ob.onclick = function () {
+            choose(idx, o);
+          };
+          btns.push(ob);
+          optBox.appendChild(ob);
+        })(k);
+      }
+      card.appendChild(optBox);
+
+      var fb = el("div", "quiz-feedback");
+      fb.hidden = true;
+      card.appendChild(fb);
+
+      // 已经答过（切换课程回来时）：直接显示结果
+      if (chosen !== -1) showAnswered(ex, chosen, blanks, btns, fb);
+      card._parts = { ex: ex, blanks: blanks, btns: btns, fb: fb };
+      return card;
+    }
+
+    // 显示一道题的对错、答案、解释
+    function showAnswered(ex, chosen, blanks, btns, fb) {
+      var correct = chosen === ex.answer;
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = true;
+        if (i === ex.answer) btns[i].classList.add("correct");
+        else if (i === chosen) btns[i].classList.add("wrong");
+      }
+      for (var j = 0; j < blanks.length; j++) {
+        blanks[j].textContent = ex.options[ex.answer];
+        blanks[j].classList.add("filled", correct ? "is-correct" : "is-wrong");
+      }
+      fb.innerHTML = "";
+      fb.className = "quiz-feedback " + (correct ? "is-correct" : "is-wrong");
+      fb.appendChild(el("div", "quiz-feedback-title",
+        correct ? "✔ 答对了！ / Correct!" :
+          "✘ 答错了，正确答案是 " + ex.options[ex.answer] + " / Not quite. The answer is " + ex.options[ex.answer]));
+      var line = el("div", "quiz-feedback-word");
+      line.appendChild(sayButton(fullSentence(ex), String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer])));
+      fb.appendChild(line);
+      if (ex.explainZh || ex.explainEn) fb.appendChild(bilingual("gram-explain", ex.explainZh, ex.explainEn));
+      fb.hidden = false;
+    }
+
+    function choose(idx, optIdx) {
+      var a = answers[lessonIndex];
+      if (a[idx] !== -1) return; // 每题只能答一次
+      var ls = LESSONS[lessonIndex];
+      var exs = lessonExercises(ls);
+      var ex = exs[idx];
+      a[idx] = optIdx;
+
+      var card = box.querySelectorAll(".gram-exercise")[idx];
+      var p = card._parts;
+      showAnswered(ex, optIdx, p.blanks, p.btns, p.fb);
+      updateScore();
+
+      var correct = optIdx === ex.answer;
+      var origIdx = lessonExerciseIndexes(ls)[idx]; // 原始数据下标（跳过不完整的题后序号会变）
+      onGrammarAnswered(ls.id, origIdx, correct);
+
+      var r = lessonScore();
+      if (r.done === r.total) onGrammarLessonDone(ls.id, r.score, r.total);
+    }
+
+    // ---------- 启动 ----------
+    if (!hasData()) {
+      box.appendChild(el("div", "notice",
+        "没有找到语法内容（data/grammar.js 没有加载到）。请确认这个文件存在。" +
+        " / Grammar data not found."));
+    } else {
+      buildLessons();
+      var first = 0;
+      while (first < LESSONS.length && !LESSONS[first]) first++;
+      selectLesson(first, false);
+      // 另一台设备的进度同步过来时：刷新选课按钮上的“已完成”标记
+      window.addEventListener("progress-synced", updateLessonMarks);
+    }
+  </script>
+</body>
+</html>

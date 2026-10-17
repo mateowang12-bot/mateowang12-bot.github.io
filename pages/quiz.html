@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>小测验 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="flag-bar"></div>
+  <div class="container">
+    <a class="back-link" href="../index.html">← 返回首页</a>
+
+    <h1>小测验 <span class="en">Quiz</span></h1>
+
+    <!-- 开始界面（设置） -->
+    <div id="setup-screen">
+      <p>选好范围和题型，点“开始测验”。每次 10 题。<br>
+        <span class="en">Choose lessons and question types, then start. 10 questions each time.</span></p>
+
+      <h2>选择范围 <span class="en">Lessons</span></h2>
+      <div class="quiz-check-list" id="lesson-checks"></div>
+
+      <h2>选择题型 <span class="en">Question types</span></h2>
+      <div class="quiz-check-list quiz-type-list" id="type-checks"></div>
+      <div id="voice-hint"></div>
+
+      <div id="setup-error"></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="start-btn">开始测验 / Start ▶</button>
+      </div>
+    </div>
+
+    <!-- 答题界面 -->
+    <div id="question-screen" hidden>
+      <div class="quiz-status">
+        <span id="q-progress"></span>
+        <span id="q-score"></span>
+      </div>
+      <div class="quiz-question" id="q-box"></div>
+      <div class="quiz-options" id="q-options"></div>
+      <div class="quiz-feedback" id="q-feedback" hidden></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一题 / Next →</button>
+      </div>
+      <p class="key-hint en">电脑键盘：数字键 1–4 选答案，回车键下一题 / Keyboard: 1–4 to answer, Enter for next</p>
+    </div>
+
+    <!-- 结束界面 -->
+    <div id="result-screen" hidden>
+      <div class="quiz-result">
+        <div class="quiz-result-label">你的得分 / Your score</div>
+        <div class="quiz-result-score" id="r-score"></div>
+        <div class="quiz-result-msg" id="r-msg"></div>
+        <div class="quiz-result-msg en" id="r-msg-en"></div>
+      </div>
+      <div id="r-wrong-box"></div>
+      <div class="card-nav">
+        <button type="button" class="btn" id="again-btn">🔁 再来一次（同样设置）/ Again</button>
+        <button type="button" class="btn" id="wrong-btn">只练错题 / Practice mistakes</button>
+        <button type="button" class="btn btn-light" id="setup-btn">返回设置 / Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../data/words.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    // 小工具：做一个“点一下就朗读”的按钮
+    function sayButton(text, label) {
+      var b = el("button", "say", label || text);
+      b.type = "button";
+      b.title = "点击朗读 / Click to listen";
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        if (window.speakSpanish) window.speakSpanish(text);
+      };
+      return b;
+    }
+
+    // 小工具：洗牌（返回新数组，不改原数组）
+    function shuffled(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+      }
+      return a;
+    }
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    // ---------- 题型 ----------
+    var TYPES = [
+      { id: "es2meaning", zh: "看西语选意思", en: "Spanish → meaning" },
+      { id: "meaning2es", zh: "看意思选西语", en: "Meaning → Spanish" },
+      { id: "listen",     zh: "听发音选西语", en: "Listen → Spanish" }
+    ];
+    var QUIZ_SIZE = 10;
+    var MAX_OPTIONS = 4;
+
+    // ---------- 数据：把所有课的词整理成一个列表 ----------
+    // 每一项：{ word: 原始词对象, lesson: 第几课 }
+    var LESSONS = window.WORD_LESSONS;
+    var ALL = [];
+
+    function collectWords() {
+      if (!LESSONS || !LESSONS.length) return;
+      for (var i = 0; i < LESSONS.length; i++) {
+        var ws = (LESSONS[i] && LESSONS[i].words) || [];
+        for (var j = 0; j < ws.length; j++) {
+          var w = ws[j];
+          // 至少要有西语和一种意思，才能出题
+          if (w && w.es && (w.zh || w.en)) ALL.push({ word: w, lesson: i });
+        }
+      }
+    }
+
+    function meaningText(w) {
+      if (w.zh && w.en) return w.zh + " / " + w.en;
+      return w.zh || w.en || "";
+    }
+
+    // 比较用：去掉大小写、标点、首尾空格
+    function norm(s) {
+      return String(s || "").toLowerCase()
+        .replace(/[¿?¡!。，,.？！（）()\s—-]/g, "");
+    }
+    // 把“好；挺好”“well / fine”拆成几个意思
+    function parts(s, sep) {
+      var out = [];
+      var arr = String(s || "").split(sep);
+      for (var i = 0; i < arr.length; i++) {
+        var p = norm(arr[i]);
+        if (p) out.push(p);
+      }
+      return out;
+    }
+    function shareAny(a, b) {
+      for (var i = 0; i < a.length; i++) {
+        if (b.indexOf(a[i]) !== -1) return true;
+      }
+      return false;
+    }
+    // 意思太接近、但文字不同的词：手动写成“互斥”，不放在同一题里
+    // （每一对写的是单词的 id）
+    var EXCLUSIVE = [
+      ["adios", "hasta-luego"],   // 再见 / 回头见：都是告别
+      ["que-tal", "como-estas"]   // 怎么样；你好吗？ / 你好吗？（中文规则也能拦住，这里再保险一次）
+    ];
+    function exclusive(a, b) {
+      if (!a.id || !b.id) return false;
+      for (var i = 0; i < EXCLUSIVE.length; i++) {
+        var p = EXCLUSIVE[i];
+        if ((p[0] === a.id && p[1] === b.id) || (p[0] === b.id && p[1] === a.id)) return true;
+      }
+      return false;
+    }
+
+    // 两个词会不会让选项“撞车”：西语相同、中文相同（或有一个意思相同）、英文意思相同、手动互斥
+    // 例如 perdón（对不起；打扰一下）和 lo siento（对不起；很抱歉）不能放在同一题里
+    function conflicts(a, b) {
+      if (a === b) return true;
+      if (a.id && b.id && a.id === b.id) return true;
+      if (exclusive(a, b)) return true;
+      if (norm(a.es) === norm(b.es)) return true;
+      if (a.zh && b.zh && norm(a.zh) === norm(b.zh)) return true;
+      if (shareAny(parts(a.zh, /[；;]/), parts(b.zh, /[；;]/))) return true;
+      if (shareAny(parts(a.en, /\//), parts(b.en, /\//))) return true;
+      return false;
+    }
+
+    // ---------- 当前设置和状态 ----------
+    var settings = { lessons: [], types: [] }; // 选中的课（下标）、题型（id）
+    var questions = [];  // 本轮题目
+    var qIndex = 0;      // 当前第几题（从 0 开始）
+    var score = 0;
+    var answered = false;
+    var wrongItems = []; // 本轮答错的词（ALL 里的项）
+    var wrongPicks = []; // 和 wrongItems 一一对应：{ chosen: 选错的那个 ALL 项, type: 题型 }
+
+    // ---------- 开始界面 ----------
+    var lessonChecks = [];
+    var allCheck;
+    var typeChecks = [];
+
+    function makeCheck(labelZh, labelEn, checked) {
+      var label = el("label", "quiz-check");
+      var box = el("input");
+      box.type = "checkbox";
+      box.checked = !!checked;
+      label.appendChild(box);
+      var txt = el("span", "quiz-check-text");
+      txt.appendChild(el("span", "lesson-title", labelZh));
+      if (labelEn) txt.appendChild(el("span", "en", labelEn));
+      label.appendChild(txt);
+      return { label: label, box: box };
+    }
+
+    function buildSetup() {
+      var box = $("lesson-checks");
+
+      var all = makeCheck("全部", "All lessons", true);
+      all.label.className += " quiz-check-all";
+      allCheck = all.box;
+      allCheck.onchange = function () {
+        for (var i = 0; i < lessonChecks.length; i++) {
+          if (!lessonChecks[i].box.disabled) lessonChecks[i].box.checked = allCheck.checked;
+        }
+        syncChecked();
+      };
+      box.appendChild(all.label);
+
+      for (var i = 0; i < LESSONS.length; i++) {
+        var ls = LESSONS[i] || {};
+        var count = 0;
+        for (var k = 0; k < ALL.length; k++) if (ALL[k].lesson === i) count++;
+        var c = makeCheck((i + 1) + ". " + (ls.titleZh || ""), (ls.titleEn || "") + " · " + count + " 个词", count > 0);
+        if (!count) {
+          c.box.disabled = true;
+          c.label.className += " disabled";
+        }
+        c.box.onchange = function () {
+          updateAllCheck();
+          syncChecked();
+        };
+        c.index = i;
+        lessonChecks.push(c);
+        box.appendChild(c.label);
+      }
+
+      var tbox = $("type-checks");
+      for (var t = 0; t < TYPES.length; t++) {
+        var tc = makeCheck((t + 1) + ". " + TYPES[t].zh, TYPES[t].en, true);
+        tc.id = TYPES[t].id;
+        tc.box.onchange = syncChecked;
+        typeChecks.push(tc);
+        tbox.appendChild(tc.label);
+      }
+      syncChecked();
+      updateVoiceHint();
+    }
+
+    function updateAllCheck() {
+      var all = true;
+      for (var i = 0; i < lessonChecks.length; i++) {
+        if (!lessonChecks[i].box.disabled && !lessonChecks[i].box.checked) all = false;
+      }
+      allCheck.checked = all;
+    }
+
+    // 勾选的项加高亮
+    function syncChecked() {
+      var labels = document.querySelectorAll(".quiz-check");
+      for (var i = 0; i < labels.length; i++) {
+        var b = labels[i].querySelector("input");
+        labels[i].classList.toggle("active", b.checked);
+      }
+      $("setup-error").innerHTML = "";
+    }
+
+    // 没有西语语音时，提示“听发音”题可能听不清（仍可选）
+    // 语音列表常常是慢慢加载的：列表还是空的时候先不下结论（不显示提示，避免一闪而过），
+    // 等 voiceschanged 事件或约 1.5 秒后（voiceWaitOver = true）再判断。
+    var voiceWaitOver = false;
+    function voicesReady() {
+      var s = window.speechSynthesis;
+      if (!s || typeof s.getVoices !== "function") return true; // 不支持朗读：直接判断
+      try {
+        return s.getVoices().length > 0;
+      } catch (e) {
+        return true;
+      }
+    }
+    function updateVoiceHint() {
+      var box = $("voice-hint");
+      box.innerHTML = "";
+      if (!voiceWaitOver && !voicesReady()) return;
+      var ok = typeof window.hasSpanishVoice === "function" && window.hasSpanishVoice();
+      if (!ok) {
+        box.appendChild(el("div", "notice",
+          "提示：这台设备好像没有西班牙语语音，第 3 种题型“听发音选西语”可能听不清。仍然可以选。" +
+          " / No Spanish voice found — listening questions may be hard to hear."));
+      }
+    }
+
+    function readSettings() {
+      var ls = [];
+      for (var i = 0; i < lessonChecks.length; i++) {
+        if (lessonChecks[i].box.checked && !lessonChecks[i].box.disabled) ls.push(lessonChecks[i].index);
+      }
+      var ts = [];
+      for (var t = 0; t < typeChecks.length; t++) {
+        if (typeChecks[t].box.checked) ts.push(typeChecks[t].id);
+      }
+      return { lessons: ls, types: ts };
+    }
+
+    function setupError(msg) {
+      var box = $("setup-error");
+      box.innerHTML = "";
+      box.appendChild(el("div", "notice", msg));
+    }
+
+    function startFromSetup() {
+      var s = readSettings();
+      if (!s.lessons.length) {
+        setupError("请至少选一课。 / Please choose at least one lesson.");
+        return;
+      }
+      if (!s.types.length) {
+        setupError("请至少选一种题型。 / Please choose at least one question type.");
+        return;
+      }
+      settings = s;
+      startQuiz(poolFromSettings());
+    }
+
+    function poolFromSettings() {
+      var pool = [];
+      for (var i = 0; i < ALL.length; i++) {
+        if (settings.lessons.indexOf(ALL[i].lesson) !== -1) pool.push(ALL[i]);
+      }
+      return pool;
+    }
+
+    // ---------- 出题 ----------
+    // 给一个词挑干扰项：先从同一课抽，不够再从其他课抽；和正确答案、和彼此都不能撞车
+    function pickDistractors(item) {
+      var same = [], other = [];
+      for (var i = 0; i < ALL.length; i++) {
+        if (ALL[i] === item) continue;
+        (ALL[i].lesson === item.lesson ? same : other).push(ALL[i]);
+      }
+      var candidates = shuffled(same).concat(shuffled(other));
+      var chosen = [];
+      for (var j = 0; j < candidates.length && chosen.length < MAX_OPTIONS - 1; j++) {
+        var c = candidates[j];
+        var ok = !conflicts(c.word, item.word);
+        for (var k = 0; ok && k < chosen.length; k++) {
+          if (conflicts(c.word, chosen[k].word)) ok = false;
+        }
+        if (ok) chosen.push(c);
+      }
+      return chosen;
+    }
+
+    function makeQuestion(item, type) {
+      var opts = shuffled([item].concat(pickDistractors(item)));
+      return { item: item, type: type, options: opts, chosen: -1 };
+    }
+
+    // pool：要考的词；题数 = 10（不够就全部）
+    function startQuiz(pool) {
+      var picked = shuffled(pool).slice(0, QUIZ_SIZE);
+      questions = [];
+      for (var i = 0; i < picked.length; i++) {
+        var type = settings.types[Math.floor(Math.random() * settings.types.length)];
+        questions.push(makeQuestion(picked[i], type));
+      }
+      qIndex = 0;
+      score = 0;
+      wrongItems = [];
+      wrongPicks = [];
+      if (!questions.length) {
+        showScreen("setup");
+        setupError("选中的范围里没有可以出题的单词。 / No words in the chosen lessons.");
+        return;
+      }
+      showScreen("question");
+      showQuestion();
+    }
+
+    // ---------- 答题界面 ----------
+    function showScreen(name) {
+      $("setup-screen").hidden = name !== "setup";
+      $("question-screen").hidden = name !== "question";
+      $("result-screen").hidden = name !== "result";
+      window.scrollTo(0, 0);
+    }
+
+    function currentQ() {
+      return questions[qIndex];
+    }
+
+    function updateStatus() {
+      $("q-progress").textContent = "第 " + (qIndex + 1) + " / " + questions.length + " 题";
+      $("q-score").textContent = "得分 / Score: " + score;
+    }
+
+    function showQuestion() {
+      var q = currentQ();
+      var w = q.item.word;
+      answered = false;
+      updateStatus();
+
+      var box = $("q-box");
+      box.innerHTML = "";
+      if (q.type === "es2meaning") {
+        box.appendChild(el("div", "quiz-prompt-label", "这个西语词是什么意思？ / What does it mean?"));
+        box.appendChild(el("div", "quiz-prompt-es", w.es));
+      } else if (q.type === "meaning2es") {
+        box.appendChild(el("div", "quiz-prompt-label", "西语怎么说？ / How do you say it in Spanish?"));
+        box.appendChild(el("div", "quiz-prompt-meaning", meaningText(w)));
+      } else {
+        box.appendChild(el("div", "quiz-prompt-label", "听一听，选出你听到的词 / Listen and choose"));
+        var play = sayButton(w.es, "再听一次 / Listen");
+        play.className += " quiz-play";
+        box.appendChild(play);
+        // 出题时自动读一遍。iPhone 只允许在“用户点击”里同步朗读：
+        // 这里是从“开始 / 下一题 / 再来一次 / 只练错题”按钮的 onclick（或回车键）一路同步调用过来的，
+        // 中间没有 setTimeout / Promise，所以 iPhone 也能出声。听不到时可以点上面的“再听一次”。
+        if (window.speakSpanish) window.speakSpanish(w.es);
+      }
+
+      var optBox = $("q-options");
+      optBox.innerHTML = "";
+      var showEs = q.type !== "es2meaning";
+      for (var i = 0; i < q.options.length; i++) {
+        (function (idx) {
+          var ow = q.options[idx].word;
+          var b = el("button", "quiz-option");
+          b.type = "button";
+          b.appendChild(el("span", "quiz-option-num", String(idx + 1)));
+          b.appendChild(el("span", "quiz-option-text", showEs ? ow.es : meaningText(ow)));
+          b.onclick = function () {
+            answer(idx);
+          };
+          optBox.appendChild(b);
+        })(i);
+      }
+
+      $("q-feedback").hidden = true;
+      $("q-feedback").innerHTML = "";
+      $("next-btn").hidden = true;
+    }
+
+    function answer(idx) {
+      if (answered) return;
+      var q = currentQ();
+      if (idx < 0 || idx >= q.options.length) return;
+      answered = true;
+      q.chosen = idx;
+      var correct = q.options[idx] === q.item;
+      if (correct) {
+        score++;
+      } else {
+        wrongItems.push(q.item);
+        wrongPicks.push({ chosen: q.options[idx], type: q.type });
+      }
+
+      // 标颜色：正确答案绿色，选错的红色；全部按钮不能再点
+      var btns = $("q-options").querySelectorAll(".quiz-option");
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = true;
+        if (q.options[i] === q.item) btns[i].classList.add("correct");
+        else if (i === idx) btns[i].classList.add("wrong");
+      }
+
+      // 显示这个词的西语 / 中文 / 英文，可以点 🔊 听
+      var w = q.item.word;
+      var fb = $("q-feedback");
+      fb.innerHTML = "";
+      fb.className = "quiz-feedback " + (correct ? "is-correct" : "is-wrong");
+      fb.appendChild(el("div", "quiz-feedback-title",
+        correct ? "✔ 答对了！ / Correct!" : "✘ 答错了，正确答案是：/ Not quite. The answer is:"));
+      var line = el("div", "quiz-feedback-word");
+      line.appendChild(sayButton(w.es));
+      line.appendChild(el("span", "quiz-feedback-zh", w.zh || ""));
+      if (w.en) line.appendChild(el("span", "en", " / " + w.en));
+      fb.appendChild(line);
+      fb.hidden = false;
+
+      updateStatus();
+      var next = $("next-btn");
+      next.textContent = qIndex + 1 < questions.length ? "下一题 / Next →" : "看结果 / See result →";
+      next.hidden = false;
+      next.focus();
+
+      onAnswered(w, correct);
+    }
+
+    // 钩子：每答完一题调用一次，记录这个词的熟练度（try/catch 在 js/storage.js 里）
+    function onAnswered(word, correct) {
+      if (window.Progress && word && word.id) window.Progress.markWord(word.id, correct);
+    }
+
+    function nextQuestion() {
+      if (!answered) return;
+      if (qIndex + 1 < questions.length) {
+        qIndex++;
+        showQuestion();
+      } else {
+        showResult();
+      }
+    }
+
+    // ---------- 结束界面 ----------
+    function encouragement(s, total) {
+      var r = total ? s / total : 0;
+      if (r === 1) return ["满分！太棒了！", "Perfect score! Amazing!"];
+      if (r >= 0.8) return ["非常好！差一点就满分了。", "Great job! Almost perfect."];
+      if (r >= 0.6) return ["不错！再练练错题会更好。", "Good work! Review your mistakes to do even better."];
+      if (r >= 0.3) return ["慢慢来，多练几次就会了。", "Take it easy — practice makes perfect."];
+      return ["别灰心！先回单词卡片复习一下，再来试试。", "Don't give up! Review the word cards and try again."];
+    }
+
+    function showResult() {
+      showScreen("result");
+      $("r-score").textContent = score + " / " + questions.length;
+      var msg = encouragement(score, questions.length);
+      $("r-msg").textContent = msg[0];
+      $("r-msg-en").textContent = msg[1];
+      // 记下最近一次成绩（首页“小测验”卡片上显示）
+      if (window.Progress && window.Progress.recordQuiz) window.Progress.recordQuiz(score, questions.length);
+
+      var box = $("r-wrong-box");
+      box.innerHTML = "";
+      if (wrongItems.length) {
+        var h = el("h2", "", "错题 ");
+        h.appendChild(el("span", "en", "Mistakes (" + wrongItems.length + ")"));
+        box.appendChild(h);
+        var ul = el("ul", "word-list quiz-wrong-list");
+        for (var i = 0; i < wrongItems.length; i++) {
+          var w = wrongItems[i].word;
+          var li = el("li", "quiz-wrong-item");
+          li.appendChild(sayButton(w.es));
+          li.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
+          if (w.en) li.appendChild(el("span", "en", "/ " + w.en));
+          // 你选的：看西语选意思 → 显示你选的意思；其他题型 → 显示你选的西语
+          var pick = wrongPicks[i];
+          if (pick && pick.chosen && pick.chosen.word) {
+            var cw = pick.chosen.word;
+            li.appendChild(el("div", "quiz-your-pick",
+              "你选的 / You chose：" + (pick.type === "es2meaning" ? meaningText(cw) : cw.es)));
+          }
+          ul.appendChild(li);
+        }
+        box.appendChild(ul);
+      } else {
+        box.appendChild(el("p", "quiz-no-wrong", "这一轮没有错题 🎉 / No mistakes this round!"));
+      }
+      $("wrong-btn").hidden = !wrongItems.length;
+    }
+
+    // ---------- 按钮 ----------
+    $("start-btn").onclick = startFromSetup;
+    $("next-btn").onclick = nextQuestion;
+    $("again-btn").onclick = function () {
+      startQuiz(poolFromSettings());
+    };
+    $("wrong-btn").onclick = function () {
+      startQuiz(wrongItems.slice());
+    };
+    $("setup-btn").onclick = function () {
+      updateVoiceHint();
+      showScreen("setup");
+    };
+
+    // ---------- 键盘：1–4 选答案，回车下一题 ----------
+    document.addEventListener("keydown", function (ev) {
+      if ($("question-screen").hidden) return;
+      var k = ev.key;
+      if (!answered && k >= "1" && k <= "9" && k.length === 1) {
+        var idx = Number(k) - 1;
+        if (idx < currentQ().options.length) {
+          ev.preventDefault();
+          answer(idx);
+        }
+      } else if (answered && k === "Enter") {
+        ev.preventDefault(); // 避免“下一题”按钮被回车再点一次
+        nextQuestion();
+      }
+    });
+
+    // ---------- 启动 ----------
+    collectWords();
+    if (!ALL.length) {
+      $("setup-screen").innerHTML = "";
+      $("setup-screen").appendChild(el("div", "notice",
+        "没有找到单词内容（data/words.js 没有加载到，或者里面没有单词）。请确认这个文件存在。" +
+        " / Word data not found."));
+    } else {
+      buildSetup();
+      // 语音列表可能是慢慢加载的：加载好后重新判断要不要显示提示
+      if (window.speechSynthesis && typeof window.speechSynthesis.addEventListener === "function") {
+        window.speechSynthesis.addEventListener("voiceschanged", function () {
+          voiceWaitOver = true;
+          updateVoiceHint();
+        });
+      }
+      setTimeout(function () {
+        voiceWaitOver = true;
+        updateVoiceHint();
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

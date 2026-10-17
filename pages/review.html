@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>复习 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="flag-bar"></div>
+  <div class="container">
+    <a class="back-link" href="../index.html">← 返回首页</a>
+
+    <h1>复习 <span class="en">Review</span></h1>
+    <p>先出不熟的词。看西语，想一想意思，再点“显示答案”，然后给自己打分。<br>
+      <span class="en">Words you don't know well come first. Think, show the answer, then rate yourself.</span></p>
+
+    <!-- 还没学过单词时的提示 -->
+    <div id="empty-screen" hidden></div>
+
+    <!-- 复习卡片 -->
+    <div id="review-screen" hidden>
+      <div class="quiz-status">
+        <span id="rv-progress"></span>
+        <span id="rv-status"></span>
+      </div>
+      <div class="quiz-question review-card" id="rv-card">
+        <div class="review-es" id="rv-es"></div>
+        <div class="review-say" id="rv-say"></div>
+        <div class="review-answer" id="rv-answer" hidden></div>
+      </div>
+      <div class="card-nav" id="rv-show-row">
+        <button type="button" class="btn quiz-big-btn" id="rv-show-btn">显示答案 / Show answer</button>
+      </div>
+      <div class="review-rate" id="rv-rate-row" hidden>
+        <button type="button" class="btn review-rate-btn rate-no" id="rv-no">1 · 不认识<span class="en">Don't know</span></button>
+        <button type="button" class="btn review-rate-btn rate-fuzzy" id="rv-fuzzy">2 · 模糊<span class="en">Not sure</span></button>
+        <button type="button" class="btn review-rate-btn rate-yes" id="rv-yes">3 · 认识<span class="en">Know it</span></button>
+      </div>
+      <p class="key-hint en">手机：点卡片或在卡片上左滑，显示答案 / Phone: tap or swipe left on the card to show the answer<br>
+        电脑键盘：空格 / 回车显示答案，1 / 2 / 3 打分 / Keyboard: Space or Enter to show, 1–3 to rate</p>
+    </div>
+
+    <!-- 结束页 -->
+    <div id="done-screen" hidden>
+      <div class="quiz-result">
+        <div class="quiz-result-label">本轮复习完成 / Round finished</div>
+        <div class="quiz-result-score" id="d-count"></div>
+        <div class="review-summary" id="d-summary"></div>
+        <div class="quiz-result-msg" id="d-mastered"></div>
+      </div>
+      <div id="d-list-box" class="review-list-box"></div>
+      <div class="card-nav">
+        <button type="button" class="btn" id="again-btn">🔁 再复习一轮 / Another round</button>
+        <a class="btn btn-light btn-link" href="words.html">单词卡片 / Word cards</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 学习内容、发音、进度（普通 script，双击打开也能用） -->
+  <script src="../data/words.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script src="../js/swipe.js"></script>
+  <script>
+    // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+    function $(id) {
+      return document.getElementById(id);
+    }
+    // 小工具：做一个“点一下就朗读”的按钮
+    function sayButton(text, label) {
+      var b = el("button", "say", label || text);
+      b.type = "button";
+      b.title = "点击朗读 / Click to listen";
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        if (window.speakSpanish) window.speakSpanish(text);
+      };
+      return b;
+    }
+
+    var ROUND_SIZE = 10;  // 每轮最多 10 个词
+    var P = window.Progress || null;
+
+    // ---------- 数据：所有课的所有词 ----------
+    var ALL = [];
+    (function collect() {
+      var ls = window.WORD_LESSONS || [];
+      for (var i = 0; i < ls.length; i++) {
+        var ws = (ls[i] && ls[i].words) || [];
+        for (var j = 0; j < ws.length; j++) {
+          if (ws[j] && ws[j].id && ws[j].es) ALL.push(ws[j]);
+        }
+      }
+    })();
+    function allIds() {
+      var ids = [];
+      for (var i = 0; i < ALL.length; i++) ids.push(ALL[i].id);
+      return ids;
+    }
+
+    // ---------- 本轮状态 ----------
+    var queue = [];     // 本轮要复习的词
+    var pos = 0;        // 第几个
+    var revealed = false;
+    var results = [];   // { word, rating: "no" / "fuzzy" / "yes" }
+
+    var STATUS_TEXT = { "new": "新词 / New", "learning": "学习中 / Learning", "mastered": "已掌握 / Mastered" };
+
+    function showScreen(name) {
+      $("empty-screen").hidden = name !== "empty";
+      $("review-screen").hidden = name !== "review";
+      $("done-screen").hidden = name !== "done";
+      window.scrollTo(0, 0);
+    }
+
+    // force = true：跳过“今天没有需要复习的词”，直接出一轮
+    function startRound(force) {
+      force = force === true;
+      if (!ALL.length) {
+        showEmpty("没有找到单词内容（data/words.js 没有加载到）。请确认这个文件存在。 / Word data not found.", false);
+        return;
+      }
+      var counts = P ? P.wordCounts(allIds()) : { seen: 0 };
+      if (!counts.seen) {
+        showEmpty("你还没有学过任何单词。先去“单词卡片”学几个词（点“✓ 我记住了”或“✗ 还不熟”），或者做一次小测验，再回来复习吧！" +
+          " / You haven't studied any words yet. Try the word cards first.", true);
+        return;
+      }
+      if (!force && counts.due === 0) {
+        showNothingDue(counts);
+        return;
+      }
+      queue = P.reviewQueue(ALL, ROUND_SIZE);
+      pos = 0;
+      results = [];
+      showScreen("review");
+      showWord();
+    }
+
+    function showEmpty(msg, withLinks) {
+      var box = $("empty-screen");
+      box.innerHTML = "";
+      box.appendChild(el("div", "notice", msg));
+      if (withLinks) {
+        var row = el("div", "card-nav");
+        var a = el("a", "btn quiz-big-btn btn-link", "去学单词卡片 / Go to word cards →");
+        a.href = "words.html";
+        row.appendChild(a);
+        var q = el("a", "btn btn-light btn-link", "做小测验 / Quiz");
+        q.href = "quiz.html";
+        row.appendChild(q);
+        box.appendChild(row);
+      }
+      showScreen("empty");
+    }
+
+    // 学过的词都还记得、暂时不用复习：先告诉用户，再给“仍然复习一轮”按钮
+    function showNothingDue(counts) {
+      var box = $("empty-screen");
+      box.innerHTML = "";
+      var res = el("div", "quiz-result");
+      res.appendChild(el("div", "quiz-result-score review-nothing-due", "今天没有需要复习的词 🎉"));
+      res.appendChild(el("div", "quiz-result-msg en", "Nothing due today"));
+      res.appendChild(el("div", "quiz-result-msg",
+        "已学过 " + counts.seen + " 个词，已掌握 " + counts.mastered + " 个。过几天再来，或者去学新词吧！"));
+      res.appendChild(el("div", "quiz-result-msg en",
+        "Studied " + counts.seen + ", mastered " + counts.mastered + ". Come back in a few days, or learn new words."));
+      box.appendChild(res);
+      var row = el("div", "card-nav");
+      var b = el("button", "btn quiz-big-btn", "仍然复习一轮 / Review anyway");
+      b.type = "button";
+      b.id = "review-anyway-btn";
+      b.onclick = function () { startRound(true); };
+      row.appendChild(b);
+      var a = el("a", "btn btn-light btn-link", "单词卡片 / Word cards");
+      a.href = "words.html";
+      row.appendChild(a);
+      box.appendChild(row);
+      showScreen("empty");
+      b.focus();
+    }
+
+    function statusBadge(word) {
+      var s = P ? P.wordStatus(word.id) : "new";
+      return el("span", "status-badge status-" + s, STATUS_TEXT[s]);
+    }
+
+    function showWord() {
+      var w = queue[pos];
+      revealed = false;
+      $("rv-progress").textContent = "第 " + (pos + 1) + " / " + queue.length + " 个";
+      var st = $("rv-status");
+      st.innerHTML = "";
+      st.appendChild(statusBadge(w));
+
+      $("rv-es").textContent = w.es;
+      var say = $("rv-say");
+      say.innerHTML = "";
+      var b = sayButton(w.es, "听发音 / Listen");
+      b.className += " quiz-play";
+      say.appendChild(b);
+
+      var ans = $("rv-answer");
+      ans.innerHTML = "";
+      ans.appendChild(el("div", "flash-zh", w.zh || ""));
+      ans.appendChild(el("div", "flash-en en", w.en || ""));
+      if (w.note) ans.appendChild(el("div", "flash-note", "💡 " + w.note));
+      if (w.example && w.example.es) {
+        var ex = el("div", "flash-example");
+        ex.appendChild(el("div", "flash-example-label", "例句 / Example"));
+        ex.appendChild(sayButton(w.example.es));
+        ex.appendChild(el("div", "", w.example.zh || ""));
+        ex.appendChild(el("div", "en", w.example.en || ""));
+        ans.appendChild(ex);
+      }
+      ans.hidden = true;
+      $("rv-show-row").hidden = false;
+      $("rv-rate-row").hidden = true;
+      $("rv-show-btn").focus();
+    }
+
+    function reveal() {
+      if (revealed) return;
+      revealed = true;
+      $("rv-answer").hidden = false;
+      $("rv-show-row").hidden = true;
+      $("rv-rate-row").hidden = false;
+    }
+
+    // 自评：不认识 → box 回到 0；模糊 → box 不变、只更新时间；认识 → box + 1
+    function rate(rating) {
+      if (!revealed) return;
+      var w = queue[pos];
+      if (P) {
+        if (rating === "yes") P.markWord(w.id, true);
+        else if (rating === "no") P.markWord(w.id, false);
+        else P.touchWord(w.id);
+      }
+      results.push({ word: w, rating: rating });
+      if (pos + 1 < queue.length) {
+        pos++;
+        showWord();
+      } else {
+        showDone();
+      }
+    }
+
+    function showDone() {
+      showScreen("done");
+      var n = { no: 0, fuzzy: 0, yes: 0 };
+      for (var i = 0; i < results.length; i++) n[results[i].rating]++;
+      $("d-count").textContent = results.length + " 个词";
+
+      var sum = $("d-summary");
+      sum.innerHTML = "";
+      sum.appendChild(el("span", "review-chip rate-yes", "认识 " + n.yes));
+      sum.appendChild(el("span", "review-chip rate-fuzzy", "模糊 " + n.fuzzy));
+      sum.appendChild(el("span", "review-chip rate-no", "不认识 " + n.no));
+
+      var m = P ? P.masteredCount(allIds()) : 0;
+      $("d-mastered").textContent = "总共已掌握 " + m + " / " + ALL.length + " 个词 / Mastered " + m + " of " + ALL.length;
+
+      // 本轮每个词的结果
+      var box = $("d-list-box");
+      box.innerHTML = "";
+      var h = el("h2", "", "本轮结果 ");
+      h.appendChild(el("span", "en", "This round"));
+      box.appendChild(h);
+      var ul = el("ul", "word-list");
+      var LABEL = { no: "不认识", fuzzy: "模糊", yes: "认识" };
+      for (var j = 0; j < results.length; j++) {
+        var w = results[j].word;
+        var li = el("li", "quiz-wrong-item");
+        li.appendChild(sayButton(w.es));
+        li.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
+        li.appendChild(el("span", "review-chip rate-" + results[j].rating, LABEL[results[j].rating]));
+        li.appendChild(statusBadge(w));
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+      $("again-btn").focus();
+    }
+
+    // ---------- 按钮 ----------
+    $("rv-show-btn").onclick = reveal;
+    $("rv-card").onclick = function () { reveal(); };
+    // 手机：在卡片上左滑 = 显示答案（只做这一种滑动：打分一定要点按钮，避免误操作）
+    if (window.addSwipe) window.addSwipe($("rv-card"), { left: reveal });
+    $("rv-no").onclick = function () { rate("no"); };
+    $("rv-fuzzy").onclick = function () { rate("fuzzy"); };
+    $("rv-yes").onclick = function () { rate("yes"); };
+    // 结束页“再复习一轮”是用户主动要求的：直接出一轮
+    $("again-btn").onclick = function () { startRound(true); };
+
+    // ---------- 键盘：空格 / 回车显示答案，1 / 2 / 3 打分 ----------
+    document.addEventListener("keydown", function (ev) {
+      if ($("review-screen").hidden) return;
+      if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+      var k = ev.key;
+      // 焦点在 🔊 按钮上时，空格 / 回车留给按钮自己（朗读）
+      var onSay = ev.target && ev.target.classList && ev.target.classList.contains("say");
+      if (!revealed && !onSay && (k === " " || k === "Spacebar" || k === "Enter")) {
+        ev.preventDefault();
+        reveal();
+      } else if (revealed && (k === "1" || k === "2" || k === "3")) {
+        ev.preventDefault();
+        rate(k === "1" ? "no" : k === "2" ? "fuzzy" : "yes");
+      }
+    });
+
+    // ---------- 启动 ----------
+    startRound();
+  </script>
+</body>
+</html>

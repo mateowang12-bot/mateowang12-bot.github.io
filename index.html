@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>我的西语学习站</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="flag-bar"></div>
+  <div class="container">
+    <h1>¡Hola! 我的西语学习站</h1>
+    <p>欢迎！从字母开始，一步一步学西班牙语。<br>
+      <span class="en">Welcome! Learn Spanish step by step, starting with the alphabet.</span></p>
+
+    <!-- “添加到主屏幕”提示：只在 iPhone Safari、并且不是从主屏幕图标打开时由 js/pwa.js 显示 -->
+    <div class="notice" id="install-tip" role="note" hidden>
+      提示：点 Safari 底部的 <strong>分享</strong> 按钮 → <strong>添加到主屏幕</strong>，以后从桌面图标打开，断网也能用，进度也更不容易丢。以后请只从桌面图标打开（在 Safari 里学的进度不会带到图标里）。
+      <button type="button" class="notice-close" title="关闭" aria-label="关闭 / Close">×</button>
+    </div>
+
+    <h2>学习模块 <span class="en">Modules</span></h2>
+    <p class="study-order"><strong>建议顺序：</strong>① 字母 → ② 单词 → ③ 测验 → ④ 语法，每天用 ⑤ 复习巩固。<br>
+      <span class="en">Suggested order: ① Alphabet → ② Words → ③ Quiz → ④ Grammar, and use ⑤ Review every day.</span></p>
+    <!-- 模块卡片由下面的 JS 生成 -->
+    <div class="module-list" id="module-list"></div>
+
+    <!-- 清除学习记录（页面内二次确认，不用弹窗） -->
+    <div class="reset-row">
+      <div class="sync-status" id="sync-status" role="status"></div>
+      <div class="sync-status" id="pwa-update" role="status" hidden></div>
+      <button type="button" class="btn btn-light btn-small" id="reset-btn" aria-expanded="false" aria-controls="reset-confirm">清除学习记录 / Reset progress</button>
+      <div>
+        <div class="reset-confirm" id="reset-confirm" hidden>
+          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="en">已掌握的单词、语法成绩都会清空，不能恢复。 / This cannot be undone.</span></span>
+          <button type="button" class="btn" id="reset-yes">确定清除</button>
+          <button type="button" class="btn btn-light" id="reset-no">取消</button>
+        </div>
+      </div>
+      <div class="en reset-msg" id="reset-msg" role="status"></div>
+    </div>
+  </div>
+
+  <!-- 学习内容（只用来数总数）和进度记录（普通 script，双击打开也能用） -->
+  <script src="data/alphabet.js"></script>
+  <script src="data/words.js"></script>
+  <script src="data/grammar.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/pwa.js"></script>
+  <script>
+    // 学习模块列表（从简到难）
+    // 想开放一个模块：把它的 available 改成 true 即可
+    // progress：返回卡片上的进度小字（没有就返回空字符串）
+    // desc：卡片上的一句说明 [中文, 英文]（数字按 data/ 里的实际数量）
+    var MODULES = [
+      { zh: "字母与发音", en: "Alphabet & Pronunciation", url: "pages/alphabet.html", available: true, progress: alphabetProgress, desc: alphabetDesc },
+      { zh: "单词卡片",   en: "Word Cards",               url: "pages/words.html",    available: true, progress: wordsProgress,    desc: wordsDesc },
+      { zh: "小测验",     en: "Quiz",                     url: "pages/quiz.html",     available: true, progress: quizProgress,
+        desc: function () { return ["看词选意思，检验学会没有", "Pick the right meaning to check what you've learned"]; } },
+      { zh: "基础语法",   en: "Basic Grammar",            url: "pages/grammar.html",  available: true, progress: grammarProgress,  desc: grammarDesc },
+      { zh: "复习",       en: "Review",                   url: "pages/review.html",   available: true, progress: reviewProgress,
+        desc: function () { return ["优先复习不熟的词", "Words you don't know well come first"]; } }
+    ];
+
+    var P = window.Progress || null;
+
+    function alphabetDesc() {
+      var n = (window.ALPHABET || []).length;
+      return n ? [n + " 个字母，点一下听发音", n + " letters — tap to hear each one"]
+               : ["西语字母，点一下听发音", "Spanish letters — tap to listen"];
+    }
+    function wordsDesc() {
+      var n = allWordIds().length;
+      return n ? [n + " 个常用词，翻卡片记忆", n + " common words on flip cards"]
+               : ["常用词，翻卡片记忆", "Common words on flip cards"];
+    }
+    function grammarDesc() {
+      var ls = window.GRAMMAR_LESSONS || [], n = 0;
+      for (var i = 0; i < ls.length; i++) if (ls[i]) n++;
+      return n ? [n + " 课入门语法 + 练习", n + " beginner lessons with practice"]
+               : ["入门语法 + 练习", "Beginner grammar with practice"];
+    }
+    function quizProgress() {
+      if (!P || !P.lastQuiz) return "";
+      var q = P.lastQuiz();
+      if (!q) return "上次得分：还没做过 / Not yet";
+      return "上次得分 " + q.score + " / " + q.total;
+    }
+
+    function allWordIds() {
+      var ids = [];
+      var ls = window.WORD_LESSONS || [];
+      for (var i = 0; i < ls.length; i++) {
+        var ws = (ls[i] && ls[i].words) || [];
+        for (var j = 0; j < ws.length; j++) if (ws[j] && ws[j].id) ids.push(ws[j].id);
+      }
+      return ids;
+    }
+
+    function alphabetProgress() {
+      if (!P) return "";
+      var a = P.alphabetInfo();
+      var total = (window.ALPHABET || []).length;
+      if (!a.seen) return "字母：还没开始 / Not started";
+      return "字母：已学过 ✓" + (total ? "（听过 " + Math.min(a.letters, total) + " / " + total + " 个）" : "");
+    }
+    function wordsProgress() {
+      if (!P) return "";
+      var ids = allWordIds();
+      return "单词：已掌握 " + P.masteredCount(ids) + " / " + ids.length;
+    }
+    function grammarProgress() {
+      if (!P) return "";
+      var ls = window.GRAMMAR_LESSONS || [];
+      var done = 0, total = 0;
+      for (var i = 0; i < ls.length; i++) {
+        if (!ls[i]) continue;
+        total++;
+        var g = ls[i].id ? P.getGrammar(ls[i].id) : null;
+        if (g && g.done) done++;
+      }
+      return "语法：完成 " + done + " / " + total + " 课";
+    }
+    function reviewProgress() {
+      if (!P) return "";
+      var c = P.wordCounts(allWordIds());
+      if (!c.seen) return "复习：先去学几个单词 / Study some words first";
+      return "复习：待复习 " + c.due + " 个";
+    }
+
+    var list = document.getElementById("module-list");
+
+    function render() {
+      list.innerHTML = "";
+      for (var i = 0; i < MODULES.length; i++) {
+        var m = MODULES[i];
+        // 可用的模块是链接 <a>，不可用的是普通 <div>（点不了）
+        var card = document.createElement(m.available ? "a" : "div");
+        card.className = "module-card" + (m.available ? "" : " locked");
+        if (m.available) {
+          card.href = m.url;
+        } else {
+          card.setAttribute("aria-disabled", "true");
+        }
+
+        card.innerHTML =
+          '<span class="module-num">' + (i + 1) + '</span>' +
+          '<div class="module-title"></div>' +
+          '<div class="en"></div>' +
+          '<div class="module-desc"><span class="module-desc-zh"></span><span class="en"></span></div>' +
+          '<div class="module-progress"></div>' +
+          '<div class="module-status"></div>';
+        card.querySelector(".module-title").textContent = m.zh;
+        card.querySelector(".en").textContent = m.en;
+        var desc = null;
+        try { desc = m.desc ? m.desc() : null; } catch (e) { desc = null; }
+        var de = card.querySelector(".module-desc");
+        if (desc) {
+          de.querySelector(".module-desc-zh").textContent = desc[0];
+          de.querySelector(".en").textContent = desc[1];
+        } else {
+          de.parentNode.removeChild(de);
+        }
+        var text = "";
+        if (m.available && m.progress) {
+          try { text = m.progress(); } catch (e) { text = ""; }
+        }
+        var pe = card.querySelector(".module-progress");
+        if (text) pe.textContent = text;
+        else pe.parentNode.removeChild(pe);
+        card.querySelector(".module-status").textContent =
+          m.available ? "开始学习 →" : "即将开放 / Coming soon";
+
+        list.appendChild(card);
+      }
+    }
+    render();
+
+    // 清除学习记录：页面内二次确认（不用 confirm 弹窗，claude.ai 网页里弹窗不能用）
+    var resetBtn = document.getElementById("reset-btn");
+    var resetBox = document.getElementById("reset-confirm");
+    var resetMsg = document.getElementById("reset-msg");
+    function showResetConfirm(show) {
+      resetBox.hidden = !show;
+      resetBtn.setAttribute("aria-expanded", show ? "true" : "false");
+    }
+    resetBtn.onclick = function () {
+      resetMsg.textContent = "";
+      showResetConfirm(resetBox.hidden);
+      if (!resetBox.hidden) document.getElementById("reset-no").focus(); // 默认焦点在“取消”，防止误按
+    };
+    document.getElementById("reset-no").onclick = function () {
+      showResetConfirm(false);
+      resetMsg.textContent = "已取消，学习记录没有变。 / Cancelled.";
+      resetBtn.focus();
+    };
+    document.getElementById("reset-yes").onclick = function () {
+      showResetConfirm(false);
+      if (P) P.reset();
+      render();
+      resetMsg.textContent = "学习记录已清除。 / Progress has been reset.";
+      resetBtn.focus();
+    };
+    if (!P) resetBtn.disabled = true;
+
+    // 同步状态小字
+    var SYNC_TEXT = {
+      synced: "☁️ 进度已同步到你的 Claude 账号",
+      connecting: "正在同步…",
+      local: "进度保存在这台设备的浏览器里",
+      failed: "暂时连不上同步，进度先保存在这台设备上"
+    };
+    function renderSync() {
+      var s = P && P.sync ? P.sync.status() : "local";
+      document.getElementById("sync-status").textContent = SYNC_TEXT[s] || SYNC_TEXT.local;
+    }
+    renderSync();
+    window.addEventListener("progress-sync-status", renderSync);
+    // 另一台设备的进度同步过来了：重新算一遍
+    window.addEventListener("progress-synced", render);
+
+    // 从别的页面“后退”回首页时（浏览器缓存的旧页面），重新算一遍进度，并把本地进度合并上传
+    window.addEventListener("pageshow", function (ev) {
+      if (!ev.persisted) return;
+      render();
+      if (P && P.sync) P.sync.flush();
+    });
+  </script>
+</body>
+</html>

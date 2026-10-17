@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>字母与发音 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="flag-bar"></div>
+  <div class="container">
+    <a class="back-link" href="../index.html">← 返回首页</a>
+
+    <h1>字母与发音 <span class="en">Alphabet</span></h1>
+    <p>西班牙语有 27 个字母。点一下字母，听它的读音，并查看发音说明和例词。<br>
+      <span class="en">Tap a letter to hear it and see an example word.</span></p>
+
+    <!-- 字母卡片网格（由 JS 生成） -->
+    <div class="letter-grid" id="letter-grid"></div>
+
+    <h2>发音小规则 <span class="en">Pronunciation tips</span></h2>
+    <div id="tips"></div>
+  </div>
+
+  <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../data/alphabet.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    // 学习进度：记下“打开过字母页”（首页会显示“已学过 ✓”）
+    if (window.Progress) window.Progress.markAlphabetSeen();
+
+    // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    // 小工具：做一个“点一下就朗读”的按钮
+    function sayButton(text) {
+      var b = el("button", "say", text);
+      b.type = "button";
+      b.title = "点击朗读 / Click to listen";
+      b.onclick = function () {
+        window.speakSpanish(text);
+      };
+      return b;
+    }
+
+    // 显示“数据没加载到”的提示
+    function showDataMissing(target) {
+      var box = el("div", "notice",
+        "没有找到学习内容（data/alphabet.js 没有加载到）。请确认这个文件存在。" +
+        " / Learning data not found.");
+      target.appendChild(box);
+    }
+
+    // ---------- 字母网格 ----------
+    var grid = document.getElementById("letter-grid");
+    var detail = null;      // 当前打开的详情区
+    var activeCard = null;  // 当前选中的字母卡片
+
+    // 生成某个字母的详情区
+    function makeDetail(item) {
+      var box = el("div", "letter-detail");
+      box.appendChild(el("h3", "", item.letter + " " + item.lower + " — " + item.name));
+      box.appendChild(el("p", "", "读法：" + (item.soundZh || "")));
+      box.appendChild(el("p", "en", item.soundEn || ""));
+
+      if (item.example) {
+        var p = el("p", "", "例词：");
+        p.appendChild(sayButton(item.example.es));
+        p.appendChild(document.createTextNode(" " + (item.example.zh || "") + " "));
+        p.appendChild(el("span", "en", item.example.en || ""));
+        box.appendChild(p);
+      }
+      return box;
+    }
+
+    // 点击字母卡片：朗读 + 展开详情
+    function onLetterClick(card, item) {
+      window.speakSpanish(item.speak || item.name || item.lower);
+      if (window.Progress) window.Progress.markAlphabetSeen(item.letter); // 记下听过的字母
+
+      // 先关掉之前打开的详情
+      if (detail) detail.parentNode.removeChild(detail);
+      if (activeCard) activeCard.classList.remove("active");
+
+      // 把详情区插在这张卡片后面（整行显示）
+      detail = makeDetail(item);
+      card.parentNode.insertBefore(detail, card.nextSibling);
+      card.classList.add("active");
+      activeCard = card;
+    }
+
+    if (!window.ALPHABET || !window.ALPHABET.length) {
+      showDataMissing(grid);
+    } else {
+      for (var i = 0; i < window.ALPHABET.length; i++) {
+        (function (item) {
+          var card = el("button", "letter-card");
+          card.type = "button";
+          card.appendChild(el("span", "letter-big", item.letter + " " + item.lower));
+          card.appendChild(el("span", "letter-name", item.name));
+          card.onclick = function () {
+            onLetterClick(card, item);
+          };
+          grid.appendChild(card);
+        })(window.ALPHABET[i]);
+      }
+    }
+
+    // ---------- 发音小规则 ----------
+    var tipsBox = document.getElementById("tips");
+
+    if (!window.ALPHABET_TIPS || !window.ALPHABET_TIPS.length) {
+      tipsBox.appendChild(el("p", "en", "（暂时没有发音规则内容 / No tips yet）"));
+    } else {
+      for (var j = 0; j < window.ALPHABET_TIPS.length; j++) {
+        var tip = window.ALPHABET_TIPS[j];
+        var card = el("div", "tip-card");
+        var h = el("h3", "", tip.titleZh || "");
+        if (tip.titleEn) {
+          h.appendChild(document.createTextNode(" "));
+          h.appendChild(el("span", "en", tip.titleEn));
+        }
+        card.appendChild(h);
+        card.appendChild(el("p", "", tip.zh || ""));
+        card.appendChild(el("p", "en", tip.en || ""));
+
+        // 例词：每个都可以点击朗读
+        var ex = tip.examples || [];
+        if (ex.length) {
+          var exBox = el("div", "tip-examples");
+          for (var k = 0; k < ex.length; k++) {
+            var one = el("span", "tip-example");
+            one.appendChild(sayButton(ex[k].es));
+            one.appendChild(document.createTextNode(" " + (ex[k].zh || "") + " "));
+            one.appendChild(el("span", "en", ex[k].en || ""));
+            exBox.appendChild(one);
+          }
+          card.appendChild(exBox);
+        }
+        tipsBox.appendChild(card);
+      }
+    }
+  </script>
+</body>
+</html>

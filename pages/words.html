@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>单词卡片 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="flag-bar"></div>
+  <div class="container">
+    <a class="back-link" href="../index.html">← 返回首页</a>
+
+    <h1>单词卡片 <span class="en">Word Cards</span></h1>
+    <p>先选一课。看西语，想一想意思，再点卡片翻面看答案。点 🔊 听发音。<br>
+      <span class="en">Pick a lesson. Tap the card to flip it. Tap 🔊 to listen.</span></p>
+
+    <!-- 选课区（由 JS 生成） -->
+    <div class="lesson-list" id="lesson-list"></div>
+
+    <!-- 卡片区（由 JS 生成） -->
+    <div id="deck"></div>
+
+    <p class="key-hint en">手机：在卡片上左滑看下一张、右滑看上一张，点一下翻面 / Phone: swipe left or right to move, tap to flip<br>
+      电脑键盘：← → 切换卡片，空格键翻面 / Keyboard: ← → to move, Space to flip</p>
+
+    <h2>本课单词一览 <span class="en">Word list</span></h2>
+    <ul class="word-list" id="word-list"></ul>
+  </div>
+
+  <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../data/words.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script src="../js/swipe.js"></script>
+  <script>
+    // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    // 小工具：做一个“点一下就朗读”的按钮（点它不会让卡片翻面）
+    function sayButton(text, label) {
+      var b = el("button", "say", label || text);
+      b.type = "button";
+      b.title = "点击朗读 / Click to listen";
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        window.speakSpanish(text);
+      };
+      return b;
+    }
+
+    var lessonBox = document.getElementById("lesson-list");
+    var deckBox = document.getElementById("deck");
+    var listBox = document.getElementById("word-list");
+
+    // ---------- 当前状态 ----------
+    var LESSONS = window.WORD_LESSONS;
+    var lessonIndex = 0;  // 当前第几课
+    var order = [];       // 卡片顺序：存的是词在本课 words 里的下标（打乱时只打乱这个）
+    var pos = 0;          // 当前是 order 里的第几张
+    var flipped = false;  // 是否翻到背面
+
+    // 卡片区里的元素（建好一次，之后只改内容）
+    var cardEl, frontBadge, frontWord, frontSay, backBox, actionsBox, progressEl;
+
+    function currentLesson() {
+      return LESSONS[lessonIndex];
+    }
+    function currentWord() {
+      return currentLesson().words[order[pos]];
+    }
+
+    // ---------- 数据检查 ----------
+    function hasData() {
+      if (!LESSONS || !LESSONS.length) return false;
+      for (var i = 0; i < LESSONS.length; i++) {
+        if (LESSONS[i] && LESSONS[i].words && LESSONS[i].words.length) return true;
+      }
+      return false;
+    }
+
+    // ---------- 学习进度（js/storage.js） ----------
+    var P = window.Progress || null;
+    var STATUS_TEXT = {
+      "new": "新词 / New",
+      "learning": "学习中 / Learning",
+      "mastered": "已掌握 / Mastered"
+    };
+    function statusOf(word) {
+      return P && word && word.id ? P.wordStatus(word.id) : "new";
+    }
+    // 状态小标记：<span class="status-badge status-new">新词 / New</span>
+    function statusBadge(word) {
+      var s = statusOf(word);
+      return el("span", "status-badge status-" + s, STATUS_TEXT[s]);
+    }
+    function lessonIds(ls) {
+      var ids = [];
+      var ws = (ls && ls.words) || [];
+      for (var i = 0; i < ws.length; i++) if (ws[i] && ws[i].id) ids.push(ws[i].id);
+      return ids;
+    }
+    // 选课按钮上的“已掌握 x / y”
+    function updateLessonCounts() {
+      var spans = lessonBox.querySelectorAll(".lesson-mastered");
+      for (var i = 0; i < spans.length; i++) {
+        var ls = LESSONS[Number(spans[i].getAttribute("data-idx"))] || {};
+        var count = (ls.words || []).length;
+        var m = P ? P.masteredCount(lessonIds(ls)) : 0;
+        spans[i].textContent = "已掌握 " + m + " / " + count;
+        spans[i].classList.toggle("all-done", count > 0 && m === count);
+      }
+    }
+
+    // ---------- 选课区 ----------
+    function buildLessons() {
+      for (var i = 0; i < LESSONS.length; i++) {
+        (function (idx) {
+          var ls = LESSONS[idx] || {};
+          var count = (ls.words || []).length;
+          var b = el("button", "lesson-btn");
+          b.type = "button";
+          b.appendChild(el("span", "lesson-num", String(idx + 1)));
+          var t = el("span", "lesson-title", ls.titleZh || "");
+          b.appendChild(t);
+          b.appendChild(el("span", "en", (ls.titleEn || "") + " · " + count + " 个词"));
+          var m = el("span", "lesson-mastered");
+          m.setAttribute("data-idx", String(idx));
+          b.appendChild(m);
+          if (!count) b.disabled = true;
+          b.onclick = function () {
+            selectLesson(idx);
+          };
+          lessonBox.appendChild(b);
+        })(i);
+      }
+      updateLessonCounts();
+    }
+
+    function selectLesson(idx) {
+      lessonIndex = idx;
+      var words = currentLesson().words || [];
+      order = [];
+      for (var i = 0; i < words.length; i++) order.push(i);
+      pos = 0;
+
+      // 选中的课高亮
+      var btns = lessonBox.querySelectorAll(".lesson-btn");
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].classList.toggle("active", j === idx);
+      }
+      buildWordList();
+      showCard();
+    }
+
+    // ---------- 卡片 ----------
+    function buildDeck() {
+      // 卡片：正面 + 背面叠在一起，点一下翻转
+      cardEl = el("div", "flashcard");
+      cardEl.setAttribute("role", "button");
+      cardEl.setAttribute("tabindex", "0");
+      cardEl.title = "点击翻面 / Click to flip";
+
+      var inner = el("div", "flashcard-inner");
+
+      var front = el("div", "flashcard-face flashcard-front");
+      frontBadge = el("div", "flash-badge");
+      front.appendChild(frontBadge);
+      frontWord = el("div", "flash-es");
+      frontSay = el("div", "flash-say");
+      front.appendChild(frontWord);
+      front.appendChild(frontSay);
+      front.appendChild(el("div", "flash-hint", "点一下看意思 / Tap to flip"));
+
+      backBox = el("div", "flashcard-face flashcard-back");
+
+      inner.appendChild(front);
+      inner.appendChild(backBox);
+      cardEl.appendChild(inner);
+      // 手机：左滑 = 下一张，右滑 = 上一张；滑动不算点击（不翻面）
+      var swipe = window.addSwipe ? window.addSwipe(cardEl, { left: next, right: prev, follow: true }) : null;
+      cardEl.onclick = function () {
+        if (swipe && swipe.justSwiped()) return;
+        flip();
+      };
+
+      // “我记住了 / 还不熟”按钮（renderCardActions 里生成）
+      actionsBox = el("div", "card-actions");
+
+      // 上一个 / 进度 / 下一个 / 打乱
+      var nav = el("div", "card-nav");
+      var prevBtn = el("button", "btn btn-light", "← 上一个");
+      prevBtn.type = "button";
+      prevBtn.onclick = prev;
+      progressEl = el("span", "card-progress");
+      var nextBtn = el("button", "btn", "下一个 →");
+      nextBtn.type = "button";
+      nextBtn.onclick = next;
+      nav.appendChild(prevBtn);
+      nav.appendChild(progressEl);
+      nav.appendChild(nextBtn);
+
+      var shuffleRow = el("div", "card-nav");
+      var shuffleBtn = el("button", "btn btn-light", "🔀 打乱顺序 / Shuffle");
+      shuffleBtn.type = "button";
+      shuffleBtn.onclick = shuffle;
+      shuffleRow.appendChild(shuffleBtn);
+
+      deckBox.appendChild(cardEl);
+      deckBox.appendChild(actionsBox);
+      deckBox.appendChild(nav);
+      deckBox.appendChild(shuffleRow);
+    }
+
+    // 显示当前卡片（总是先回到正面）。注意：不自动朗读，由用户点 🔊
+    function showCard() {
+      var words = currentLesson().words || [];
+      setFlipped(false);
+      if (!words.length) {
+        frontWord.textContent = "（这一课还没有单词）";
+        frontBadge.innerHTML = "";
+        frontSay.innerHTML = "";
+        backBox.innerHTML = "";
+        actionsBox.innerHTML = "";
+        progressEl.textContent = "0 / 0";
+        return;
+      }
+      var w = currentWord();
+
+      // 正面：状态标记 + 西语 + 朗读按钮
+      frontBadge.innerHTML = "";
+      frontBadge.appendChild(statusBadge(w));
+      frontWord.textContent = w.es || "";
+      frontSay.innerHTML = "";
+      frontSay.appendChild(sayButton(w.es, "听发音 / Listen"));
+
+      // 背面：中文、英文、备注、例句
+      backBox.innerHTML = "";
+      var backBadge = el("div", "flash-badge");
+      backBadge.appendChild(statusBadge(w));
+      backBox.appendChild(backBadge);
+      var head = el("div", "flash-back-es", w.es || "");
+      backBox.appendChild(head);
+      backBox.appendChild(el("div", "flash-zh", w.zh || ""));
+      backBox.appendChild(el("div", "flash-en en", w.en || ""));
+      if (w.note) {
+        backBox.appendChild(el("div", "flash-note", "💡 " + w.note));
+      }
+      if (w.example && w.example.es) {
+        var ex = el("div", "flash-example");
+        ex.appendChild(el("div", "flash-example-label", "例句 / Example"));
+        ex.appendChild(sayButton(w.example.es));
+        ex.appendChild(el("div", "", w.example.zh || ""));
+        ex.appendChild(el("div", "en", w.example.en || ""));
+        backBox.appendChild(ex);
+      }
+
+      renderCardActions(w);
+      progressEl.textContent = (pos + 1) + " / " + order.length;
+      highlightList();
+    }
+
+    // 当前卡片下方的“我记住了 / 还不熟”按钮：记录进度后自动跳到下一张
+    // （读写 localStorage 的 try/catch 都在 js/storage.js 里）
+    function renderCardActions(word) {
+      actionsBox.innerHTML = "";
+      if (!word || !word.id || !P) return;
+      var no = el("button", "btn btn-light btn-notyet", "✗ 还不熟 / Not yet");
+      no.type = "button";
+      no.onclick = function () { markAndNext(word, false); };
+      var yes = el("button", "btn btn-gotit", "✓ 我记住了 / Got it");
+      yes.type = "button";
+      yes.onclick = function () { markAndNext(word, true); };
+      actionsBox.appendChild(no);
+      actionsBox.appendChild(yes);
+    }
+
+    function markAndNext(word, known) {
+      P.markWord(word.id, known);
+      updateLessonCounts();
+      refreshListBadges();
+      next();
+    }
+
+    function setFlipped(v) {
+      flipped = v;
+      cardEl.classList.toggle("flipped", v);
+    }
+    function flip() {
+      setFlipped(!flipped);
+    }
+    function next() {
+      if (!order.length) return;
+      pos = (pos + 1) % order.length;
+      showCard();
+    }
+    function prev() {
+      if (!order.length) return;
+      pos = (pos - 1 + order.length) % order.length;
+      showCard();
+    }
+    function goToWord(wordIdx) {
+      for (var i = 0; i < order.length; i++) {
+        if (order[i] === wordIdx) {
+          pos = i;
+          showCard();
+          cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+      }
+    }
+    // 打乱顺序（洗牌），从第一张开始
+    function shuffle() {
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i];
+        order[i] = order[j];
+        order[j] = tmp;
+      }
+      pos = 0;
+      showCard();
+    }
+
+    // ---------- 本课单词一览 ----------
+    function buildWordList() {
+      listBox.innerHTML = "";
+      var words = currentLesson().words || [];
+      for (var i = 0; i < words.length; i++) {
+        (function (idx) {
+          var w = words[idx];
+          var li = el("li");
+          var b = el("button", "word-list-item");
+          b.type = "button";
+          b.appendChild(el("strong", "", w.es || ""));
+          b.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
+          b.appendChild(el("span", "en", "/ " + (w.en || "")));
+          var badgeBox = el("span", "word-list-badge");
+          badgeBox.appendChild(statusBadge(w));
+          b.appendChild(badgeBox);
+          b.onclick = function () {
+            goToWord(idx);
+          };
+          li.appendChild(b);
+          listBox.appendChild(li);
+        })(i);
+      }
+    }
+    // 只更新一览里的状态标记（不重建列表）
+    function refreshListBadges() {
+      var words = currentLesson().words || [];
+      var boxes = listBox.querySelectorAll(".word-list-badge");
+      for (var i = 0; i < boxes.length && i < words.length; i++) {
+        boxes[i].innerHTML = "";
+        boxes[i].appendChild(statusBadge(words[i]));
+      }
+    }
+    function highlightList() {
+      var items = listBox.querySelectorAll(".word-list-item");
+      for (var i = 0; i < items.length; i++) {
+        items[i].classList.toggle("active", i === order[pos]);
+      }
+    }
+
+    // ---------- 键盘：← → 切换，空格翻面 ----------
+    // 焦点是不是在“自己会处理按键”的元素上（按钮、链接、输入框等；卡片本身除外）
+    function focusIsInteractive(target) {
+      if (!target || target === cardEl || !target.tagName) return false;
+      var tag = target.tagName.toLowerCase();
+      return tag === "button" || tag === "a" || tag === "input" ||
+        tag === "textarea" || tag === "select" || target.isContentEditable;
+    }
+    function focusIsTextField(target) {
+      if (!target || !target.tagName) return false;
+      var tag = target.tagName.toLowerCase();
+      return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+    }
+
+    document.addEventListener("keydown", function (ev) {
+      // 按住 Alt / Ctrl / Meta 时不拦截（保证 Alt+← 浏览器后退等快捷键可用）
+      if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+      var k = ev.key;
+      // 在输入框里打字时不拦截方向键
+      if ((k === "ArrowRight" || k === "ArrowLeft") && focusIsTextField(ev.target)) return;
+      if (k === "ArrowRight") {
+        ev.preventDefault();
+        next();
+      } else if (k === "ArrowLeft") {
+        ev.preventDefault();
+        prev();
+      } else if (k === " " || k === "Spacebar") {
+        // 焦点在按钮等元素上：让它自己处理空格（例如按下按钮），不翻面
+        if (focusIsInteractive(ev.target)) return;
+        ev.preventDefault(); // 不让页面往下滚
+        flip();
+      } else if (k === "Enter" && document.activeElement === cardEl) {
+        ev.preventDefault();
+        flip();
+      }
+    });
+
+    // ---------- 启动 ----------
+    if (!hasData()) {
+      deckBox.appendChild(el("div", "notice",
+        "没有找到单词内容（data/words.js 没有加载到）。请确认这个文件存在。" +
+        " / Word data not found."));
+      document.querySelector(".key-hint").hidden = true;
+    } else {
+      buildLessons();
+      buildDeck();
+      // 默认第一课（如果第一课是空的，就选第一个有词的课）
+      var first = 0;
+      while (first < LESSONS.length && !(LESSONS[first].words && LESSONS[first].words.length)) first++;
+      selectLesson(first);
+      // 从别的页面“后退”回来时（浏览器缓存的旧页面），刷新进度标记
+      window.addEventListener("pageshow", function (ev) {
+        if (!ev.persisted) return;
+        updateLessonCounts();
+        refreshListBadges();
+        showCard();
+      });
+      // 另一台设备的进度同步过来时：只刷新数字和标记（不打断正在看的卡片）
+      window.addEventListener("progress-synced", function () {
+        updateLessonCounts();
+        refreshListBadges();
+      });
+    }
+  </script>
+</body>
+</html>
