@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>日常句子 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
+
+    <h1>日常句子 <span class="en">Everyday Phrases</span></h1>
+    <p>先选一组句子。点 🔊 听发音，跟着读几遍；会了就点“✓ 记住了”。<br>
+      <span class="en">Pick a group. Tap 🔊 to listen and repeat. Mark the ones you know.</span></p>
+
+    <!-- 选组（由 JS 生成，从简到难）：默认收起（宽屏时展开），点一下展开 -->
+    <details class="lesson-picker" id="group-picker">
+      <summary><span class="lesson-picker-label">选一组 <span class="en">Groups</span></span>
+        <span class="lesson-picker-current" id="group-current"></span></summary>
+      <div class="lesson-list" id="group-list" role="group" aria-label="句子分组 / Groups"></div>
+    </details>
+
+    <!-- 自测开关 -->
+    <div class="switch-row" id="switch-row" hidden>
+      <label class="quiz-check" for="hide-zh">
+        <input type="checkbox" id="hide-zh">
+        <span class="quiz-check-text">只看西语（遮住中文） <span class="en">Spanish only (self-test)</span></span>
+      </label>
+    </div>
+    <p class="mastery-hint mastery-hint-left" id="mastery-hint" hidden>每句点 3 次“记住了”就算掌握；“还不熟”会让它重新开始。
+      <span class="en">/ Mark “Got it” 3 times to master a phrase.</span></p>
+
+    <div id="group-box"></div>
+  </div>
+
+  <!-- 学习内容、发音、进度（普通 script，双击打开也能用） -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../data/phrases.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/words-util.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    var U = window.WordsUtil;
+    var el = U.el, sayButton = U.sayButton;
+    function $(id) { return document.getElementById(id); }
+
+    var P = window.Progress || null;
+    var GROUPS = window.PHRASE_LESSONS || [];
+    var current = -1;
+
+    function phrasesOf(g) {
+      var out = [];
+      var ps = (g && g.phrases) || [];
+      for (var i = 0; i < ps.length; i++) if (ps[i] && ps[i].id && ps[i].es) out.push(ps[i]);
+      return out;
+    }
+    function idsOf(g) {
+      return phrasesOf(g).map(function (p) { return p.id; });
+    }
+    // 状态小标记 + 掌握进度圆点（js/words-util.js）：○○○ 新句 → ●○○ → ●●○ → ●●● 已掌握 ✓
+    function statusBadge(p, pop) {
+      return U.masteryBadge(p.id, "新句 / New", pop);
+    }
+
+    // ---------- “只看西语”开关（记在 localStorage，读写失败也没关系） ----------
+    var HIDE_KEY = "es-study-phrases-hide-zh";
+    var hideZh = false;
+    try {
+      if (window.localStorage && window.localStorage.getItem(HIDE_KEY) === "1") hideZh = true;
+    } catch (e) {}
+    function applyHide() {
+      $("hide-zh").checked = hideZh;
+      $("hide-zh").parentNode.classList.toggle("active", hideZh);
+      $("group-box").classList.toggle("hide-zh", hideZh);
+      // 重新遮住：把单张“看中文”展开的卡片收回去
+      var cards = $("group-box").querySelectorAll(".phrase-card.revealed");
+      for (var i = 0; i < cards.length; i++) cards[i].classList.remove("revealed");
+    }
+    $("hide-zh").onchange = function () {
+      hideZh = !!this.checked;
+      try { if (window.localStorage) window.localStorage.setItem(HIDE_KEY, hideZh ? "1" : "0"); } catch (e) {}
+      applyHide();
+    };
+
+    // ---------- 选组按钮 ----------
+    function buildGroups() {
+      var box = $("group-list");
+      for (var i = 0; i < GROUPS.length; i++) {
+        (function (idx) {
+          var g = GROUPS[idx] || {};
+          var n = phrasesOf(g).length;
+          var b = el("button", "lesson-btn");
+          b.type = "button";
+          b.setAttribute("data-idx", String(idx));
+          b.appendChild(el("span", "lesson-num", String(idx + 1)));
+          b.appendChild(el("span", "lesson-title", g.titleZh || ""));
+          b.appendChild(el("span", "en", (g.titleEn || "") + " · " + n + " 句"));
+          var m = el("span", "lesson-mastered");
+          m.setAttribute("data-idx", String(idx));
+          b.appendChild(m);
+          if (!n) b.disabled = true;
+          b.onclick = function () {
+            selectGroup(idx);
+            if (!pickerWide()) $("group-picker").open = false; // 手机上选好后收起
+            $("switch-row").scrollIntoView({ block: "start" });
+          };
+          box.appendChild(b);
+        })(i);
+      }
+      updateCounts();
+    }
+    function updateCounts() {
+      var spans = $("group-list").querySelectorAll(".lesson-mastered");
+      for (var i = 0; i < spans.length; i++) {
+        var g = GROUPS[Number(spans[i].getAttribute("data-idx"))];
+        U.setLessonCount(spans[i], idsOf(g)); // “已掌握 x / y”（有学习中的再加“学习中 n”）
+      }
+    }
+
+    // ---------- 一组句子 ----------
+    function selectGroup(idx) {
+      current = idx;
+      var btns = $("group-list").querySelectorAll(".lesson-btn");
+      for (var j = 0; j < btns.length; j++) {
+        btns[j].classList.toggle("active", Number(btns[j].getAttribute("data-idx")) === idx);
+      }
+      var g = GROUPS[idx] || {};
+      $("group-current").textContent = "当前：" + (idx + 1) + ". " + (g.titleZh || "") + "（点这里换一组）";
+      var box = $("group-box");
+      box.innerHTML = "";
+      var h = el("h2", "", (g.titleZh || "") + " ");
+      h.appendChild(el("span", "en", g.titleEn || ""));
+      box.appendChild(h);
+      if (g.sceneZh || g.sceneEn) {
+        var sc = el("div", "dlg-scene phrase-scene");
+        if (g.sceneZh) sc.appendChild(el("p", "", g.sceneZh));
+        if (g.sceneEn) sc.appendChild(el("p", "en", g.sceneEn));
+        box.appendChild(sc);
+      }
+      var list = el("div", "phrase-list");
+      var ps = phrasesOf(g);
+      for (var i = 0; i < ps.length; i++) list.appendChild(phraseCard(ps[i], i));
+      box.appendChild(list);
+      applyHide();
+    }
+
+    function phraseCard(p, i) {
+      var card = el("div", "phrase-card");
+      card.id = "card-" + p.id;
+      var top = el("div", "phrase-top");
+      var es = el("div", "phrase-es");
+      es.appendChild(document.createTextNode(p.es + " "));
+      es.appendChild(sayButton(p.es, "听"));
+      top.appendChild(es);
+      var badge = el("span", "phrase-badge");
+      badge.appendChild(statusBadge(p));
+      top.appendChild(badge);
+      card.appendChild(top);
+
+      // 只看西语时：这些部分先遮住，点“看中文”再显示
+      var hid = el("div", "phrase-hideable");
+      if (p.zh) hid.appendChild(el("div", "phrase-zh", p.zh));
+      if (p.en) {
+        var d = el("details");
+        d.appendChild(el("summary", "", "英文 / English"));
+        d.appendChild(el("div", "en", p.en));
+        hid.appendChild(d);
+      }
+      if (p.note) hid.appendChild(el("div", "phrase-note", "💡 " + p.note));
+      card.appendChild(hid);
+
+      if (p.reply && p.reply.es) {
+        var r = el("div", "phrase-reply");
+        r.appendChild(el("div", "phrase-reply-label", "对方可能回答： / They might reply:"));
+        var res = el("div", "phrase-reply-es");
+        res.appendChild(document.createTextNode(p.reply.es + " "));
+        res.appendChild(sayButton(p.reply.es, "听"));
+        r.appendChild(res);
+        var rh = el("div", "phrase-hideable");
+        if (p.reply.zh) rh.appendChild(el("div", "", p.reply.zh));
+        if (p.reply.en) rh.appendChild(el("div", "en", p.reply.en));
+        r.appendChild(rh);
+        card.appendChild(r);
+      }
+
+      var reveal = el("button", "btn btn-light btn-small reveal-btn", "👀 看中文 / Show meaning");
+      reveal.type = "button";
+      reveal.onclick = function () { card.classList.add("revealed"); };
+      card.appendChild(reveal);
+
+      var acts = el("div", "phrase-actions");
+      // 点了以后的提示（句子页不自动跳转，只更新圆点、显示提示）
+      var fb = el("div", "mark-feedback");
+      fb.setAttribute("role", "status");
+      fb.setAttribute("aria-live", "polite");
+      if (P) {
+        var no = el("button", "btn btn-light btn-notyet", "✗ 还不熟 / Not yet");
+        no.type = "button";
+        var yes = el("button", "btn btn-gotit", "✓ 记住了 / Got it");
+        yes.type = "button";
+        // 点一次后两个按钮停用约 1.5 秒（防止连点刷记录）
+        var pair = [no, yes];
+        no.onclick = function () { mark(p, false, badge, fb, pair); };
+        yes.onclick = function () { mark(p, true, badge, fb, pair); };
+        acts.appendChild(no);
+        acts.appendChild(yes);
+      }
+      card.appendChild(acts);
+      card.appendChild(fb);
+      return card;
+    }
+
+    var MARK_LOCK_MS = 1500;
+    function mark(p, known, badgeBox, fb, pair) {
+      if (pair && pair[0].disabled) return;
+      if (pair) {
+        pair[0].disabled = pair[1].disabled = true;
+        setTimeout(function () { pair[0].disabled = pair[1].disabled = false; }, MARK_LOCK_MS);
+      }
+      // 句子和单词共用同一张记录表（id 以 ph- 开头），读写的 try/catch 在 js/storage.js 里
+      var before = P.getBox(p.id);
+      P.markWord(p.id, known);
+      // 经验值（数值在 js/storage.js 的 XP_RULES）；同一句每天只有第一次给经验值
+      if (P.award) P.award(known ? "wordGot" : "wordNotYet", p.id);
+      var after = P.getBox(p.id);
+      badgeBox.innerHTML = "";
+      badgeBox.appendChild(statusBadge(p, true));
+      var msg = U.markMessage(before, after, known);
+      fb.className = "mark-feedback kind-" + msg.kind;
+      fb.textContent = msg.text;
+      updateCounts();
+    }
+
+    function refreshBadges() {
+      if (current < 0) return;
+      var ps = phrasesOf(GROUPS[current]);
+      for (var i = 0; i < ps.length; i++) {
+        var c = document.getElementById("card-" + ps[i].id);
+        var b = c && c.querySelector(".phrase-badge");
+        if (b) { b.innerHTML = ""; b.appendChild(statusBadge(ps[i])); }
+      }
+    }
+
+    function pickerWide() {
+      try { return !!(window.matchMedia && window.matchMedia("(min-width: 900px)").matches); } catch (e) { return false; }
+    }
+
+    // 网址里的 #group=组的id 或 ?group=组的id → 组的下标（找不到 → -1）
+    function groupFromUrl() {
+      var m = /[#&?]group=([^&#]+)/.exec(String(location.hash || "") + "&" + String(location.search || ""));
+      if (!m) return -1;
+      var id;
+      try { id = decodeURIComponent(m[1]); } catch (e) { id = m[1]; }
+      for (var i = 0; i < GROUPS.length; i++) {
+        if (GROUPS[i] && GROUPS[i].id === id && phrasesOf(GROUPS[i]).length) return i;
+      }
+      return -1;
+    }
+
+    // ---------- 启动 ----------
+    var hasAny = false;
+    for (var gi = 0; gi < GROUPS.length; gi++) if (phrasesOf(GROUPS[gi]).length) hasAny = true;
+    if (!hasAny) {
+      $("group-box").appendChild(el("div", "notice",
+        "没有找到句子内容（data/phrases.js 没有加载到，或者里面没有句子）。请确认这个文件存在。 / Phrase data not found."));
+    } else {
+      $("switch-row").hidden = false;
+      if (P) $("mastery-hint").hidden = false;
+      buildGroups();
+      var first = 0;
+      while (first < GROUPS.length && !phrasesOf(GROUPS[first]).length) first++;
+      // 打开指定的一组：phrases.html#group=组的id（也认 ?group=组的id）。首页“继续学习”用它
+      var target = groupFromUrl();
+      selectGroup(target >= 0 ? target : first);
+      // 选组区：网址里指定了组 → 收起；宽屏且不超过 8 组 → 展开；其他（包括手机）收起
+      $("group-picker").open = target < 0 && pickerWide() && GROUPS.length <= 8;
+      if (target >= 0) $("switch-row").scrollIntoView({ block: "start" });
+      window.addEventListener("hashchange", function () {
+        var t = groupFromUrl();
+        if (t >= 0 && t !== current) {
+          selectGroup(t);
+          $("switch-row").scrollIntoView({ block: "start" });
+        }
+      });
+      window.addEventListener("pageshow", function (ev) {
+        if (!ev.persisted) return;
+        updateCounts();
+        refreshBadges();
+      });
+      window.addEventListener("progress-synced", function () {
+        updateCounts();
+        refreshBadges();
+      });
+    }
+  </script>
+</body>
+</html>

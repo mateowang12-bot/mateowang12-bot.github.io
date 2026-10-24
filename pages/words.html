@@ -11,20 +11,23 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
 </head>
 <body>
-  <div class="flag-bar"></div>
   <div class="container">
-    <a class="back-link" href="../index.html">← 返回首页</a>
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
 
     <h1>单词卡片 <span class="en">Word Cards</span></h1>
     <p>先选一课。看西语，想一想意思，再点卡片翻面看答案。点 🔊 听发音。<br>
       <span class="en">Pick a lesson. Tap the card to flip it. Tap 🔊 to listen.</span></p>
 
-    <!-- 选课区（由 JS 生成） -->
-    <div class="lesson-list" id="lesson-list"></div>
+    <!-- 选课区（由 JS 生成）：课多时分“基础 / 进阶”两组；默认收起（宽屏且课程 ≤ 8 课时展开），点一下展开选课 -->
+    <details class="lesson-picker" id="lesson-picker">
+      <summary><span class="lesson-picker-label">选课 <span class="en">Lessons</span></span>
+        <span class="lesson-picker-current" id="lesson-current"></span></summary>
+      <div class="lesson-list" id="lesson-list"></div>
+    </details>
 
     <!-- 卡片区（由 JS 生成） -->
     <div id="deck"></div>
@@ -37,9 +40,12 @@
   </div>
 
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
   <script src="../data/words.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
+  <script src="../js/words-util.js"></script>
   <script src="../js/pwa.js"></script>
   <script src="../js/swipe.js"></script>
   <script>
@@ -58,6 +64,8 @@
       b.title = "点击朗读 / Click to listen";
       b.onclick = function (ev) {
         ev.stopPropagation();
+        // 提示等待期间点了 🔊（例如听例句）：不再自动换卡，让用户把这句听完，之后自己点“下一个”
+        if (waitTimer) pauseWait();
         window.speakSpanish(text);
       };
       return b;
@@ -66,6 +74,7 @@
     var lessonBox = document.getElementById("lesson-list");
     var deckBox = document.getElementById("deck");
     var listBox = document.getElementById("word-list");
+    var U = window.WordsUtil;
 
     // ---------- 当前状态 ----------
     var LESSONS = window.WORD_LESSONS;
@@ -74,14 +83,33 @@
     var pos = 0;          // 当前是 order 里的第几张
     var flipped = false;  // 是否翻到背面
 
+    // 点了“记住了 / 还不熟”以后，先停一下再换下一张；这段时间里 waitTimer 不是 null
+    //  - 自动发音关：停 WAIT_MS（0.9 秒），不读
+    //  - 自动发音开：先读当前词，读完（onEnd）后再停 WAIT_AFTER_END_MS（2 秒）换卡片并读新词；
+    //    从点击算起最少 WAIT_MIN_MS（1.5 秒），
+    //    onEnd 一直不来（没有语音 / 浏览器不发 end 事件）时最多 WAIT_MAX_MS（4 秒）兜底
+    var WAIT_MS = 900;
+    var WAIT_AFTER_END_MS = 2000;
+    var WAIT_MIN_MS = 1500;
+    var WAIT_MAX_MS = 4000;
+    var waitTimer = null;
+    var waitPos = 0;      // 等待结束后要换到的那一张
+    var waitStart = 0;    // 开始等待的时间
+    var waitSeq = 0;      // 第几次等待：旧的 onEnd 回调（例如被 cancel 打断后才来的）对不上号就不管
+    var ignoreKeyClick = false; // 见键盘部分：空格 / 回车“马上下一张”后，不让同一次按键再点到“记住了”按钮
+
     // 卡片区里的元素（建好一次，之后只改内容）
-    var cardEl, frontBadge, frontWord, frontSay, backBox, actionsBox, progressEl;
+    var cardEl, frontBadge, frontWord, frontSay, backBox, backBadge, actionsBox, progressEl;
+    var noBtn, yesBtn, nowBtn, toastEl, toastText, toastNext, actionsArea;
 
     function currentLesson() {
       return LESSONS[lessonIndex];
     }
+    function wordAt(p) {
+      return currentLesson().words[order[p]];
+    }
     function currentWord() {
-      return currentLesson().words[order[pos]];
+      return wordAt(pos);
     }
 
     // ---------- 数据检查 ----------
@@ -93,20 +121,32 @@
       return false;
     }
 
+    // ---------- 自动发音开关（记在 localStorage，默认打开；读写失败也照常能用） ----------
+    var AUTO_KEY = "es-study-words-autoplay";
+    var autoPlay = true;
+    try {
+      if (window.localStorage && window.localStorage.getItem(AUTO_KEY) === "0") autoPlay = false;
+    } catch (e) {}
+    function saveAutoPlay() {
+      try { if (window.localStorage) window.localStorage.setItem(AUTO_KEY, autoPlay ? "1" : "0"); } catch (e) {}
+    }
+    // 换到新卡片时朗读正面的西语。
+    // 注意：只能在点击 / 触摸 / 按键的处理函数里“同步”调用（iPhone 只允许用户操作时出声）；
+    // 页面刚打开时不调用。每次都现找 window.speakSpanish（方便测试替换）。
+    function sayWord(w) {
+      if (!autoPlay || !w || !w.es || typeof window.speakSpanish !== "function") return;
+      window.speakSpanish(w.es);
+    }
+    // 停掉正在读和已经排队的朗读（失败也没关系）
+    function stopSpeech() {
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+    }
+
     // ---------- 学习进度（js/storage.js） ----------
     var P = window.Progress || null;
-    var STATUS_TEXT = {
-      "new": "新词 / New",
-      "learning": "学习中 / Learning",
-      "mastered": "已掌握 / Mastered"
-    };
-    function statusOf(word) {
-      return P && word && word.id ? P.wordStatus(word.id) : "new";
-    }
-    // 状态小标记：<span class="status-badge status-new">新词 / New</span>
-    function statusBadge(word) {
-      var s = statusOf(word);
-      return el("span", "status-badge status-" + s, STATUS_TEXT[s]);
+    // 状态小标记 + 掌握进度圆点（js/words-util.js）：○○○ 新词 → ●○○ → ●●○ → ●●● 已掌握 ✓
+    function statusBadge(word, pop) {
+      return U.masteryBadge(word && word.id, "新词 / New", pop);
     }
     function lessonIds(ls) {
       var ids = [];
@@ -114,21 +154,27 @@
       for (var i = 0; i < ws.length; i++) if (ws[i] && ws[i].id) ids.push(ws[i].id);
       return ids;
     }
-    // 选课按钮上的“已掌握 x / y”
+    // 选课按钮上的“已掌握 x / y”（有学习中的词时再加“学习中 n”）
     function updateLessonCounts() {
       var spans = lessonBox.querySelectorAll(".lesson-mastered");
       for (var i = 0; i < spans.length; i++) {
         var ls = LESSONS[Number(spans[i].getAttribute("data-idx"))] || {};
-        var count = (ls.words || []).length;
-        var m = P ? P.masteredCount(lessonIds(ls)) : 0;
-        spans[i].textContent = "已掌握 " + m + " / " + count;
-        spans[i].classList.toggle("all-done", count > 0 && m === count);
+        U.setLessonCount(spans[i], lessonIds(ls));
       }
     }
 
     // ---------- 选课区 ----------
     function buildLessons() {
-      for (var i = 0; i < LESSONS.length; i++) {
+      var groups = U ? U.lessonGroups(LESSONS) : [{ zh: "", indices: LESSONS.map(function (x, i) { return i; }) }];
+      for (var g = 0; g < groups.length; g++) {
+        if (groups[g].zh) {
+          lessonBox.appendChild(el("div", "lesson-group-title", groups[g].zh + " / " + groups[g].en));
+        }
+        for (var n = 0; n < groups[g].indices.length; n++) addLessonButton(groups[g].indices[n]);
+      }
+      updateLessonCounts();
+    }
+    function addLessonButton(i) {
         (function (idx) {
           var ls = LESSONS[idx] || {};
           var count = (ls.words || []).length;
@@ -142,16 +188,24 @@
           m.setAttribute("data-idx", String(idx));
           b.appendChild(m);
           if (!count) b.disabled = true;
+          b.setAttribute("data-idx", String(idx));
           b.onclick = function () {
             selectLesson(idx);
+            sayWord(currentWord()); // 用户点了课程按钮：读第一张
+            // 课很多时：选好后把选课区收起来，直接看卡片
+            if (LESSONS.length > 8) {
+              pickerBox.open = false;
+              cardEl.scrollIntoView({ block: "start" });
+            }
           };
           lessonBox.appendChild(b);
         })(i);
-      }
-      updateLessonCounts();
     }
+    var pickerBox = document.getElementById("lesson-picker");
 
+    // 选一课（不朗读：页面刚打开时也调用它；点按钮时由按钮自己朗读）
     function selectLesson(idx) {
+      cancelWait();
       lessonIndex = idx;
       var words = currentLesson().words || [];
       order = [];
@@ -161,14 +215,37 @@
       // 选中的课高亮
       var btns = lessonBox.querySelectorAll(".lesson-btn");
       for (var j = 0; j < btns.length; j++) {
-        btns[j].classList.toggle("active", j === idx);
+        btns[j].classList.toggle("active", Number(btns[j].getAttribute("data-idx")) === idx);
       }
+      var ls = currentLesson() || {};
+      document.getElementById("lesson-current").textContent = "当前：" + (idx + 1) + ". " + (ls.titleZh || "") + "（点这里换课）";
       buildWordList();
       showCard();
     }
 
     // ---------- 卡片 ----------
     function buildDeck() {
+      // 卡片上方：自动发音开关
+      var top = el("div", "switch-row deck-top");
+      var lab = el("label", "quiz-check");
+      lab.setAttribute("for", "autoplay");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.id = "autoplay";
+      cb.checked = autoPlay;
+      lab.appendChild(cb);
+      var lt = el("span", "quiz-check-text", "🔊 自动发音 ");
+      lt.appendChild(el("span", "en", "Auto-play"));
+      lab.appendChild(lt);
+      lab.classList.toggle("active", autoPlay);
+      cb.onchange = function () {
+        autoPlay = !!cb.checked;
+        if (!autoPlay) stopSpeech(); // 关掉时，正在读 / 排队的也停掉
+        lab.classList.toggle("active", autoPlay);
+        saveAutoPlay();
+      };
+      top.appendChild(lab);
+
       // 卡片：正面 + 背面叠在一起，点一下翻转
       cardEl = el("div", "flashcard");
       cardEl.setAttribute("role", "button");
@@ -180,7 +257,7 @@
       var front = el("div", "flashcard-face flashcard-front");
       frontBadge = el("div", "flash-badge");
       front.appendChild(frontBadge);
-      frontWord = el("div", "flash-es");
+      frontWord = el("div", "flash-es fit-word");
       frontSay = el("div", "flash-say");
       front.appendChild(frontWord);
       front.appendChild(frontSay);
@@ -191,15 +268,56 @@
       inner.appendChild(front);
       inner.appendChild(backBox);
       cardEl.appendChild(inner);
+
+      // 点了“记住了 / 还不熟”后的提示：放在卡片下方、替换按钮行（见下面 actionsArea），
+      // 不放在卡片上——等待时要边看边听，卡片上的单词和 🔊 按钮不能被挡住
+      toastEl = el("div", "card-toast");
+      toastEl.hidden = true;
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      toastText = el("div", "card-toast-text");
+      toastNext = el("div", "card-toast-next");
+      nowBtn = el("button", "btn btn-light btn-small card-toast-btn", "马上下一张 → / Next now");
+      nowBtn.type = "button";
+      nowBtn.onclick = function (ev) {
+        ev.stopPropagation();
+        next(); // 等待中 = 马上下一张；已暂停时 = 换到下一张（都会朗读新卡片）
+      };
+      toastEl.appendChild(toastText);
+      toastEl.appendChild(toastNext);
+      toastEl.appendChild(nowBtn);
+      // 点提示框其他地方：等待中也等于“马上下一张”（和以前点卡片上的提示一样）
+      toastEl.onclick = function () {
+        if (waitTimer) skipWait();
+      };
+
       // 手机：左滑 = 下一张，右滑 = 上一张；滑动不算点击（不翻面）
+      // swipe.js 在 touchend 里同步调用 left / right，所以 next / prev 里的朗读 iPhone 也能出声
       var swipe = window.addSwipe ? window.addSwipe(cardEl, { left: next, right: prev, follow: true }) : null;
       cardEl.onclick = function () {
         if (swipe && swipe.justSwiped()) return;
+        if (waitTimer) { skipWait(); return; } // 提示显示期间点卡片 = 马上下一张
         flip();
       };
 
-      // “我记住了 / 还不熟”按钮（renderCardActions 里生成）
+      // “还不熟 / 我记住了”按钮（建一次；点的时候记当前这张卡）
       actionsBox = el("div", "card-actions");
+      noBtn = el("button", "btn btn-light btn-notyet", "✗ 还不熟 / Not yet");
+      noBtn.type = "button";
+      noBtn.onclick = function () { markAndNext(false); };
+      yesBtn = el("button", "btn btn-gotit", "✓ 我记住了 / Got it");
+      yesBtn.type = "button";
+      yesBtn.onclick = function () { markAndNext(true); };
+      actionsBox.appendChild(noBtn);
+      actionsBox.appendChild(yesBtn);
+      // 按钮行和提示框叠在同一个格子里（css/style.css 的 .card-actions-area）：
+      // 等待期间显示提示、按钮只是看不见但仍占位置，页面高度不会大幅跳动
+      actionsArea = el("div", "card-actions-area");
+      actionsArea.appendChild(actionsBox);
+      actionsArea.appendChild(toastEl);
+
+      var rule = el("p", "mastery-hint", "点 3 次“记住了”就算掌握；“还不熟”会让它重新开始。 ");
+      rule.appendChild(el("span", "en", "/ Mark “Got it” 3 times to master a word."));
 
       // 上一个 / 进度 / 下一个 / 打乱
       var nav = el("div", "card-nav");
@@ -220,40 +338,40 @@
       shuffleBtn.onclick = shuffle;
       shuffleRow.appendChild(shuffleBtn);
 
+      deckBox.appendChild(top);
       deckBox.appendChild(cardEl);
-      deckBox.appendChild(actionsBox);
+      deckBox.appendChild(actionsArea);
+      if (P) deckBox.appendChild(rule);
       deckBox.appendChild(nav);
       deckBox.appendChild(shuffleRow);
     }
 
-    // 显示当前卡片（总是先回到正面）。注意：不自动朗读，由用户点 🔊
+    // 显示当前卡片（总是先回到正面）。这里不朗读：朗读由换卡片的操作（点击 / 滑动 / 按键）调用 sayWord
     function showCard() {
       var words = currentLesson().words || [];
       setFlipped(false);
+      hideToast();
       if (!words.length) {
         frontWord.textContent = "（这一课还没有单词）";
         frontBadge.innerHTML = "";
         frontSay.innerHTML = "";
         backBox.innerHTML = "";
-        actionsBox.innerHTML = "";
+        actionsBox.hidden = true;
         progressEl.textContent = "0 / 0";
         return;
       }
       var w = currentWord();
 
       // 正面：状态标记 + 西语 + 朗读按钮
-      frontBadge.innerHTML = "";
-      frontBadge.appendChild(statusBadge(w));
       frontWord.textContent = w.es || "";
       frontSay.innerHTML = "";
       frontSay.appendChild(sayButton(w.es, "听发音 / Listen"));
 
-      // 背面：中文、英文、备注、例句
+      // 背面：状态标记、中文、英文、备注、例句
       backBox.innerHTML = "";
-      var backBadge = el("div", "flash-badge");
-      backBadge.appendChild(statusBadge(w));
+      backBadge = el("div", "flash-badge");
       backBox.appendChild(backBadge);
-      var head = el("div", "flash-back-es", w.es || "");
+      var head = el("div", "flash-back-es fit-word", w.es || "");
       backBox.appendChild(head);
       backBox.appendChild(el("div", "flash-zh", w.zh || ""));
       backBox.appendChild(el("div", "flash-en en", w.en || ""));
@@ -268,56 +386,186 @@
         ex.appendChild(el("div", "en", w.example.en || ""));
         backBox.appendChild(ex);
       }
+      refreshCardBadges(w, false);
 
-      renderCardActions(w);
+      // “记住了 / 还不熟”按钮：词有 id、能记进度时才显示
+      actionsBox.hidden = !(w.id && P);
+      setActionsWaiting(false);
+      // 长词不从中间断开，放不下就缩小字号（js/words-util.js）
+      if (U) U.fitAll(deckBox);
       progressEl.textContent = (pos + 1) + " / " + order.length;
       highlightList();
     }
 
-    // 当前卡片下方的“我记住了 / 还不熟”按钮：记录进度后自动跳到下一张
-    // （读写 localStorage 的 try/catch 都在 js/storage.js 里）
-    function renderCardActions(word) {
-      actionsBox.innerHTML = "";
-      if (!word || !word.id || !P) return;
-      var no = el("button", "btn btn-light btn-notyet", "✗ 还不熟 / Not yet");
-      no.type = "button";
-      no.onclick = function () { markAndNext(word, false); };
-      var yes = el("button", "btn btn-gotit", "✓ 我记住了 / Got it");
-      yes.type = "button";
-      yes.onclick = function () { markAndNext(word, true); };
-      actionsBox.appendChild(no);
-      actionsBox.appendChild(yes);
+    // 卡片正面、背面的状态标记（pop = 圆点做一个小动画）
+    function refreshCardBadges(w, pop) {
+      frontBadge.innerHTML = "";
+      frontBadge.appendChild(statusBadge(w, pop));
+      if (backBadge) {
+        backBadge.innerHTML = "";
+        backBadge.appendChild(statusBadge(w, pop));
+      }
     }
 
-    function markAndNext(word, known) {
+    function setActionsWaiting(v) {
+      actionsBox.classList.toggle("is-waiting", v);
+      noBtn.setAttribute("aria-disabled", v ? "true" : "false");
+      yesBtn.setAttribute("aria-disabled", v ? "true" : "false");
+    }
+    // hint：提示框第二行的小字（例如“稍后自动下一张…”），空字符串就不显示
+    function showToast(msg, hint) {
+      toastEl.className = "card-toast kind-" + msg.kind;
+      // 中文一行（粗体），英文小一号另起一行
+      toastText.textContent = msg.zh;
+      toastText.appendChild(el("span", "en", " / " + msg.en));
+      setToastHint(hint);
+      // 提示替换按钮行。焦点原来在“记住了 / 还不熟”上（键盘用户）：移到“马上下一张”，
+      // 因为看不见的按钮不能拿着焦点
+      var refocus = document.activeElement === yesBtn || document.activeElement === noBtn;
+      toastEl.hidden = false;
+      actionsArea.classList.add("is-toast");
+      if (refocus) nowBtn.focus();
+    }
+    function setToastHint(hint) {
+      toastNext.textContent = hint || "";
+      toastNext.hidden = !hint;
+    }
+    function hideToast() {
+      if (!toastEl || toastEl.hidden) return;
+      var refocus = toastEl.contains(document.activeElement);
+      toastEl.hidden = true;
+      actionsArea.classList.remove("is-toast");
+      // 焦点原来在提示框里：放回“记住了”按钮（看不见就放到卡片上），键盘用户不会丢失位置
+      if (refocus) {
+        if (!actionsBox.hidden) yesBtn.focus();
+        else cardEl.focus();
+      }
+    }
+
+    // 点“我记住了 / 还不熟”：记一次 → 卡片上显示提示、圆点变化 → 先读当前词，读完换下一张
+    // （读写 localStorage 的 try/catch 都在 js/storage.js 里）
+    function markAndNext(known) {
+      if (waitTimer || !P || !order.length) return; // 等待期间再点：不重复记录
+      if (ignoreKeyClick) return; // 刚用空格 / 回车“马上下一张”，同一次按键带出来的点击不算
+      var word = currentWord();
+      if (!word || !word.id) return;
+      var before = P.getBox(word.id);
       P.markWord(word.id, known);
+      // 经验值（数值在 js/storage.js 的 XP_RULES）；同一个词每天只有第一次给经验值
+      if (P.award) P.award(known ? "wordGot" : "wordNotYet", word.id);
+      var after = P.getBox(word.id);
       updateLessonCounts();
-      refreshListBadges();
-      next();
+      refreshListBadges(word.id);
+      refreshCardBadges(word, true);
+      setActionsWaiting(true);
+
+      waitPos = (pos + 1) % order.length;
+      var canSpeak = autoPlay && word.es && typeof window.speakSpanish === "function";
+      // 提示里不再写“下一张：xxx”（下一个词不提前读了），只告诉用户稍后会自动换。
+      // 浏览器根本不支持朗读（没有 speechSynthesis）时不写“🔊 先听一遍”，免得用户等声音
+      var canHear = canSpeak && !!window.speechSynthesis;
+      showToast(U.markMessage(before, after, known), order.length > 1 ?
+        (canHear ? "🔊 先听一遍，稍后自动下一张… / Next card soon…" : "稍后自动下一张… / Next card soon…") : "");
+
+      var seq = ++waitSeq;
+      waitStart = Date.now();
+      if (!canSpeak) {
+        // 自动发音关：不读，0.9 秒后换画面
+        waitTimer = setTimeout(autoFinish, WAIT_MS);
+        return;
+      }
+
+      // 自动发音开：在点击的这一刻“同步”朗读当前这张的词（iPhone 只允许在用户操作的处理函数里同步出声）。
+      // 只排这一句；读完时 onEnd 通知我们，再停约 2 秒换下一张（见 currentSpoken）。
+      waitTimer = setTimeout(autoFinish, WAIT_MAX_MS); // 兜底：onEnd 一直不来（例如没有语音），从点击起最多 4 秒
+      window.speakSpanish(word.es, false, function () { currentSpoken(seq); });
+    }
+    // 当前词读完了（或读不出来）：如果还是这一次等待，就再停约 2 秒后换卡片；
+    // 但从点击算起至少 1.5 秒（读不出来时 onEnd 会马上来，避免提示一闪而过）
+    function currentSpoken(seq) {
+      if (seq !== waitSeq || !waitTimer) return; // 已经换过卡片 / 被取消了：不管
+      var left = Math.max(WAIT_AFTER_END_MS, WAIT_MIN_MS - (Date.now() - waitStart));
+      clearTimeout(waitTimer);
+      waitTimer = setTimeout(autoFinish, left);
+    }
+    // 计时器到点：自动换到下一张，并朗读新卡片（开关打开时）。
+    // 注意：这里是在计时器里调用 speakSpanish（不是用户操作）。
+    //  - 电脑上的浏览器（Edge / Chrome）可以正常出声；
+    //  - iPhone 上，因为同一页面里用户点击时已经读过一次，通常也能出声；
+    //    万一被 iPhone 拦截没声音，用户可以点卡片上的 🔊 按钮再听。
+    function autoFinish() {
+      if (!waitTimer) return;
+      finishWait();
+      sayWord(currentWord());
+    }
+    // 换到下一张（只换画面，不朗读）
+    function finishWait() {
+      if (!waitTimer) return;
+      clearTimeout(waitTimer);
+      waitTimer = null;
+      waitSeq++; // 之后再来的 onEnd 作废
+      pos = waitPos;
+      showCard();
+    }
+    // 等待期间用户要“马上下一张”（按钮、点卡片、下一个、→、左滑、空格 / 回车）：
+    // 立刻换卡片，停掉正在读的旧词，再正常朗读新卡片。
+    // 这里是用户操作的处理函数，所以 iPhone 上也能出声。
+    function skipWait() {
+      if (!waitTimer) return;
+      finishWait();
+      stopSpeech();
+      sayWord(currentWord());
+    }
+    // 等待期间用户做了别的操作（上一个、打乱、换课……）：取消自动跳转，也停掉排队的朗读
+    // （之后那个操作会自己朗读新卡片）
+    function cancelWait() {
+      if (!waitTimer) return;
+      clearTimeout(waitTimer);
+      waitTimer = null;
+      waitSeq++;
+      stopSpeech();
+    }
+    // 等待期间用户点了 🔊：取消自动换卡（用户想多听一会儿），提示框留着，改成“已暂停自动切换”。
+    // 之后用户自己点“下一个” / “马上下一张”（都会换卡并朗读）。
+    // 不用在这里停声音：紧接着的 speakSpanish 会先打断上一句再读。
+    function pauseWait() {
+      if (!waitTimer) return;
+      clearTimeout(waitTimer);
+      waitTimer = null;
+      waitSeq++; // 当前词稍后的 onEnd 作废
+      setToastHint("已暂停自动切换 / Auto-next paused");
     }
 
     function setFlipped(v) {
       flipped = v;
       cardEl.classList.toggle("flipped", v);
     }
+    // 翻面：翻到背面（看意思）时朗读这个词（自动发音打开时）；翻回正面不读。
+    // flip 只在点击 / 按键里调用，所以 iPhone 上也能出声。
     function flip() {
       setFlipped(!flipped);
+      if (flipped) sayWord(currentWord());
+    }
+    // 换到第 p 张并朗读（自动发音打开时）
+    function goTo(p) {
+      cancelWait();
+      pos = p;
+      showCard();
+      sayWord(currentWord());
     }
     function next() {
       if (!order.length) return;
-      pos = (pos + 1) % order.length;
-      showCard();
+      if (waitTimer) { skipWait(); return; } // 提示期间点“下一个”：马上换到那一张，并朗读它
+      goTo((pos + 1) % order.length);
     }
     function prev() {
       if (!order.length) return;
-      pos = (pos - 1 + order.length) % order.length;
-      showCard();
+      goTo((pos - 1 + order.length) % order.length);
     }
     function goToWord(wordIdx) {
       for (var i = 0; i < order.length; i++) {
         if (order[i] === wordIdx) {
-          pos = i;
-          showCard();
+          goTo(i);
           cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
           return;
         }
@@ -325,14 +573,14 @@
     }
     // 打乱顺序（洗牌），从第一张开始
     function shuffle() {
+      if (!order.length) return;
       for (var i = order.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
         var tmp = order[i];
         order[i] = order[j];
         order[j] = tmp;
       }
-      pos = 0;
-      showCard();
+      goTo(0);
     }
 
     // ---------- 本课单词一览 ----------
@@ -359,13 +607,13 @@
         })(i);
       }
     }
-    // 只更新一览里的状态标记（不重建列表）
-    function refreshListBadges() {
+    // 只更新一览里的状态标记（不重建列表）；popId = 刚刚变化的词（它的圆点做小动画）
+    function refreshListBadges(popId) {
       var words = currentLesson().words || [];
       var boxes = listBox.querySelectorAll(".word-list-badge");
       for (var i = 0; i < boxes.length && i < words.length; i++) {
         boxes[i].innerHTML = "";
-        boxes[i].appendChild(statusBadge(words[i]));
+        boxes[i].appendChild(statusBadge(words[i], !!popId && words[i].id === popId));
       }
     }
     function highlightList() {
@@ -395,13 +643,25 @@
       var k = ev.key;
       // 在输入框里打字时不拦截方向键
       if ((k === "ArrowRight" || k === "ArrowLeft") && focusIsTextField(ev.target)) return;
+      var isSpace = k === " " || k === "Spacebar";
+      // 提示显示期间：空格 / 回车 = 马上下一张。
+      // 刚点完“记住了”时焦点还在那个按钮上，所以焦点在“记住了 / 还不熟”按钮上也算；
+      // 别的按钮、链接、输入框照常自己处理。
+      if (waitTimer && (isSpace || k === "Enter") && (!focusIsInteractive(ev.target) ||
+          ev.target === yesBtn || ev.target === noBtn)) {
+        ev.preventDefault();
+        // 按钮上按空格 / 回车，浏览器会另外产生一次“点击”：在松开按键前都不算，免得把新卡片也记一次
+        if (ev.target === yesBtn || ev.target === noBtn) ignoreKeyClick = true;
+        skipWait();
+        return;
+      }
       if (k === "ArrowRight") {
         ev.preventDefault();
         next();
       } else if (k === "ArrowLeft") {
         ev.preventDefault();
         prev();
-      } else if (k === " " || k === "Spacebar") {
+      } else if (isSpace) {
         // 焦点在按钮等元素上：让它自己处理空格（例如按下按钮），不翻面
         if (focusIsInteractive(ev.target)) return;
         ev.preventDefault(); // 不让页面往下滚
@@ -412,6 +672,25 @@
       }
     });
 
+    // 松开按键后（等浏览器那次“点击”处理完）再恢复按钮
+    document.addEventListener("keyup", function () {
+      if (ignoreKeyClick) setTimeout(function () { ignoreKeyClick = false; }, 0);
+    });
+    // 万一没收到 keyup（例如按着键切到别的窗口）：失去焦点时也恢复
+    window.addEventListener("blur", function () { ignoreKeyClick = false; });
+
+    // 网址里的 #lesson=课的id 或 ?lesson=课的id → 课的下标（找不到 / 这一课没有词 → -1）
+    function lessonFromUrl() {
+      var m = /[#&?]lesson=([^&#]+)/.exec(String(location.hash || "") + "&" + String(location.search || ""));
+      if (!m) return -1;
+      var id;
+      try { id = decodeURIComponent(m[1]); } catch (e) { id = m[1]; }
+      for (var i = 0; i < LESSONS.length; i++) {
+        if (LESSONS[i] && LESSONS[i].id === id && LESSONS[i].words && LESSONS[i].words.length) return i;
+      }
+      return -1;
+    }
+
     // ---------- 启动 ----------
     if (!hasData()) {
       deckBox.appendChild(el("div", "notice",
@@ -421,13 +700,28 @@
     } else {
       buildLessons();
       buildDeck();
-      // 默认第一课（如果第一课是空的，就选第一个有词的课）
+      // 默认第一课（如果第一课是空的，就选第一个有词的课）。页面刚打开时不朗读（不是用户点击，iPhone 会拦截）
       var first = 0;
       while (first < LESSONS.length && !(LESSONS[first].words && LESSONS[first].words.length)) first++;
-      selectLesson(first);
+      // 打开指定的课：words.html#lesson=课的id（也认 ?lesson=课的id）。首页“继续学习”用它
+      var target = lessonFromUrl();
+      selectLesson(target >= 0 ? target : first);
+      // 选课区默认收起（手机上不会把卡片挤到下面）；网址里没有指定课、宽屏、而且课程不多（≤ 8 课）时才展开
+      var wide = false;
+      try { wide = window.matchMedia && window.matchMedia("(min-width: 900px)").matches; } catch (e) {}
+      pickerBox.open = target < 0 && wide && LESSONS.length <= 8;
+      // 同一页里改了 #lesson=…：换到那一课（不朗读）
+      window.addEventListener("hashchange", function () {
+        var t = lessonFromUrl();
+        if (t >= 0 && t !== lessonIndex) {
+          selectLesson(t);
+          pickerBox.open = false;
+        }
+      });
       // 从别的页面“后退”回来时（浏览器缓存的旧页面），刷新进度标记
       window.addEventListener("pageshow", function (ev) {
         if (!ev.persisted) return;
+        cancelWait();
         updateLessonCounts();
         refreshListBadges();
         showCard();
@@ -436,6 +730,7 @@
       window.addEventListener("progress-synced", function () {
         updateLessonCounts();
         refreshListBadges();
+        if (order.length) refreshCardBadges(currentWord(), false);
       });
     }
   </script>

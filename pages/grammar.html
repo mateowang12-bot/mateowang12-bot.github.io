@@ -11,26 +11,31 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
 </head>
 <body>
-  <div class="flag-bar"></div>
   <div class="container">
-    <a class="back-link" href="../index.html">← 返回首页</a>
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
 
     <h1>基础语法 <span class="en">Basic Grammar</span></h1>
     <p>按顺序一课一课学：先看讲解和表格，再做练习。点 🔊 听发音。<br>
       <span class="en">Study one lesson at a time: read, then practice. Tap 🔊 to listen.</span></p>
 
-    <!-- 选课区（由 JS 生成） -->
-    <div class="lesson-list" id="lesson-list"></div>
+    <!-- 选课区（由 JS 生成）：默认收起（宽屏时展开），点一下展开 -->
+    <details class="lesson-picker" id="lesson-picker">
+      <summary><span class="lesson-picker-label">选课 <span class="en">Lessons</span></span>
+        <span class="lesson-picker-current" id="lesson-current"></span></summary>
+      <div class="lesson-list" id="lesson-list"></div>
+    </details>
 
     <!-- 本课内容（由 JS 生成） -->
     <div id="lesson-box"></div>
   </div>
 
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
   <script src="../data/grammar.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -80,6 +85,8 @@
     // 每答完一题调用一次；index 是这道题在 data/grammar.js 里 exercises 的原始下标
     function onGrammarAnswered(lessonId, index, correct) {
       if (window.Progress) window.Progress.touchGrammar(lessonId); // 只记“最近学过”，不算完成
+      // 答对一题加经验值（数值在 js/storage.js 的 XP_RULES）
+      if (correct && window.Progress && window.Progress.award) window.Progress.award("grammarRight");
     }
     // 一课的练习全部答完时调用一次：记成绩（best 取最高分），刷新选课按钮上的标记
     function onGrammarLessonDone(lessonId, score, total) {
@@ -180,6 +187,8 @@
       for (var j = 0; j < btns.length; j++) {
         btns[j].classList.toggle("active", j === idx);
       }
+      $("lesson-current").textContent = "当前：" + (idx + 1) + ". " + ((LESSONS[idx] && LESSONS[idx].titleZh) || "") + "（点这里换课）";
+      if (scroll && !pickerWide()) $("lesson-picker").open = false; // 手机上选好后收起
       renderLesson();
       if (scroll && box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -523,6 +532,20 @@
       if (r.done === r.total) onGrammarLessonDone(ls.id, r.score, r.total);
     }
 
+    function pickerWide() {
+      try { return !!(window.matchMedia && window.matchMedia("(min-width: 900px)").matches); } catch (e) { return false; }
+    }
+
+    // 网址里的 #lesson=课的id 或 ?lesson=课的id → 课的下标（找不到 → -1）
+    function lessonFromUrl() {
+      var m = /[#&?]lesson=([^&#]+)/.exec(String(location.hash || "") + "&" + String(location.search || ""));
+      if (!m) return -1;
+      var id;
+      try { id = decodeURIComponent(m[1]); } catch (e) { id = m[1]; }
+      for (var i = 0; i < LESSONS.length; i++) if (LESSONS[i] && LESSONS[i].id === id) return i;
+      return -1;
+    }
+
     // ---------- 启动 ----------
     if (!hasData()) {
       box.appendChild(el("div", "notice",
@@ -532,7 +555,15 @@
       buildLessons();
       var first = 0;
       while (first < LESSONS.length && !LESSONS[first]) first++;
-      selectLesson(first, false);
+      // 打开指定的课：grammar.html#lesson=课的id（也认 ?lesson=课的id）。首页“继续学习”用它
+      var target = lessonFromUrl();
+      selectLesson(target >= 0 ? target : first, target >= 0);
+      // 选课区：网址里指定了课 → 收起；宽屏且不超过 8 课 → 展开；其他（包括手机）收起
+      $("lesson-picker").open = target < 0 && pickerWide() && LESSONS.length <= 8;
+      window.addEventListener("hashchange", function () {
+        var t = lessonFromUrl();
+        if (t >= 0 && t !== lessonIndex) selectLesson(t, true);
+      });
       // 另一台设备的进度同步过来时：刷新选课按钮上的“已完成”标记
       window.addEventListener("progress-synced", updateLessonMarks);
     }

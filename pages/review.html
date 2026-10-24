@@ -11,17 +11,16 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
 </head>
 <body>
-  <div class="flag-bar"></div>
   <div class="container">
-    <a class="back-link" href="../index.html">← 返回首页</a>
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
 
     <h1>复习 <span class="en">Review</span></h1>
-    <p>先出不熟的词。看西语，想一想意思，再点“显示答案”，然后给自己打分。<br>
-      <span class="en">Words you don't know well come first. Think, show the answer, then rate yourself.</span></p>
+    <p>先出不熟的词（学过的日常句子也会一起复习）。看西语，想一想意思，再点“显示答案”，然后给自己打分。<br>
+      <span class="en">Words (and phrases you've studied) you don't know well come first. Think, show the answer, then rate yourself.</span></p>
 
     <!-- 还没学过单词时的提示 -->
     <div id="empty-screen" hidden></div>
@@ -33,7 +32,7 @@
         <span id="rv-status"></span>
       </div>
       <div class="quiz-question review-card" id="rv-card">
-        <div class="review-es" id="rv-es"></div>
+        <div class="review-es fit-word" id="rv-es"></div>
         <div class="review-say" id="rv-say"></div>
         <div class="review-answer" id="rv-answer" hidden></div>
       </div>
@@ -66,9 +65,13 @@
   </div>
 
   <!-- 学习内容、发音、进度（普通 script，双击打开也能用） -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
   <script src="../data/words.js"></script>
+  <script src="../data/phrases.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
+  <script src="../js/words-util.js"></script>
   <script src="../js/pwa.js"></script>
   <script src="../js/swipe.js"></script>
   <script>
@@ -97,8 +100,9 @@
     var ROUND_SIZE = 10;  // 每轮最多 10 个词
     var P = window.Progress || null;
 
-    // ---------- 数据：所有课的所有词 ----------
-    var ALL = [];
+    // ---------- 数据：所有课的所有词 + 学过的日常句子 ----------
+    var ALL = [];        // 单词
+    var PHRASES = [];    // 全部句子（data/phrases.js；句子 id 以 ph- 开头，和单词共用记录表）
     (function collect() {
       var ls = window.WORD_LESSONS || [];
       for (var i = 0; i < ls.length; i++) {
@@ -107,10 +111,38 @@
           if (ws[j] && ws[j].id && ws[j].es) ALL.push(ws[j]);
         }
       }
+      var gs = window.PHRASE_LESSONS || [];
+      for (var g = 0; g < gs.length; g++) {
+        var ps = (gs[g] && gs[g].phrases) || [];
+        for (var k = 0; k < ps.length; k++) {
+          if (ps[k] && ps[k].id && ps[k].es) { ps[k].__phrase = true; PHRASES.push(ps[k]); }
+        }
+      }
     })();
+    // 学过的句子（没学过的句子不算“新词”，不放进复习）
+    function seenPhrases() {
+      var out = [];
+      for (var i = 0; i < PHRASES.length; i++) if (P && P.getWord(PHRASES[i].id)) out.push(PHRASES[i]);
+      return out;
+    }
+    // 复习用的全部条目：所有单词 + 学过的句子
+    function pool() {
+      return ALL.concat(seenPhrases());
+    }
     function allIds() {
       var ids = [];
+      var items = pool();
+      for (var i = 0; i < items.length; i++) ids.push(items[i].id);
+      return ids;
+    }
+    function wordIds() {
+      var ids = [];
       for (var i = 0; i < ALL.length; i++) ids.push(ALL[i].id);
+      return ids;
+    }
+    function phraseIds() {
+      var ids = [];
+      for (var i = 0; i < PHRASES.length; i++) ids.push(PHRASES[i].id);
       return ids;
     }
 
@@ -146,7 +178,7 @@
         showNothingDue(counts);
         return;
       }
-      queue = P.reviewQueue(ALL, ROUND_SIZE);
+      queue = P.reviewQueue(pool(), ROUND_SIZE);
       pos = 0;
       results = [];
       showScreen("review");
@@ -210,6 +242,9 @@
       st.appendChild(statusBadge(w));
 
       $("rv-es").textContent = w.es;
+      $("rv-es").classList.toggle("is-phrase", !!w.__phrase);
+      // 长词不从中间断开，放不下就缩小字号（js/words-util.js 的 fit）
+      if (window.WordsUtil) window.WordsUtil.fit($("rv-es"));
       var say = $("rv-say");
       say.innerHTML = "";
       var b = sayButton(w.es, "听发音 / Listen");
@@ -228,6 +263,14 @@
         ex.appendChild(el("div", "", w.example.zh || ""));
         ex.appendChild(el("div", "en", w.example.en || ""));
         ans.appendChild(ex);
+      }
+      if (w.reply && w.reply.es) {
+        var rp = el("div", "flash-example");
+        rp.appendChild(el("div", "flash-example-label", "对方可能回答 / They might reply"));
+        rp.appendChild(sayButton(w.reply.es));
+        rp.appendChild(el("div", "", w.reply.zh || ""));
+        rp.appendChild(el("div", "en", w.reply.en || ""));
+        ans.appendChild(rp);
       }
       ans.hidden = true;
       $("rv-show-row").hidden = false;
@@ -251,6 +294,7 @@
         if (rating === "yes") P.markWord(w.id, true);
         else if (rating === "no") P.markWord(w.id, false);
         else P.touchWord(w.id);
+        if (P.award) P.award("review"); // 每打一个分加经验值（数值在 js/storage.js 的 XP_RULES）
       }
       results.push({ word: w, rating: rating });
       if (pos + 1 < queue.length) {
@@ -265,7 +309,7 @@
       showScreen("done");
       var n = { no: 0, fuzzy: 0, yes: 0 };
       for (var i = 0; i < results.length; i++) n[results[i].rating]++;
-      $("d-count").textContent = results.length + " 个词";
+      $("d-count").textContent = results.length + " 个";
 
       var sum = $("d-summary");
       sum.innerHTML = "";
@@ -273,8 +317,15 @@
       sum.appendChild(el("span", "review-chip rate-fuzzy", "模糊 " + n.fuzzy));
       sum.appendChild(el("span", "review-chip rate-no", "不认识 " + n.no));
 
-      var m = P ? P.masteredCount(allIds()) : 0;
-      $("d-mastered").textContent = "总共已掌握 " + m + " / " + ALL.length + " 个词 / Mastered " + m + " of " + ALL.length;
+      var m = P ? P.masteredCount(wordIds()) : 0;
+      var t = "总共已掌握 " + m + " / " + ALL.length + " 个词";
+      var tEn = "Mastered " + m + " of " + ALL.length + " words";
+      if (PHRASES.length) {
+        var mp = P ? P.masteredCount(phraseIds()) : 0;
+        t += "、" + mp + " / " + PHRASES.length + " 个句子";
+        tEn += ", " + mp + " of " + PHRASES.length + " phrases";
+      }
+      $("d-mastered").textContent = t + " / " + tEn;
 
       // 本轮每个词的结果
       var box = $("d-list-box");

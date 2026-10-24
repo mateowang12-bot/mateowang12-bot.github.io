@@ -1,7 +1,9 @@
 // ============================================
 // 学习进度记录（storage.js）
 // 所有进度都存在浏览器的 localStorage 里，只用一个 key：
-//   "es-study-progress-v1" → { version, words, grammar, alphabetSeen, alphabetAt, alphabetLetters, lastQuiz?, resetAt }
+//   "es-study-progress-v1" → { version, words, grammar, dialogues, alphabetSeen, alphabetAt, alphabetLetters, lastQuiz?, games, days, xp, settings, resetAt }
+//   （句子和单词共用 words：句子的 id 以 "ph-" 开头；games、days 是阶段 9 加的，xp、settings 是阶段 10 加的，
+//    旧数据没有时当作空的 / 默认值，version 仍是 1）
 // localStorage 不可用（被禁用、隐私模式、出错）时，自动改用内存保存：
 // 网站照样能用，只是关掉页面后进度会丢失（页面顶部会有一行小字提示）。
 //
@@ -16,20 +18,35 @@
 //   Progress.touchWord(id)              “模糊”：box 不变，只更新时间
 //   Progress.getWord(id)                → { box, correct, wrong, lastSeen } 或 null（新词）
 //   Progress.wordStatus(id)             → "new" / "learning" / "mastered"
+//   Progress.getBox(id)                 → 盒子号 0–5（新词 = 0）；页面用它画掌握进度的 3 个小圆点
 //   Progress.masteredCount(ids?)        已掌握个数（可只数一部分 id）
+//   Progress.learningCount(ids)         学习中的个数（学过、还没掌握；只数传入的 id）
 //   Progress.isDue(id)                  这个词现在该不该复习
 //   Progress.reviewQueue(words, max)    把单词排成复习顺序（不熟的在前，新词最后）
 //   Progress.wordCounts(ids)            → { seen, due, mastered }
 //   Progress.recordGrammar(lessonId, score, total)  记一课的成绩（best 取最高分）
 //   Progress.getGrammar(lessonId)       → { best, total, done } 或 null
+//   Progress.recordDialogue(id, score, total)  记一个情景对话的成绩（答对几轮；best 取最高分）
+//   Progress.getDialogue(id)            → { best, total, done } 或 null（还没练过）
 //   Progress.recordQuiz(score, total)   记最近一次小测验成绩（只留最近一次）
 //   Progress.lastQuiz()                 → { score, total, time } 或 null（还没做过）
 //   Progress.markAlphabetSeen(letter?)  打开过字母页 / 听过某个字母
-//   Progress.reset()                    清除全部学习记录（同步时其他设备也会清除）
+//   Progress.recordGame(gameId, score, lowerIsBetter)  记一局小游戏的成绩
+//                                       → { best, plays, lastSeen, lowerIsBetter, isRecord, first, previous }
+//                                       lowerIsBetter = true：分数越小越好（例如翻牌配对的步数）；false：越大越好
+//   Progress.getGame(gameId)            → { best, plays, lastSeen, lowerIsBetter } 或 null（还没玩过）
+//   Progress.streak()                   连续学习天数（从今天往回数；今天还没学就从昨天往回数）
+//   Progress.studiedToday()             今天学过没有（true / false）
+//   Progress.studyDays()                一共学习过几天（最多记最近 400 天）
+//   Progress.dayKey(time?)              本地日期 "YYYY-MM-DD"
+//   “学习日”：markWord / touchWord / recordGrammar / touchGrammar / recordDialogue / recordQuiz / recordGame /
+//   markAlphabetSeen(字母) 时自动记下今天（本地日期）。
+//   Progress.reset()                  清除全部学习记录（同步时其他设备也会清除）
 //   Progress.isAvailable()              true = 能保存；false = 只在内存里
 //
 // ---------- 跨设备同步（Progress.sync） ----------
-// 只在 claude.ai 上打开时有效（页面里有 window.claude）；本地双击打开时完全不起作用。
+// 只在 claude.ai 上打开时有效（window.getClaude() 能拿到 claude：本页的 window.claude，
+// 或外壳页面的 window.parent.claude，见 js/claude-bridge.js）；本地双击打开时完全不起作用。
 // localStorage 仍然是主存储，所有读写都是同步的、马上生效；同步层在后台：
 //   1) 页面加载后连接 claude.ai 的数据库（db）和用户（user），拿不到就安静放弃；
 //   2) 连上后：读远端 → 和本地合并 → 写回本地；合并结果和远端不同才写远端；
@@ -38,9 +55,26 @@
 //   4) 另一台设备写入时（onSnapshot）只合并进本地，然后派发 window 事件 "progress-synced"，页面据此刷新数字；
 //   5) 状态变化时派发 "progress-sync-status"；Progress.sync.status() →
 //      "local"（只存在本机）/ "connecting"（正在同步）/ "synced"（已同步）/ "failed"（同步出错，只存本机）。
-// 合并规则：words 取 lastSeen 新的（相同取 box 大的）；grammar best 取最大、done 任一为真、total 取新的；
+// 合并规则：words 取 lastSeen 新的（相同取 box 大的）；grammar 和 dialogues 一样：best 取最大、done 任一为真、total 取新的；
 //   lastQuiz 取 time 新的；alphabetSeen 任一为真；alphabetLetters 取并集；
-//   resetAt 取较大的，早于 resetAt 的记录全部丢弃（这样“清除记录”能跨设备生效）。
+//   games：best 按方向取更好的（lowerIsBetter 取最小，否则取最大）、plays 取最大、lastSeen 取最大；
+//   days：取并集，只留最近 400 天；
+//   resetAt 取较大的，早于 resetAt 的记录全部丢弃（这样“清除记录”能跨设备生效；days 丢掉 resetAt 那天之前的日期）。
+//   xp（阶段 10）：{ "YYYY-MM-DD": 当天经验值 }，同一天取较大值（两台设备不会重复相加），日期取并集，只留最近 400 天；
+//     resetAt 那天之前的丢掉；resetAt 当天只认“已经知道这次清除”的那一边（它的 resetAt 等于合并后的 resetAt），
+//     免得清除前上午的经验值又从另一台设备合并回来。
+//   settings（阶段 10）：{ dailyGoal: 10/20/50/100, updatedAt }，取 updatedAt 新的那边；清除学习记录时保留设置。
+//
+// ---------- 经验值（XP）和每日目标（阶段 10） ----------
+//   Progress.XP                         每种学习行为加多少经验值（常量都在下面的 XP_RULES，改数值只改那里）
+//   Progress.award(kind)                按 XP_RULES 加经验值；字母“每个字母每天只算一次”、AI 对话“每天最多 20 句”在这里判断
+//                                       → { gained, today, goal, reachedGoal } 或 null（没加）
+//   Progress.addXp(n)                   加 n 点到今天（也算“学过一天”），派发 window 事件 "progress-xp"（detail 同上）
+//   Progress.xpToday() / xpTotal()      今天的 / 最近 400 天总共的经验值
+//   Progress.xpWeek()                   最近 7 天 → [{ day, xp, weekday(0=周日), today }]（从早到晚）
+//   Progress.xpByDay()                  { "YYYY-MM-DD": xp } 的副本
+//   Progress.dailyGoal() / setDailyGoal(n)  每日目标（10 / 20 / 50 / 100，默认 20；存在 settings 里，跟着同步）
+//   Progress.studyDayKeys()             学过的日期列表（排好序）
 // ============================================
 (function () {
   var KEY = "es-study-progress-v1";
@@ -54,8 +88,76 @@
   var storageOk = true;   // localStorage 能不能用
   var memory = null;      // 不能用时的内存备份（也作为最近一次读到的数据）
 
+  // ---------- 经验值规则（想调整数值只改这里） ----------
+  var XP_RULES = {
+    wordGot: 5,        // 单词卡片 / 句子点“记住了”
+    wordNotYet: 2,     // 单词卡片 / 句子点“还不熟”
+    review: 3,         // 复习打分（认识 / 模糊 / 不认识都算）
+    quizRight: 2,      // 小测验答对一题
+    grammarRight: 2,   // 语法练习答对一题
+    dialogueDone: 15,  // 完成一个情景对话（同一个情景每天第一次）
+    dialogueRepeat: 5, // 同一个情景当天再练一次
+    gameDone: 10,      // 小游戏完成一局
+    letter: 1,         // 字母点一个（每个字母每天最多算一次）
+    chatMsg: 2         // AI 对话发一句（每天最多算 20 句）
+  };
+  var CHAT_XP_DAILY_MAX = 20;
+  var GOALS = [10, 20, 50, 100];
+  var DEFAULT_GOAL = 20;
+
+  function defaultSettings() {
+    return { dailyGoal: DEFAULT_GOAL, updatedAt: 0 };
+  }
+
   function emptyState() {
-    return { version: VERSION, words: {}, grammar: {}, alphabetSeen: false, alphabetAt: 0, alphabetLetters: {}, resetAt: 0 };
+    return { version: VERSION, words: {}, grammar: {}, dialogues: {}, alphabetSeen: false, alphabetAt: 0, alphabetLetters: {}, games: {}, days: {}, xp: {}, badges: {}, settings: defaultSettings(), resetAt: 0 };
+  }
+
+  // ---------- 学习日（本地日期） ----------
+  var MAX_DAYS = 400;
+  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+  // 本地日期 "YYYY-MM-DD"（不用 toISOString：那是 UTC，中国晚上 8 点前会算成前一天）
+  function dayKey(t) {
+    var d = new Date(t === undefined ? Date.now() : t);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  // 只留最近的 MAX_DAYS 个日期（按日期排序取最新的，结果和合并顺序无关）
+  function trimDays(days) {
+    var keys = [];
+    for (var k in days) if (has(days, k) && DAY_RE.test(k) && days[k]) keys.push(k);
+    keys.sort();
+    var out = {};
+    for (var i = Math.max(0, keys.length - MAX_DAYS); i < keys.length; i++) out[keys[i]] = 1;
+    return out;
+  }
+  function markDay(st) {
+    st.days[dayKey()] = 1;
+    st.days = trimDays(st.days);
+  }
+  // 经验值：{ "YYYY-MM-DD": 正整数 }，只留最近 MAX_DAYS 天
+  function trimXp(xp) {
+    var keys = [];
+    var src = xp && typeof xp === "object" ? xp : {};
+    for (var k in src) {
+      if (!has(src, k) || !DAY_RE.test(k)) continue;
+      var v = Math.floor(num(src[k], 0));
+      if (v > 0) keys.push(k);
+    }
+    keys.sort();
+    var out = {};
+    for (var i = Math.max(0, keys.length - MAX_DAYS); i < keys.length; i++) out[keys[i]] = Math.floor(num(src[keys[i]], 0));
+    return out;
+  }
+  function cleanSettings(s) {
+    var out = defaultSettings();
+    if (!s || typeof s !== "object") return out;
+    var g = Math.floor(num(s.dailyGoal, DEFAULT_GOAL));
+    out.dailyGoal = GOALS.indexOf(g) !== -1 ? g : DEFAULT_GOAL;
+    out.updatedAt = Math.max(0, num(s.updatedAt, 0));
+    return out;
   }
 
   function getStorage() {
@@ -89,6 +191,20 @@
     return Object.prototype.hasOwnProperty.call(o, k);
   }
 
+  // 整理一组“成绩”记录：{ id: { best, total, done, lastSeen } }，坏的条目丢掉
+  function cleanScores(src, dest) {
+    var g = src && typeof src === "object" ? src : {};
+    for (var gid in g) {
+      if (!has(g, gid) || !g[gid] || typeof g[gid] !== "object") continue;
+      dest[gid] = {
+        best: Math.max(0, num(g[gid].best, 0)),
+        total: Math.max(0, num(g[gid].total, 0)),
+        done: !!g[gid].done,
+        lastSeen: num(g[gid].lastSeen, 0)
+      };
+    }
+  }
+
   // 把读到的数据整理干净（防止被改坏的数据让页面出错）
   function clean(raw) {
     var st = emptyState();
@@ -104,16 +220,9 @@
         lastSeen: num(r.lastSeen, 0)
       };
     }
-    var g = raw.grammar && typeof raw.grammar === "object" ? raw.grammar : {};
-    for (var gid in g) {
-      if (!has(g, gid) || !g[gid] || typeof g[gid] !== "object") continue;
-      st.grammar[gid] = {
-        best: Math.max(0, num(g[gid].best, 0)),
-        total: Math.max(0, num(g[gid].total, 0)),
-        done: !!g[gid].done,
-        lastSeen: num(g[gid].lastSeen, 0)
-      };
-    }
+    // 语法课、情景对话：同样的 { best, total, done, lastSeen }
+    cleanScores(raw.grammar, st.grammar);
+    cleanScores(raw.dialogues, st.dialogues);
     if (raw.lastQuiz && typeof raw.lastQuiz === "object") {
       var lq = raw.lastQuiz;
       var lqTotal = Math.max(0, Math.floor(num(lq.total, 0)));
@@ -132,6 +241,28 @@
     for (var k in al) {
       if (has(al, k) && al[k]) st.alphabetLetters[k] = al[k] === true ? 1 : Math.max(1, num(al[k], 1));
     }
+    // 小游戏：{ gameId: { best, plays, lastSeen, lowerIsBetter } }（旧数据没有 → 空）
+    var gm = raw.games && typeof raw.games === "object" ? raw.games : {};
+    for (var gid in gm) {
+      if (!has(gm, gid) || !gm[gid] || typeof gm[gid] !== "object") continue;
+      var gb = Number(gm[gid].best);
+      if (gm[gid].best === null || gm[gid].best === undefined || !isFinite(gb)) continue;
+      st.games[gid] = {
+        best: Math.max(0, gb),
+        plays: Math.max(1, Math.floor(num(gm[gid].plays, 1))),
+        lastSeen: Math.max(0, num(gm[gid].lastSeen, 0)),
+        lowerIsBetter: !!gm[gid].lowerIsBetter
+      };
+    }
+    // 学习日：{ "YYYY-MM-DD": 1 }（旧数据没有 → 空）
+    st.days = trimDays(raw.days && typeof raw.days === "object" ? raw.days : {});
+    // 经验值、设置（阶段 10；旧数据没有 → 空 / 默认）
+    st.xp = trimXp(raw.xp);
+    var bd = raw.badges && typeof raw.badges === "object" ? raw.badges : {};
+    for (var bk in bd) {
+      if (has(bd, bk) && num(bd[bk], 0) > 0) st.badges[bk] = num(bd[bk], 0);
+    }
+    st.settings = cleanSettings(raw.settings);
     st.resetAt = Math.max(0, num(raw.resetAt, 0));
     return st;
   }
@@ -197,6 +328,7 @@
     }
     r.lastSeen = Date.now();
     st.words[id] = r;
+    markDay(st);
     save(st);
     return getWord(id);
   }
@@ -208,6 +340,7 @@
     var r = st.words[id] || { box: 0, correct: 0, wrong: 0, lastSeen: 0 };
     r.lastSeen = Date.now();
     st.words[id] = r;
+    markDay(st);
     save(st);
     return getWord(id);
   }
@@ -216,6 +349,22 @@
     var r = load().words[id];
     if (!r) return "new";
     return r.box >= MASTERED_BOX ? "mastered" : "learning";
+  }
+
+  // 盒子号（新词 = 0）
+  function getBox(id) {
+    var r = load().words[id];
+    return r ? r.box : 0;
+  }
+
+  // 学习中的个数：有记录、但 box 还不到“已掌握”
+  function learningCount(ids) {
+    var w = load().words;
+    var n = 0;
+    for (var i = 0; i < (ids || []).length; i++) {
+      if (has(w, ids[i]) && w[ids[i]].box < MASTERED_BOX) n++;
+    }
+    return n;
   }
 
   // 已掌握的个数；传入 id 数组时只数这些词（例如一课的词、或数据里现有的词）
@@ -286,10 +435,10 @@
   }
 
   // ---------- 语法 ----------
-  function recordGrammar(lessonId, score, total) {
-    if (!lessonId) return null;
+  // 记一次“完成”的成绩（语法课和情景对话共用）；field = "grammar" / "dialogues"
+  function recordScore(field, id, score, total) {
     var st = load();
-    var g = st.grammar[lessonId] || { best: 0, total: 0, done: false, lastSeen: 0 };
+    var g = st[field][id] || { best: 0, total: 0, done: false, lastSeen: 0 };
     score = Math.max(0, num(score, 0));
     total = Math.max(0, num(total, 0));
     // 题目数量变了（内容编写员加减了题）就以新的总数为准
@@ -301,8 +450,14 @@
     g.total = total;
     g.done = true;
     g.lastSeen = Date.now();
-    st.grammar[lessonId] = g;
+    st[field][id] = g;
+    markDay(st);
     save(st);
+  }
+
+  function recordGrammar(lessonId, score, total) {
+    if (!lessonId) return null;
+    recordScore("grammar", lessonId, score, total);
     return getGrammar(lessonId);
   }
 
@@ -313,12 +468,26 @@
     var g = st.grammar[lessonId] || { best: 0, total: 0, done: false, lastSeen: 0 };
     g.lastSeen = Date.now();
     st.grammar[lessonId] = g;
+    markDay(st);
     save(st);
   }
 
   function getGrammar(lessonId) {
     var g = load().grammar[lessonId];
     return g ? { best: g.best, total: g.total, done: g.done } : null;
+  }
+
+  // ---------- 情景对话 ----------
+  // 练完一个情景时调用：score = 第一次就答对的轮数，total = 一共要“我”说几轮
+  function recordDialogue(id, score, total) {
+    if (!id) return null;
+    recordScore("dialogues", id, score, total);
+    return getDialogue(id);
+  }
+
+  function getDialogue(id) {
+    var d = load().dialogues[id];
+    return d ? { best: d.best, total: d.total, done: d.done } : null;
   }
 
   // ---------- 小测验：最近一次成绩 ----------
@@ -328,6 +497,7 @@
     score = Math.max(0, Math.min(total, Math.floor(num(score, 0))));
     var st = load();
     st.lastQuiz = { score: score, total: total, time: Date.now() };
+    markDay(st);
     save(st);
     return lastQuiz();
   }
@@ -343,8 +513,216 @@
     var now = Date.now();
     st.alphabetSeen = true;
     st.alphabetAt = now;
-    if (letter) st.alphabetLetters[String(letter)] = now;
+    if (letter) {
+      st.alphabetLetters[String(letter)] = now;
+      markDay(st); // 听了字母才算“学了”；只是打开字母页不算
+    }
     save(st);
+  }
+
+  // ---------- 小游戏 ----------
+  // 记一局的成绩。lowerIsBetter：这个游戏是不是“分数越小越好”（同一个游戏方向固定，由页面定义）
+  function recordGame(gameId, score, lowerIsBetter) {
+    if (!gameId) return null;
+    score = Number(score);
+    if (!isFinite(score)) return null;
+    score = Math.max(0, score);
+    var lib = !!lowerIsBetter;
+    var st = load();
+    var g = st.games[gameId];
+    var prev = null;
+    if (!g || g.lowerIsBetter !== lib) {
+      // 第一次玩（或者页面改了计分方向）：这一局就是纪录
+      g = { best: score, plays: g ? g.plays : 0, lastSeen: 0, lowerIsBetter: lib };
+    } else {
+      prev = g.best;
+      g.best = lib ? Math.min(g.best, score) : Math.max(g.best, score);
+    }
+    g.plays++;
+    g.lastSeen = Date.now();
+    st.games[gameId] = g;
+    markDay(st);
+    save(st);
+    var out = getGame(gameId);
+    out.first = prev === null;
+    out.previous = prev;
+    out.isRecord = prev === null || (lib ? score < prev : score > prev);
+    return out;
+  }
+
+  function getGame(gameId) {
+    var g = load().games[gameId];
+    return g ? { best: g.best, plays: g.plays, lastSeen: g.lastSeen, lowerIsBetter: g.lowerIsBetter } : null;
+  }
+
+  // ---------- 连续学习天数 ----------
+  function studiedToday() {
+    return !!load().days[dayKey()];
+  }
+  function streak() {
+    var days = load().days;
+    var d = new Date();
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (!days[dayKey(d.getTime())]) d = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1); // 今天还没学：从昨天数
+    var n = 0;
+    while (days[dayKey(d.getTime())] && n <= MAX_DAYS) {
+      n++;
+      d = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1); // 用“日期减一”，夏令时也不会出错
+    }
+    return n;
+  }
+  function studyDays() {
+    var days = load().days, n = 0;
+    for (var k in days) if (has(days, k)) n++;
+    return n;
+  }
+  function studyDayKeys() {
+    var days = load().days, out = [];
+    for (var k in days) if (has(days, k)) out.push(k);
+    out.sort();
+    return out;
+  }
+
+  // ---------- 经验值（XP）和每日目标 ----------
+  function fireEvent(name, detail) {
+    try {
+      var ev;
+      if (typeof CustomEvent === "function") {
+        ev = new CustomEvent(name, { detail: detail });
+      } else {
+        ev = document.createEvent("CustomEvent");
+        ev.initCustomEvent(name, false, false, detail);
+      }
+      window.dispatchEvent(ev);
+    } catch (e) {}
+  }
+
+  function addXp(n) {
+    n = Math.floor(num(n, 0));
+    if (n <= 0) return null;
+    var st = load();
+    var k = dayKey();
+    var before = st.xp[k] || 0;
+    var after = before + n;
+    st.xp[k] = after;
+    st.xp = trimXp(st.xp);
+    markDay(st); // 得到经验值也算“学过一天”
+    var goal = st.settings.dailyGoal;
+    // “完成目标”徽章：按当时的目标判断，解锁后永久记住（以后改目标也不会变回锁着）
+    if (after >= goal && !st.badges.goalDay) st.badges.goalDay = Date.now();
+    save(st);
+    var info = { gained: n, today: after, goal: goal, reachedGoal: before < goal && after >= goal };
+    fireEvent("progress-xp", info);
+    return info;
+  }
+
+  // 每天的上限（字母每个只算一次、AI 对话最多 20 句）：单独存一个小 key，只在本机，第二天自动重新开始
+  var CAPS_KEY = "es-study-xp-caps-v1";
+  var capsMemory = null;
+  function loadCaps() {
+    var today = dayKey();
+    var c = null;
+    try {
+      var s = getStorage();
+      var t = s && storageOk ? s.getItem(CAPS_KEY) : null;
+      c = t ? JSON.parse(t) : capsMemory;
+    } catch (e) {
+      c = capsMemory;
+    }
+    if (!c || typeof c !== "object" || c.day !== today) c = { day: today, chat: 0, letters: {}, items: {}, dialogues: {} };
+    if (!c.letters || typeof c.letters !== "object") c.letters = {};
+    if (!c.items || typeof c.items !== "object") c.items = {};
+    if (!c.dialogues || typeof c.dialogues !== "object") c.dialogues = {};
+    c.chat = Math.max(0, Math.floor(num(c.chat, 0)));
+    return c;
+  }
+  function saveCaps(c) {
+    capsMemory = c;
+    try {
+      var s = getStorage();
+      if (s) s.setItem(CAPS_KEY, JSON.stringify(c));
+    } catch (e) {}
+  }
+
+  // 按规则加经验值（防刷分的每日规则都在这里）：
+  //   letter：key = 字母，同一个字母一天只算一次
+  //   chatMsg：一天最多算 CHAT_XP_DAILY_MAX 句
+  //   wordGot / wordNotYet：key = 单词或句子的 id，同一个词（句）一天只有第一次给经验值（熟练度照常记录）
+  //   dialogueDone：key = 情景 id，同一个情景一天第一次完成给 dialogueDone，之后再练给 dialogueRepeat
+  function award(kind, key) {
+    var n = XP_RULES[kind];
+    if (!n) return null;
+    var k = key === undefined || key === null ? "" : String(key);
+    if (kind === "letter" || kind === "chatMsg" || ((kind === "wordGot" || kind === "wordNotYet" || kind === "dialogueDone") && k)) {
+      var c = loadCaps();
+      if (kind === "letter") {
+        if (!k || c.letters[k]) return null;
+        c.letters[k] = 1;
+      } else if (kind === "chatMsg") {
+        if (c.chat >= CHAT_XP_DAILY_MAX) return null;
+        c.chat++;
+      } else if (kind === "dialogueDone") {
+        if (c.dialogues[k]) n = XP_RULES.dialogueRepeat;
+        c.dialogues[k] = 1;
+      } else {
+        if (c.items[k]) return null;
+        c.items[k] = 1;
+      }
+      saveCaps(c);
+    }
+    return addXp(n);
+  }
+
+  // ---------- 成就徽章：解锁后永久记住 { 徽章id: 解锁时间 } ----------
+  function unlockBadge(id) {
+    if (!id) return false;
+    var st = load();
+    if (st.badges[id]) return false;
+    st.badges[id] = Date.now();
+    save(st);
+    return true;
+  }
+  function badges() {
+    var b = load().badges, out = {};
+    for (var k in b) if (has(b, k)) out[k] = b[k];
+    return out;
+  }
+
+  function xpToday() {
+    return load().xp[dayKey()] || 0;
+  }
+  function xpTotal() {
+    var xp = load().xp, n = 0;
+    for (var k in xp) if (has(xp, k)) n += xp[k];
+    return n;
+  }
+  function xpByDay() {
+    var xp = load().xp, out = {};
+    for (var k in xp) if (has(xp, k)) out[k] = xp[k];
+    return out;
+  }
+  // 最近 7 天（从 6 天前到今天）
+  function xpWeek() {
+    var xp = load().xp;
+    var now = new Date();
+    var out = [];
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      var k = dayKey(d.getTime());
+      out.push({ day: k, xp: xp[k] || 0, weekday: d.getDay(), today: i === 0 });
+    }
+    return out;
+  }
+  function dailyGoal() {
+    return load().settings.dailyGoal;
+  }
+  function setDailyGoal(g) {
+    g = Math.floor(num(g, DEFAULT_GOAL));
+    if (GOALS.indexOf(g) === -1) return dailyGoal();
+    var st = load();
+    st.settings = { dailyGoal: g, updatedAt: Math.max(Date.now(), st.settings.updatedAt + 1) };
+    save(st);
+    return g;
   }
 
   function alphabetInfo() {
@@ -360,8 +738,11 @@
   // 不直接删掉 key，而是存一份空记录 + resetAt（清除的时间）：
   // 同步时其他设备上早于这个时间的记录也会被丢弃。
   function reset() {
+    var old = load();
     var st = emptyState();
-    st.resetAt = Math.max(Date.now(), load().resetAt + 1);
+    st.resetAt = Math.max(Date.now(), old.resetAt + 1);
+    st.settings = cleanSettings(old.settings); // 设置（每日目标）不是学习记录：保留
+    saveCaps({ day: dayKey(), chat: 0, letters: {}, items: {}, dialogues: {} });
     saveLocal(st);
     sync.changed(true); // 马上写到远端
   }
@@ -388,37 +769,9 @@
       if (pick) out.words[id] = { box: pick.box, correct: pick.correct, wrong: pick.wrong, lastSeen: pick.lastSeen };
     }
 
-    // 语法：best 取最大（总题数不同时以新的为准）、done 任一为真、total 取新的
-    var gids = {};
-    for (id in a.grammar) if (has(a.grammar, id)) gids[id] = true;
-    for (id in b.grammar) if (has(b.grammar, id)) gids[id] = true;
-    for (id in gids) {
-      if (!has(gids, id)) continue;
-      x = has(a.grammar, id) && a.grammar[id].lastSeen >= R ? a.grammar[id] : null;
-      y = has(b.grammar, id) && b.grammar[id].lastSeen >= R ? b.grammar[id] : null;
-      if (!x && !y) continue;
-      if (!x || !y) {
-        var one = x || y;
-        out.grammar[id] = { best: one.best, total: one.total, done: one.done, lastSeen: one.lastSeen };
-        continue;
-      }
-      // 时间一样时取总题数多的那边，保证合并顺序不影响结果
-      var newer = x.lastSeen !== y.lastSeen ? (x.lastSeen > y.lastSeen ? x : y) : (x.total >= y.total ? x : y);
-      // 只有一边真正做完过：用做完那边的 total / best（另一边只是“答过几题”）
-      var best, total;
-      if (x.done && y.done && x.total !== y.total) {
-        best = newer.best;
-        total = newer.total;
-      } else if (x.done !== y.done) {
-        var d = x.done ? x : y;
-        best = d.best;
-        total = d.total;
-      } else {
-        best = Math.max(x.best, y.best);
-        total = newer.total;
-      }
-      out.grammar[id] = { best: best, total: total, done: x.done || y.done, lastSeen: Math.max(x.lastSeen, y.lastSeen) };
-    }
+    // 语法、情景对话：best 取最大（总题数不同时以新的为准）、done 任一为真、total 取新的
+    mergeScores(a.grammar, b.grammar, out.grammar, R);
+    mergeScores(a.dialogues, b.dialogues, out.dialogues, R);
 
     // 小测验：取 time 新的
     var qa = a.lastQuiz && a.lastQuiz.time >= R ? a.lastQuiz : null;
@@ -441,8 +794,110 @@
     if (!out.alphabetSeen && hasKeys(out.alphabetLetters)) {
       out.alphabetSeen = true;
     }
+
+    // 小游戏：best 按方向取更好的、plays 取最大、lastSeen 取最大
+    var gids = {};
+    for (id in a.games) if (has(a.games, id)) gids[id] = true;
+    for (id in b.games) if (has(b.games, id)) gids[id] = true;
+    for (id in gids) {
+      if (!has(gids, id)) continue;
+      x = has(a.games, id) && a.games[id].lastSeen >= R ? a.games[id] : null;
+      y = has(b.games, id) && b.games[id].lastSeen >= R ? b.games[id] : null;
+      if (!x && !y) continue;
+      if (!x || !y) {
+        var one = x || y;
+        out.games[id] = { best: one.best, plays: one.plays, lastSeen: one.lastSeen, lowerIsBetter: one.lowerIsBetter };
+        continue;
+      }
+      var lib, best;
+      if (x.lowerIsBetter === y.lowerIsBetter) {
+        lib = x.lowerIsBetter;
+        best = lib ? Math.min(x.best, y.best) : Math.max(x.best, y.best);
+      } else {
+        // 方向不一样（页面改过计分方式）：以新的那边为准；时间一样时取“越小越好”那边，保证结果和顺序无关
+        var nw = x.lastSeen !== y.lastSeen ? (x.lastSeen > y.lastSeen ? x : y) : (x.lowerIsBetter ? x : y);
+        lib = nw.lowerIsBetter;
+        best = nw.best;
+      }
+      out.games[id] = { best: best, plays: Math.max(x.plays, y.plays), lastSeen: Math.max(x.lastSeen, y.lastSeen), lowerIsBetter: lib };
+    }
+
+    // 学习日：并集；清除记录那天之前的日期丢掉；只留最近 400 天
+    var minDay = R > 0 ? dayKey(R) : "";
+    var dsides = [a.days, b.days];
+    var days = {};
+    for (var ds = 0; ds < 2; ds++) {
+      for (var dk in dsides[ds]) {
+        if (has(dsides[ds], dk) && dk >= minDay) days[dk] = 1;
+      }
+    }
+    out.days = trimDays(days);
+
+    // 经验值：同一天取较大值；清除那天之前的丢掉；清除当天只认 resetAt 等于 R 的那边
+    var resetDay = R > 0 ? dayKey(R) : "";
+    var xsides = [a, b];
+    var xp = {};
+    for (var xs = 0; xs < 2; xs++) {
+      var sx = xsides[xs].xp;
+      for (var xk in sx) {
+        if (!has(sx, xk) || xk < minDay) continue;
+        if (xk === resetDay && xsides[xs].resetAt !== R) continue;
+        xp[xk] = Math.max(xp[xk] || 0, sx[xk]);
+      }
+    }
+    out.xp = trimXp(xp);
+
+    // 徽章：并集，同一个取较晚的解锁时间；清除记录之前解锁的丢掉
+    // （取较晚的：先过滤再取最大和先取最大再过滤结果一样，所以和合并顺序无关；取较早的会让清除后解锁的徽章在某些顺序下被丢掉）
+    var bsides = [a.badges, b.badges];
+    for (var bs = 0; bs < 2; bs++) {
+      for (var bkey in bsides[bs]) {
+        if (!has(bsides[bs], bkey) || bsides[bs][bkey] < R) continue;
+        out.badges[bkey] = out.badges[bkey] ? Math.max(out.badges[bkey], bsides[bs][bkey]) : bsides[bs][bkey];
+      }
+    }
+
+    // 设置：取较新的；时间一样取目标大的（结果和合并顺序无关）
+    var sa = a.settings, sb = b.settings;
+    var sp = sa.updatedAt !== sb.updatedAt ? (sa.updatedAt > sb.updatedAt ? sa : sb) : (sa.dailyGoal >= sb.dailyGoal ? sa : sb);
+    out.settings = { dailyGoal: sp.dailyGoal, updatedAt: sp.updatedAt };
     return out;
   }
+  // 合并两组“成绩”记录（语法课 / 情景对话），结果写进 out；早于 R（resetAt）的丢掉
+  function mergeScores(am, bm, out, R) {
+    var id, x, y;
+    var gids = {};
+    for (id in am) if (has(am, id)) gids[id] = true;
+    for (id in bm) if (has(bm, id)) gids[id] = true;
+    for (id in gids) {
+      if (!has(gids, id)) continue;
+      x = has(am, id) && am[id].lastSeen >= R ? am[id] : null;
+      y = has(bm, id) && bm[id].lastSeen >= R ? bm[id] : null;
+      if (!x && !y) continue;
+      if (!x || !y) {
+        var one = x || y;
+        out[id] = { best: one.best, total: one.total, done: one.done, lastSeen: one.lastSeen };
+        continue;
+      }
+      // 时间一样时取总题数多的那边，保证合并顺序不影响结果
+      var newer = x.lastSeen !== y.lastSeen ? (x.lastSeen > y.lastSeen ? x : y) : (x.total >= y.total ? x : y);
+      // 只有一边真正做完过：用做完那边的 total / best（另一边只是“答过几题”）
+      var best, total;
+      if (x.done && y.done && x.total !== y.total) {
+        best = newer.best;
+        total = newer.total;
+      } else if (x.done !== y.done) {
+        var d = x.done ? x : y;
+        best = d.best;
+        total = d.total;
+      } else {
+        best = Math.max(x.best, y.best);
+        total = newer.total;
+      }
+      out[id] = { best: best, total: total, done: x.done || y.done, lastSeen: Math.max(x.lastSeen, y.lastSeen) };
+    }
+  }
+
   function hasKeys(o) {
     for (var k in o) if (has(o, k)) return true;
     return false;
@@ -550,7 +1005,8 @@
         var merged = absorb(remote);
         if (remote && same(merged, remote)) return;
         // 远端读到“没有”、本地也是空的：不写（防止读取出错时用空进度盖掉账号里的进度）
-        if (!remote && !hasKeys(merged.words) && !hasKeys(merged.grammar) && !merged.lastQuiz && !merged.alphabetSeen && !merged.resetAt) return;
+        if (!remote && !hasKeys(merged.words) && !hasKeys(merged.grammar) && !hasKeys(merged.dialogues) && !merged.lastQuiz && !merged.alphabetSeen &&
+            !hasKeys(merged.games) && !hasKeys(merged.days) && !hasKeys(merged.xp) && !hasKeys(merged.badges) && !merged.settings.updatedAt && !merged.resetAt) return;
         var body = JSON.parse(JSON.stringify(merged));
         return retryOnce(function () { return ref.set(body); });
       });
@@ -600,7 +1056,8 @@
 
     function connect() {
       if (started) return;
-      var c = window.claude;
+      // 本页的 window.claude，或外壳的 window.parent.claude（js/claude-bridge.js；没引入时只看本页）
+      var c = typeof window.getClaude === "function" ? window.getClaude() : window.claude;
       if (!c || typeof c.use !== "function") return; // 本地 file:// 打开：只用本地存储
       started = true;
       setStatus("connecting");
@@ -727,17 +1184,40 @@
     markWord: markWord,
     touchWord: touchWord,
     wordStatus: wordStatus,
+    getBox: getBox,
     masteredCount: masteredCount,
+    learningCount: learningCount,
     isDue: isDue,
     reviewQueue: reviewQueue,
     wordCounts: wordCounts,
     recordGrammar: recordGrammar,
     touchGrammar: touchGrammar,
     getGrammar: getGrammar,
+    recordDialogue: recordDialogue,
+    getDialogue: getDialogue,
     recordQuiz: recordQuiz,
     lastQuiz: lastQuiz,
     markAlphabetSeen: markAlphabetSeen,
     alphabetInfo: alphabetInfo,
+    recordGame: recordGame,
+    getGame: getGame,
+    streak: streak,
+    studiedToday: studiedToday,
+    studyDays: studyDays,
+    studyDayKeys: studyDayKeys,
+    dayKey: dayKey,
+    XP: XP_RULES,
+    GOALS: GOALS,
+    award: award,
+    addXp: addXp,
+    xpToday: xpToday,
+    xpTotal: xpTotal,
+    xpWeek: xpWeek,
+    xpByDay: xpByDay,
+    dailyGoal: dailyGoal,
+    setDailyGoal: setDailyGoal,
+    unlockBadge: unlockBadge,
+    badges: badges,
     reset: reset,
     merge: merge,       // 合并两份进度（测试用）
     sync: sync.api

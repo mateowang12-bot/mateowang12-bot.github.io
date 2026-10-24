@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AI 对话 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container" id="main">
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
+
+    <h1>AI 对话 <span class="en">Chat with AI</span></h1>
+    <p>和 AI 老师用很简单的西语聊天。写错了它会温和地帮你改；不会说的时候可以用中文问“……怎么说？”。<br>
+      <span class="en">Chat in very simple Spanish. The AI gently corrects mistakes; ask in Chinese when you're stuck.</span></p>
+
+    <!-- 正在连接 -->
+    <div class="chat-status" id="connecting" role="status">正在连接 Claude… / Connecting…</div>
+
+    <!-- 不能用时的说明 -->
+    <div id="unavailable" hidden>
+      <div class="notice" role="status" id="unavailable-text"></div>
+      <p><a class="btn btn-link" href="dialogue.html">去练“情景对话” / Go to Dialogues →</a></p>
+    </div>
+
+    <!-- 顶部：中文翻译开关、重新开始 -->
+    <div class="switch-row" id="top-row" hidden>
+      <label class="quiz-check" for="show-zh">
+        <input type="checkbox" id="show-zh" checked>
+        <span class="quiz-check-text">显示中文翻译 <span class="en">Show Chinese</span></span>
+      </label>
+      <button type="button" class="btn btn-light" id="restart-btn">🔁 重新开始 / Restart</button>
+    </div>
+
+    <!-- 开场：选话题 -->
+    <div id="setup" hidden>
+      <h2>选一个话题 <span class="en">Pick a topic</span></h2>
+      <div class="lesson-list chat-topics" id="topic-list" role="group" aria-label="话题 / Topics"></div>
+      <p class="small-tip">第一次会弹出是否允许使用 Claude 的提示，点允许即可（用的是你自己的 Claude 额度）。<br>
+        <span class="en">The first time, Claude asks for permission — tap Allow (it uses your own Claude usage).</span></p>
+      <div class="chat-status is-wrong" id="setup-status" role="status" hidden></div>
+      <p><button type="button" class="btn quiz-big-btn" id="start-btn">开始聊天 / Start</button></p>
+    </div>
+
+    <!-- 聊天记录 -->
+    <div id="chat" hidden>
+      <div class="chat-log" id="log" aria-live="polite"></div>
+      <div class="chat-status is-wrong" id="chat-status" role="status" hidden></div>
+    </div>
+  </div>
+
+  <!-- 底部固定的输入栏 -->
+  <div class="chat-bar" id="bar" hidden>
+    <form class="chat-bar-inner" id="send-form" autocomplete="off">
+      <div class="chat-bar-row">
+        <input type="text" class="text-input" id="msg" maxlength="300"
+          autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="send"
+          aria-label="输入消息 / Message"
+          placeholder="用西语回答，或者用中文问‘…怎么说’">
+        <button type="submit" class="btn" id="send-btn">发送</button>
+        <button type="button" class="btn btn-light" id="stop-btn" hidden>停止</button>
+      </div>
+      <p class="small-tip">小提示：iPhone 键盘上的 🎤 麦克风可以直接说西语（先切换到西班牙语键盘）。</p>
+    </form>
+  </div>
+
+  <!-- 学过的词和语法（拼进给 AI 的规则里）、发音、连接 Claude -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../data/dialogues.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../data/grammar.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    // ============================================
+    // AI 对话：只在 claude.ai 版能用（用 Claude 的 sample 功能，花的是用户自己的 Claude 用量）
+    // 每次调用：sample.json(turns, { modelTier: "quick", cache: false, signal })
+    //   turns[0] = 规则说明 RULES（user 角色，永远在最前面，不会被丢掉）
+    //   后面是对话：user / assistant 交替；assistant 存的是上一次回复的 JSON 字符串
+    //   对话太长时只留最近 MAX_TURNS 轮
+    // 同一时间只有一个调用；出错绝不自动重试（“重试”要用户自己点）；
+    // AI 回复不自动朗读（不在点击处理函数里，iPhone 不会出声），用户自己点 🔊。
+    // ============================================
+    function $(id) {
+      return document.getElementById(id);
+    }
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+    function trim(s) {
+      return String(s).replace(/^\s+|\s+$/g, "");
+    }
+    function sayButton(text, label) {
+      var b = el("button", "say", label || "听");
+      b.type = "button";
+      b.title = "点击朗读 / Click to listen";
+      b.setAttribute("aria-label", "朗读 / Listen: " + text);
+      b.onclick = function (ev) {
+        ev.stopPropagation();
+        if (window.speakSpanish) window.speakSpanish(text);
+      };
+      return b;
+    }
+    function scrollShow(node) {
+      if (node && node.scrollIntoView) {
+        try { node.scrollIntoView({ behavior: "smooth", block: "end" }); } catch (e) { node.scrollIntoView(false); }
+      }
+    }
+    var CHINESE_RE = /[㐀-鿿]/;
+
+    // ---------- 话题 ----------
+    var TOPICS = [
+      { id: "free", zh: "自由聊天", en: "Free chat", rule: "Free chat about anything simple (greetings, how the student is, family, colors, numbers, where they are from)." },
+      { id: "greet", zh: "打招呼和认识新朋友", en: "Greetings & meeting someone", rule: "Greetings and meeting someone new: hello, name (¿Cómo te llamas? Me llamo...), how are you, nice to meet you, goodbye." },
+      { id: "family", zh: "介绍家人", en: "My family", rule: "Introducing family members: padre, madre, hermano, hermana, etc. (Tengo un hermano. Mi madre es...)." },
+      { id: "colors", zh: "颜色", en: "Colors", rule: "Colors: ask about favorite colors and the colors of simple things." },
+      { id: "numbers", zh: "数字", en: "Numbers", rule: "Numbers 0 to 10: counting, simple questions like how many brothers or sisters." },
+      { id: "origin", zh: "我来自哪里", en: "Where I'm from", rule: "Where the student is from, using ser: ¿De dónde eres? Soy de China. Soy chino / china." },
+      { id: "where-mood", zh: "我在哪儿和心情", en: "Where I am & how I feel", rule: "Where the student is right now and how they feel, using estar: ¿Dónde estás? Estoy en casa. ¿Cómo estás? Estoy bien / cansado / contento." }
+    ];
+    var topic = TOPICS[0];
+
+    // ---------- 给 AI 的规则说明（RULES） ----------
+    // 学过的词：从 data/words.js 动态生成；学过的语法：从 data/grammar.js 的课程标题生成
+    function knownWords() {
+      var out = [], seen = {};
+      var ls = window.WORD_LESSONS || [];
+      for (var i = 0; i < ls.length; i++) {
+        var ws = (ls[i] && ls[i].words) || [];
+        for (var j = 0; j < ws.length; j++) {
+          var es = ws[j] && ws[j].es ? trim(ws[j].es) : "";
+          if (es && !seen[es]) {
+            seen[es] = true;
+            out.push(es);
+          }
+        }
+      }
+      return out;
+    }
+    function knownGrammar() {
+      var out = [];
+      var ls = window.GRAMMAR_LESSONS || [];
+      for (var i = 0; i < ls.length; i++) {
+        if (ls[i] && ls[i].titleEn) out.push(ls[i].titleEn);
+      }
+      return out;
+    }
+    // 情景对话里学过的说法：data/dialogues.js 里 "me" 轮正确选项的西语（去重，最多 60 条）
+    function knownPhrases() {
+      var out = [], seen = {};
+      var ds = window.DIALOGUES || [];
+      for (var i = 0; i < ds.length && out.length < 60; i++) {
+        var lines = (ds[i] && ds[i].lines) || [];
+        for (var j = 0; j < lines.length && out.length < 60; j++) {
+          var ln = lines[j];
+          if (!ln || ln.who !== "me") continue;
+          var opts = ln.options || [];
+          for (var k = 0; k < opts.length && out.length < 60; k++) {
+            var es = opts[k] && opts[k].correct === true && typeof opts[k].es === "string" ? trim(opts[k].es) : "";
+            if (es && !seen[es]) {
+              seen[es] = true;
+              out.push(es);
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    function buildRules() {
+      var words = knownWords();
+      var gram = knownGrammar();
+      var phrases = knownPhrases();
+      return [
+        "You are a patient, friendly Spanish teacher chatting with a native Chinese speaker who is an absolute beginner (A1 level). Use the Spanish of Spain as the standard.",
+        "",
+        "How to write:",
+        "- Use only very simple Spanish: 1-2 short sentences per reply.",
+        "- As much as possible, use only words the student has learned (list below). If you really need another word, choose a very common, easy one.",
+        "- Use the present tense only.",
+        "- Always end reply_es with one simple question, so the conversation keeps going.",
+        "- reply_zh is a natural Chinese translation of reply_es.",
+        "- Write reply_zh, explain_zh and help_zh in Simplified Chinese.",
+        "",
+        "When the student writes in Spanish but makes mistakes:",
+        "- Put a gentle correction in \"correction\": you_wrote = what they wrote, better = the correct way to say it, explain_zh = one short explanation in Chinese.",
+        "- Also point out small spelling or accent mistakes (for example \"como estas\" -> \"¿Cómo estás?\"), in a light, encouraging tone. Do not count missing capital letters or a missing opening ¿ / ¡ as mistakes on their own.",
+        "- The student's gender is unknown: accept both masculine and feminine forms (cansado / cansada, chino / china, contento / contenta ...). Never treat the choice of gender as a mistake.",
+        "- Then continue the chat normally in reply_es.",
+        "- If what they wrote is correct, \"correction\" is null.",
+        "",
+        "When the student asks in Chinese (for example “‘我饿了’怎么说？”):",
+        "- In \"help_zh\", explain in Chinese and give the Spanish phrase (for example: “我饿了” 是 Tengo hambre.).",
+        "- In reply_es, encourage them to try using that phrase (for example: \"¡Muy bien! Ahora tú: ¿Tienes hambre?\").",
+        "- Otherwise \"help_zh\" is null.",
+        "",
+        "When the student just chats in Chinese (not asking how to say something):",
+        "- Do not correct anything (\"correction\" is null, \"help_zh\" is null).",
+        "- Answer in simple Spanish and encourage them to try saying it in Spanish.",
+        "",
+        "Today's topic: " + topic.rule,
+        "",
+        "Words the student has learned: " + (words.length ? words.join(", ") : "(none yet - use the most basic greetings)"),
+        "Phrases the student has practised in dialogues: " + (phrases.length ? phrases.join(" | ") : "(none yet)"),
+        "Grammar the student has learned: " + (gram.length ? gram.join("; ") : "(none yet)"),
+        "Verbs the student has learned (present tense): hablar, comer, vivir, ser, estar",
+        "",
+        "Reply with ONLY one JSON object and nothing else:",
+        "{\"reply_es\": \"...\", \"reply_zh\": \"...\", \"correction\": null or {\"you_wrote\": \"...\", \"better\": \"...\", \"explain_zh\": \"...\"}, \"help_zh\": null or \"...\"}"
+      ].join("\n");
+    }
+
+    // 开场句（不显示在聊天记录里）：让 AI 先用一句很简单的西语开口。
+    // 只在开场那一次跟在 RULES 后面（同一个 user 轮），之后不再发送
+    var START_TEXT = "(The student pressed Start. Greet them and open the conversation about today's topic with one very simple Spanish sentence and a simple question. correction and help_zh are null.)";
+
+    // ---------- 对话记录 ----------
+    var MAX_TURNS = 16;   // 规则之后最多留最近 16 轮
+    var convo = [];       // [{ role, content }]，不含 RULES 和开场句；第一项是 AI 的开场回复
+    var rules = "";
+
+    // 拼出这次要发的 turns：RULES 永远第一项；对话太长丢掉最旧的；最后一项一定是 user
+    //   开场：[RULES + 开场句]（只有一个 user 轮）
+    //   之后：[RULES, assistant, user, assistant, …, user]
+    function buildTurns() {
+      if (!convo.length) return [{ role: "user", content: rules + "\n\n" + START_TEXT }];
+      var c = convo.slice(Math.max(0, convo.length - MAX_TURNS));
+      var turns = [{ role: "user", content: rules }];
+      for (var i = 0; i < c.length; i++) turns.push({ role: c[i].role, content: c[i].content });
+      return turns;
+    }
+
+    // ---------- 界面状态 ----------
+    var sample = null;   // Claude 的 sample 功能
+    var busy = false;    // 正在等 AI 回复（同一时间只能有一个调用）
+    var ctl = null;      // 这次调用的 AbortController（每次新建）
+    var restarting = false;
+    var unanswered = null; // 出错后等着“重试”的那一次（{ start } 或 { text, row }）
+    var hidden = false;  // 功能已经关掉（没有权限等）
+
+    var logEl = $("log");
+    var input = $("msg");
+
+    function show(id, on) {
+      $(id).hidden = !on;
+    }
+    function setStage(stage) {
+      // stage: "connecting" / "unavailable" / "setup" / "chat"
+      show("connecting", stage === "connecting");
+      show("unavailable", stage === "unavailable");
+      show("top-row", stage === "setup" || stage === "chat");
+      show("setup", stage === "setup");
+      show("chat", stage === "chat");
+      show("bar", stage === "chat");
+      $("main").classList.toggle("has-chat-bar", stage === "chat");
+      // 聊天时把底部导航栏藏起来，只留输入栏（不挤；顶部有“返回首页”）
+      document.body.classList.toggle("chatting", stage === "chat");
+      // 自动滚动时给输入栏让出位置（css：html.is-chatting 的 scroll-padding-bottom 用 --chat-bar-h）
+      document.documentElement.classList.toggle("is-chatting", stage === "chat");
+      measureBar();
+      $("restart-btn").hidden = stage !== "chat";
+    }
+
+    // 量出底部输入栏的实际高度（含 iPhone 底部安全区），写到 html 的 --chat-bar-h
+    function measureBar() {
+      var bar = $("bar");
+      if (!bar || bar.hidden) return;
+      var h = bar.getBoundingClientRect().height;
+      if (h > 0) document.documentElement.style.setProperty("--chat-bar-h", Math.ceil(h) + "px");
+    }
+    window.addEventListener("resize", measureBar);
+
+    var UNAVAILABLE ="AI 对话只在 Claude 版里可用（需要从 Claude 链接打开）。在这个版本里可以先用‘情景对话’练习。";
+    var HIDE_TEXT = {
+      not_granted: "没有得到使用 Claude 的允许（你点了不允许，或者账号 / 组织不允许）。下次打开这个页面时可以重新选择“允许”。",
+      sampling_disabled: "你的 Claude 账号现在不能使用这个功能。",
+      not_declared: "这个网页现在没有开启 AI 功能。",
+      capability_disabled: "在这里暂时不能使用 AI 功能。",
+      capability_removed: "当前的 Claude 应用版本不支持这个功能，请更新 Claude 应用或换用网页版。"
+    };
+    function showUnavailable(code) {
+      hidden = true;
+      var t = HIDE_TEXT[code] ? HIDE_TEXT[code] + " 现在可以先用‘情景对话’练习。" : UNAVAILABLE;
+      $("unavailable-text").textContent = t;
+      setStage("unavailable");
+    }
+
+    // ---------- 中文翻译开关（记在 localStorage） ----------
+    var ZH_KEY = "es-study-chat-show-zh";
+    var showZh = true;
+    try {
+      if (window.localStorage && window.localStorage.getItem(ZH_KEY) === "0") showZh = false;
+    } catch (e) {}
+    function applyZh() {
+      $("show-zh").checked = showZh;
+      logEl.classList.toggle("hide-zh", !showZh);
+      $("show-zh").parentNode.classList.toggle("active", showZh);
+    }
+    $("show-zh").onchange = function () {
+      showZh = !!this.checked;
+      try { if (window.localStorage) window.localStorage.setItem(ZH_KEY, showZh ? "1" : "0"); } catch (e) {}
+      applyZh();
+    };
+    applyZh();
+
+    // ---------- 话题按钮 ----------
+    function buildTopics() {
+      var list = $("topic-list");
+      for (var i = 0; i < TOPICS.length; i++) {
+        (function (t) {
+          var b = el("button", "lesson-btn");
+          b.type = "button";
+          b.setAttribute("data-topic", t.id);
+          b.appendChild(el("span", "lesson-title", t.zh));
+          b.appendChild(el("span", "en", t.en));
+          b.onclick = function () {
+            topic = t;
+            markTopic();
+          };
+          list.appendChild(b);
+        })(TOPICS[i]);
+      }
+      markTopic();
+    }
+    function markTopic() {
+      var bs = $("topic-list").querySelectorAll(".lesson-btn");
+      for (var i = 0; i < bs.length; i++) {
+        var on = bs[i].getAttribute("data-topic") === topic.id;
+        bs[i].classList.toggle("active", on);
+        bs[i].setAttribute("aria-pressed", on ? "true" : "false");
+      }
+    }
+
+    // ---------- 聊天气泡 ----------
+    function addRow(who, label) {
+      var row = el("div", "chat-row " + who);
+      if (label) row.appendChild(el("div", "chat-who", label));
+      logEl.appendChild(row);
+      return row;
+    }
+    function addUser(text) {
+      var row = addRow("me", "我 / Me");
+      var b = el("div", "bubble");
+      var line = el("div", "bubble-es", text);
+      if (!CHINESE_RE.test(text) && /[a-záéíóúüñ]/i.test(text)) line.appendChild(sayButton(text));
+      b.appendChild(line);
+      row.appendChild(b);
+      scrollShow(row);
+      return row;
+    }
+    function addAi(r) {
+      var row = addRow("them", "AI 老师 / Teacher");
+      if (r.correction) {
+        var fix = el("div", "mini-card fix");
+        fix.appendChild(el("div", "mini-card-title", "✏️ 小纠错 / Small fix"));
+        var l1 = el("div", "fix-line", "你写的：");
+        l1.appendChild(el("span", "fix-old", r.correction.you_wrote));
+        fix.appendChild(l1);
+        var l2 = el("div", "fix-line", "→ 更好的说法：");
+        l2.appendChild(el("span", "fix-new", r.correction.better));
+        l2.appendChild(sayButton(r.correction.better));
+        fix.appendChild(l2);
+        if (r.correction.explain_zh) fix.appendChild(el("div", "fix-line", r.correction.explain_zh));
+        row.appendChild(fix);
+      }
+      if (r.help_zh) {
+        var help = el("div", "mini-card help");
+        help.appendChild(el("div", "mini-card-title", "💡 帮助 / Help"));
+        help.appendChild(el("div", "", r.help_zh));
+        row.appendChild(help);
+      }
+      var b = el("div", "bubble");
+      var line = el("div", "bubble-es", r.reply_es);
+      line.appendChild(sayButton(r.reply_es));
+      b.appendChild(line);
+      if (r.reply_zh) b.appendChild(el("div", "bubble-zh", r.reply_zh));
+      row.appendChild(b);
+      scrollShow(row);
+      return row;
+    }
+    function addThinking() {
+      var row = addRow("them", "AI 老师 / Teacher");
+      var b = el("div", "bubble thinking", "思考中… / Thinking…");
+      row.appendChild(b);
+      scrollShow(row);
+      return row;
+    }
+    function removeNode(n) {
+      if (n && n.parentNode) n.parentNode.removeChild(n);
+    }
+
+    // 检查 AI 的回复，整理成固定的样子；不合格返回 null
+    function str(v) {
+      return typeof v === "string" && trim(v) ? trim(v) : "";
+    }
+    function cleanReply(v) {
+      if (!v || typeof v !== "object") return null;
+      var es = str(v.reply_es);
+      if (!es) return null;
+      var out = { reply_es: es, reply_zh: str(v.reply_zh), correction: null, help_zh: str(v.help_zh) || null };
+      var c = v.correction;
+      if (c && typeof c === "object" && str(c.better)) {
+        out.correction = { you_wrote: str(c.you_wrote), better: str(c.better), explain_zh: str(c.explain_zh) };
+      }
+      return out;
+    }
+
+    // ---------- 状态提示 ----------
+    function clearStatus() {
+      $("chat-status").hidden = true;
+      $("chat-status").innerHTML = "";
+      $("setup-status").hidden = true;
+      $("setup-status").innerHTML = "";
+    }
+    // retry：给一个“重试”按钮（由用户点击）
+    function showStatus(where, text, retry) {
+      var box = $(where);
+      box.innerHTML = "";
+      box.appendChild(el("div", "", text));
+      if (retry) {
+        var b = el("button", "btn", "重试 / Retry");
+        b.type = "button";
+        b.id = "retry-btn";
+        b.onclick = function () {
+          if (busy) return;
+          clearStatus();
+          unanswered = null;
+          callClaude(retry);
+        };
+        box.appendChild(b);
+      }
+      box.hidden = false;
+      scrollShow(box);
+    }
+
+    function setBusy(on) {
+      busy = on;
+      $("send-btn").hidden = on;
+      $("stop-btn").hidden = !on;
+      $("start-btn").disabled = on;
+    }
+
+    // ---------- 调用 Claude ----------
+    // job = { start: true }（开场）或 { text, row }（用户刚发的一句）
+    function callClaude(job) {
+      if (busy || !sample || hidden) return; // 同一时间只能有一个调用
+      setBusy(true);
+      clearStatus();
+      var thinking = addThinking();
+
+      // 传给 Claude 的对象在 claude 所在的 window 里创建（外壳 iframe 结构下是 parent），免得它认不出来
+      var H = (window.getClaudeHost && window.getClaudeHost()) || window;
+      var AC = H.AbortController || window.AbortController;
+      var myCtl = AC ? new AC() : null;
+      ctl = myCtl;
+      var turns = H.JSON.parse(JSON.stringify(buildTurns()));
+      var opts = new H.Object();
+      opts.modelTier = "quick";
+      opts.cache = false;
+      if (myCtl) opts.signal = myCtl.signal;
+
+      var p;
+      try {
+        p = sample.json(turns, opts);
+      } catch (e) {
+        p = Promise.reject(e);
+      }
+      Promise.resolve(p).then(function (v) {
+        done();
+        var r = cleanReply(v);
+        if (!r) {
+          failed({ code: "invalid_json" });
+          return;
+        }
+        convo.push({ role: "assistant", content: JSON.stringify(r) });
+        addAi(r);
+      }, function (e) {
+        done();
+        failed(e);
+      });
+
+      function done() {
+        removeNode(thinking);
+        if (ctl === myCtl) ctl = null;
+        setBusy(false);
+      }
+
+      function failed(e) {
+        var code = e && typeof e.code === "string" ? e.code : "upstream_error";
+        if (restarting) {
+          restarting = false;
+          resetChat();
+          return;
+        }
+        if (code === "cancelled") {
+          undo();
+          return;
+        }
+        if (HIDE_TEXT[code]) {
+          showUnavailable(code);
+          return;
+        }
+        if (code === "rate_limited") {
+          undo();
+          showStatus(job.start ? "setup-status" : "chat-status", "用得太频繁或额度用完了，请稍后再试。 / Too many requests or usage limit reached. Please try again later.");
+          return;
+        }
+        if (code === "session_expired") {
+          undo();
+          showStatus(job.start ? "setup-status" : "chat-status", "登录已过期，请重新登录 claude.ai，然后再打开这个页面。 / Please sign in to claude.ai again.");
+          return;
+        }
+        if (code === "invalid_request" || code === "prompt_too_large" || code === "transform_error" || code === "queue_overflow" ||
+            code === "images_unavailable" || code === "tools_unavailable" || code === "image_rejected") {
+          // 网页自己的问题：重试也没用，点“重新开始”
+          undo();
+          showStatus(job.start ? "setup-status" : "chat-status", "出了点问题，请点“重新开始”。 / Something went wrong — please restart. (" + code + ")");
+          return;
+        }
+        // invalid_json / empty_completion / upstream_error / refused / 其他：用户点“重试”再试一次
+        setStage("chat");
+        unanswered = job;
+        showStatus("chat-status", "这次没回答好，点‘重试’再试一次。 / That didn't work — tap Retry.", job);
+      }
+
+      // 撤回：开场就回到选话题；用户的那句话从记录里拿掉，放回输入框
+      function undo() {
+        if (job.start) {
+          resetChat();
+          return;
+        }
+        var last = convo[convo.length - 1];
+        if (last && last.role === "user" && last.content === job.text) convo.pop();
+        removeNode(job.row);
+        if (!trim(input.value)) input.value = job.text;
+      }
+    }
+
+    // ---------- 按钮 ----------
+    $("start-btn").onclick = function () {
+      if (busy || !sample) return;
+      rules = buildRules();
+      convo = []; // 开场：turns 只有一项（RULES + 开场句），见 buildTurns
+      unanswered = null;
+      logEl.innerHTML = "";
+      setStage("chat");
+      callClaude({ start: true });
+    };
+
+    $("send-form").onsubmit = function (ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      if (busy || !sample || hidden) return false;
+      var text = trim(input.value);
+      if (!text) return false;
+      input.value = "";
+      clearStatus();
+      // 上一句出错后没点“重试”就发了新的：把没得到回复的那句从记录里删掉（避免连着两个 user），气泡标成灰色
+      if (convo.length && convo[convo.length - 1].role === "user") convo.pop();
+      if (unanswered && unanswered.row) markUnsent(unanswered.row);
+      unanswered = null;
+      var row = addUser(text);
+      convo.push({ role: "user", content: text });
+      // 发一句加经验值（每天最多算 20 句；js/storage.js 的 award 里判断）
+      if (window.Progress && window.Progress.award) window.Progress.award("chatMsg");
+      callClaude({ text: text, row: row });
+      return false;
+    };
+
+    $("stop-btn").onclick = function () {
+      if (ctl) ctl.abort();
+    };
+
+    // 没得到回复的用户消息：灰色，加一行“（没发送成功）”
+    function markUnsent(row) {
+      if (!row || row.className.indexOf("unsent") >= 0) return;
+      row.className += " unsent";
+      row.appendChild(el("div", "chat-who", "（没发送成功 / Not sent）"));
+    }
+
+    function resetChat() {
+      convo = [];
+      unanswered = null;
+      logEl.innerHTML = "";
+      input.value = "";
+      clearStatus();
+      if (!hidden) setStage("setup");
+    }
+    $("restart-btn").onclick = function () {
+      if (busy && ctl) {
+        restarting = true; // 先停掉正在进行的调用，停好后再清空
+        ctl.abort();
+        return;
+      }
+      resetChat();
+    };
+
+    // ---------- 启动：看能不能用 Claude ----------
+    buildTopics();
+    setStage("connecting");
+    var inited = false;
+    function init() {
+      if (inited) return;
+      var c = window.getClaude ? window.getClaude() : null;
+      if (!c) return false;
+      inited = true;
+      var p;
+      try { p = c.use("sample"); } catch (e) { p = null; }
+      Promise.resolve(p).then(function (s) {
+        if (!s || typeof s.json !== "function") {
+          showUnavailable();
+          return;
+        }
+        sample = s;
+        setStage("setup");
+      }, function () {
+        showUnavailable();
+      });
+      return true;
+    }
+    // window.claude 一般在页面脚本之前就有了；万一稍晚才出现，load 时再看一次，还没有就显示说明
+    if (!init()) {
+      window.addEventListener("load", function () {
+        if (!init() && !inited) showUnavailable();
+      });
+    }
+  </script>
+</body>
+</html>

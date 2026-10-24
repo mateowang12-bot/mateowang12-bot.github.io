@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>翻牌配对 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container">
+    <div class="game-top-links">
+      <a class="back-link" href="../index.html">‹ 返回首页</a>
+      <a class="back-link" href="games.html">🎮 游戏大厅 / Games</a>
+    </div>
+
+    <h1>🃏 翻牌配对 <span class="en">Memory Match</span></h1>
+
+    <!-- 开始前：选范围 -->
+    <div id="setup-screen">
+      <p>12 张牌里有 6 对：一张西语、一张中文。每次翻两张，是一对就留下，不是就翻回去。翻到西语牌会读出来。步数越少越好！<br>
+        <span class="en">Flip two cards at a time to find 6 Spanish–Chinese pairs. Fewer moves is better.</span></p>
+      <p class="game-best" id="best-line"></p>
+      <h2>选择范围 <span class="en">Words from</span></h2>
+      <div class="quiz-check-list" id="scope-box"></div>
+      <div id="setup-error"></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 / Start ▶</button>
+      </div>
+    </div>
+
+    <!-- 游戏中 -->
+    <div id="play-screen" hidden>
+      <div class="game-hud">
+        <span>步数 / Moves：<span class="hud-strong" id="h-steps">0</span></span>
+        <span>配对 / Pairs：<span id="h-pairs">0</span> / 6</span>
+        <span>用时 / Time：<span id="h-time">0</span> 秒</span>
+      </div>
+      <div class="match-grid" id="grid" role="group" aria-label="牌 / Cards"></div>
+      <p class="key-hint en">电脑键盘：方向键移动，回车或空格翻牌 / Keyboard: arrow keys to move, Enter or Space to flip</p>
+      <div class="card-nav">
+        <button type="button" class="btn btn-light" id="quit-btn">换范围 / Change words</button>
+      </div>
+    </div>
+
+    <!-- 结束 -->
+    <div id="result-screen" hidden>
+      <div class="quiz-result">
+        <div class="quiz-result-label">全部配对成功！ / All pairs found!</div>
+        <div class="quiz-result-score" id="r-steps"></div>
+        <div class="quiz-result-msg" id="r-time"></div>
+        <div class="game-new-record" id="r-record" hidden></div>
+        <div class="quiz-result-msg en" id="r-best"></div>
+      </div>
+      <div class="game-list-box" id="r-list"></div>
+      <div class="card-nav">
+        <button type="button" class="btn" id="again-btn">🔁 再来一局 / Play again</button>
+        <button type="button" class="btn btn-light" id="setup-btn">换范围 / Change words</button>
+        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅 / Games</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/words-util.js"></script>
+  <script src="../js/games.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    var U = window.WordsUtil, K = window.GameKit;
+    var el = U.el;
+    function $(id) { return document.getElementById(id); }
+    var PAIRS = 6;
+    var FLIP_BACK_MS = 1000;
+
+    var scope = null;
+    var cards = [];      // { pair, side: "es"/"zh", word, up, done, btn }
+    var open = [];       // 翻开但还没配对的牌（下标）
+    var steps = 0, found = 0;
+    var startAt = 0, tick = null, backTimer = null;
+    var roundWords = [];
+
+    function showScreen(name) {
+      $("setup-screen").hidden = name !== "setup";
+      $("play-screen").hidden = name !== "play";
+      $("result-screen").hidden = name !== "result";
+      window.scrollTo(0, 0);
+    }
+    function setupError(msg) {
+      $("setup-error").innerHTML = "";
+      if (msg) $("setup-error").appendChild(el("div", "notice", msg));
+    }
+    function showBest() {
+      $("best-line").textContent = "最高分：" + K.bestText("match");
+    }
+
+    // 挑 6 个互相不“撞车”的词（西语不同、意思不同），保证每对只有一种配法
+    function pickWords(pool) {
+      var out = [];
+      var c = U.shuffled(pool);
+      for (var i = 0; i < c.length && out.length < PAIRS; i++) {
+        var ok = true;
+        for (var j = 0; j < out.length && ok; j++) if (U.conflicts(c[i].word, out[j].word)) ok = false;
+        if (ok) out.push(c[i]);
+      }
+      return out.length === PAIRS ? out : null;
+    }
+
+    function start() {
+      var pool = scope.items();
+      if (!pool.length) { setupError("请至少选一课。 / Please choose at least one lesson."); return; }
+      var picked = pickWords(pool);
+      if (!picked) { setupError("选的范围里词太少（至少要 6 个意思不同的词），请多选几课。 / Please choose more lessons."); return; }
+      setupError("");
+      roundWords = picked;
+      var list = [];
+      for (var i = 0; i < picked.length; i++) {
+        list.push({ pair: i, side: "es", word: picked[i].word });
+        list.push({ pair: i, side: "zh", word: picked[i].word });
+      }
+      cards = U.shuffled(list);
+      open = [];
+      steps = 0;
+      found = 0;
+      startAt = 0;
+      if (tick) { clearInterval(tick); tick = null; }
+      if (backTimer) { clearTimeout(backTimer); backTimer = null; }
+      buildGrid();
+      updateHud();
+      showScreen("play");
+      if (cards[0] && cards[0].btn) cards[0].btn.focus();
+    }
+
+    function buildGrid() {
+      var g = $("grid");
+      g.innerHTML = "";
+      for (var i = 0; i < cards.length; i++) {
+        (function (idx) {
+          var b = el("button", "match-card");
+          b.type = "button";
+          b.setAttribute("data-idx", String(idx));
+          b.onclick = function () { flip(idx); };
+          cards[idx].btn = b;
+          cards[idx].up = false;
+          cards[idx].done = false;
+          drawCard(idx);
+          g.appendChild(b);
+        })(i);
+      }
+    }
+
+    function drawCard(i) {
+      var c = cards[i], b = c.btn;
+      b.innerHTML = "";
+      b.className = "match-card" + (c.up || c.done ? " up" : "") + (c.side === "es" ? " is-es" : "") + (c.done ? " done" : "") + (c.miss ? " miss" : "");
+      if (c.up || c.done) {
+        // 文字放进 .fit-word：单词不从中间断开，太长就缩小字号
+        var tx = el("span", "match-text fit-word", c.side === "es" ? c.word.es : (c.word.zh || c.word.en));
+        b.appendChild(tx);
+        U.fit(tx);
+        b.setAttribute("aria-label", (c.side === "es" ? "西语：" + c.word.es : "中文：" + (c.word.zh || c.word.en)) + (c.done ? "（已配对）" : ""));
+      } else {
+        b.appendChild(el("span", "match-back", "ñ"));
+        b.setAttribute("aria-label", "第 " + (i + 1) + " 张牌（背面）/ Card " + (i + 1));
+      }
+      b.setAttribute("aria-disabled", c.done ? "true" : "false");
+    }
+
+    function updateHud() {
+      $("h-steps").textContent = String(steps);
+      $("h-pairs").textContent = String(found);
+      $("h-time").textContent = String(startAt ? Math.floor((Date.now() - startAt) / 1000) : 0);
+    }
+
+    // 两张不配对的牌翻回去
+    function flipBack() {
+      if (backTimer) { clearTimeout(backTimer); backTimer = null; }
+      for (var k = 0; k < open.length; k++) {
+        cards[open[k]].up = false;
+        cards[open[k]].miss = false;
+        drawCard(open[k]);
+      }
+      open = [];
+    }
+
+    function flip(i) {
+      var c = cards[i];
+      if (!c || c.done || c.up) return;
+      // 上一次没配上的两张还开着：马上翻回去，接着翻这一张
+      if (open.length >= 2) flipBack();
+      if (!startAt) {
+        startAt = Date.now();
+        tick = setInterval(updateHud, 250);
+      }
+      c.up = true;
+      drawCard(i);
+      // 翻到西语牌就读出来（在点击里同步朗读，iPhone 才出声）
+      if (c.side === "es" && window.speakSpanish) window.speakSpanish(c.word.es);
+      open.push(i);
+      if (open.length === 2) {
+        steps++;
+        var a = cards[open[0]], b = cards[open[1]];
+        if (a.pair === b.pair) {
+          a.done = b.done = true;
+          drawCard(open[0]);
+          drawCard(open[1]);
+          open = [];
+          found++;
+        } else {
+          a.miss = b.miss = true;
+          drawCard(open[0]);
+          drawCard(open[1]);
+          backTimer = setTimeout(flipBack, FLIP_BACK_MS);
+        }
+      }
+      updateHud();
+      if (found === PAIRS) finish();
+    }
+
+    function finish() {
+      if (tick) { clearInterval(tick); tick = null; }
+      var secs = Math.max(1, Math.round((Date.now() - startAt) / 1000));
+      var res = K.record("match", steps, found === PAIRS); // 全部配对完成才给经验值
+      $("r-steps").textContent = steps + " 步";
+      $("r-time").textContent = "用时 " + secs + " 秒 / " + secs + " s";
+      var rec = $("r-record");
+      if (res && res.isRecord) {
+        rec.hidden = false;
+        rec.textContent = res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 / New record!";
+      } else {
+        rec.hidden = true;
+      }
+      $("r-best").textContent = res ? "最少 " + res.best + " 步 · 玩过 " + res.plays + " 次 / Best: " + res.best + " moves" : "";
+      var box = $("r-list");
+      box.innerHTML = "";
+      var h = el("h2", "", "这一局的词 ");
+      h.appendChild(el("span", "en", "Words in this round"));
+      box.appendChild(h);
+      var ul = el("ul", "word-list");
+      for (var i = 0; i < roundWords.length; i++) {
+        var w = roundWords[i].word;
+        var li = el("li", "quiz-wrong-item");
+        li.appendChild(U.sayButton(w.es));
+        li.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
+        if (w.en) li.appendChild(el("span", "en", "/ " + w.en));
+        ul.appendChild(li);
+      }
+      box.appendChild(ul);
+      // 让最后一对绿色显示一下再跳到结果
+      setTimeout(function () {
+        showScreen("result");
+        $("again-btn").focus();
+      }, 700);
+    }
+
+    // ---------- 键盘：方向键在牌之间移动 ----------
+    function columns() {
+      var t = getComputedStyle($("grid")).gridTemplateColumns || "";
+      var n = t.split(" ").filter(function (x) { return x; }).length;
+      return n || 4;
+    }
+    document.addEventListener("keydown", function (ev) {
+      if ($("play-screen").hidden || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+      var a = document.activeElement;
+      var idx = a && a.classList && a.classList.contains("match-card") ? Number(a.getAttribute("data-idx")) : -1;
+      var d = 0, cols = columns();
+      if (ev.key === "ArrowRight") d = 1;
+      else if (ev.key === "ArrowLeft") d = -1;
+      else if (ev.key === "ArrowDown") d = cols;
+      else if (ev.key === "ArrowUp") d = -cols;
+      if (!d) return;
+      ev.preventDefault();
+      var next = idx < 0 ? 0 : Math.max(0, Math.min(cards.length - 1, idx + d));
+      if (cards[next]) cards[next].btn.focus();
+    });
+
+    $("start-btn").onclick = start;
+    $("again-btn").onclick = start;
+    $("setup-btn").onclick = function () { showBest(); showScreen("setup"); };
+    $("quit-btn").onclick = function () {
+      if (tick) { clearInterval(tick); tick = null; }
+      if (backTimer) { clearTimeout(backTimer); backTimer = null; }
+      showBest();
+      showScreen("setup");
+    };
+
+    // ---------- 启动 ----------
+    if (!U.collectWords().length) {
+      $("setup-screen").innerHTML = "";
+      $("setup-screen").appendChild(el("div", "notice", "没有找到单词内容（data/words.js 没有加载到）。 / Word data not found."));
+    } else {
+      scope = K.scope($("scope-box"), "match", { words: true, onChange: function () { setupError(""); } });
+      showBest();
+    }
+  </script>
+</body>
+</html>

@@ -9,7 +9,7 @@
 // 网站内容一变，build-web.ps1 算出的 VERSION 就变，sw.js 跟着变，
 // 浏览器联网时发现 sw.js 变了，就在后台装新版本，下次打开页面生效。
 // ============================================
-var VERSION = "2cf79cba0e37";
+var VERSION = "7db2908c00ac";
 var SCOPE = self.registration ? self.registration.scope : new URL("./", self.location).href;
 var PREFIX = "es-study:" + SCOPE + ":";   // 同一个 github.io 域名下可能有别的网站：缓存名带上网站地址
 var CACHE = PREFIX + VERSION;
@@ -17,19 +17,36 @@ var FILES = [
   "./",
   "css/style.css",
   "data/alphabet.js",
+  "data/dialogues.js",
   "data/grammar.js",
+  "data/phrases.js",
   "data/words.js",
   "icons/apple-touch-icon.png",
   "icons/icon-192.png",
   "icons/icon-512.png",
   "index.html",
+  "js/claude-bridge.js",
+  "js/games.js",
+  "js/modules.js",
+  "js/nav.js",
   "js/pwa.js",
   "js/speak.js",
   "js/storage.js",
   "js/swipe.js",
+  "js/words-util.js",
   "manifest.webmanifest",
   "pages/alphabet.html",
+  "pages/chat.html",
+  "pages/dialogue.html",
+  "pages/game-guess.html",
+  "pages/game-match.html",
+  "pages/game-order.html",
+  "pages/games.html",
+  "pages/game-speed.html",
   "pages/grammar.html",
+  "pages/learn.html",
+  "pages/me.html",
+  "pages/phrases.html",
   "pages/quiz.html",
   "pages/review.html",
   "pages/words.html"
@@ -61,10 +78,10 @@ function offlinePage() {
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
     '<title>离线 · 我的西语学习站</title><style>' +
     'body{margin:0;padding:48px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;' +
-    'font-size:18px;line-height:1.6;background:#fdf8f2;color:#2b2420}' +
-    'a{display:inline-block;margin-top:12px;padding:12px 24px;border-radius:14px;background:#c60b1e;color:#fff;' +
-    'text-decoration:none;font-weight:bold}' +
-    '@media (prefers-color-scheme: dark){body{background:#1d1714;color:#f3ebe3}a{background:#ff6b5b;color:#1d1714}}' +
+    'font-size:18px;line-height:1.6;background:#f4f8f5;color:#1d2b24}' +
+    'a{display:inline-block;margin-top:12px;padding:12px 24px;border-radius:16px;background:#1b7f46;color:#fff;' +
+    'text-decoration:none;font-weight:bold;box-shadow:0 4px 0 #0f5530}' +
+    '@media (prefers-color-scheme: dark){body{background:#0f1814;color:#e6efe9}a{background:#3ccf74;color:#06210f;box-shadow:0 4px 0 #23914f}}' +
     '</style></head><body>' +
     '<h1>现在没有网络</h1>' +
     '<p>这个页面还没缓存，联网后再打开。<br>You are offline, and this page has not been cached yet.</p>' +

@@ -11,13 +11,12 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
 </head>
 <body>
-  <div class="flag-bar"></div>
   <div class="container">
-    <a class="back-link" href="../index.html">← 返回首页</a>
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
 
     <h1>字母与发音 <span class="en">Alphabet</span></h1>
     <p>西班牙语有 27 个字母。点一下字母，听它的读音，并查看发音说明和例词。<br>
@@ -31,6 +30,8 @@
   </div>
 
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -91,7 +92,11 @@
     // 点击字母卡片：朗读 + 展开详情
     function onLetterClick(card, item) {
       window.speakSpanish(item.speak || item.name || item.lower);
-      if (window.Progress) window.Progress.markAlphabetSeen(item.letter); // 记下听过的字母
+      if (window.Progress) {
+        window.Progress.markAlphabetSeen(item.letter); // 记下听过的字母
+        // 经验值：每个字母每天只算一次（js/storage.js 的 award 里判断）
+        if (window.Progress.award) window.Progress.award("letter", item.letter);
+      }
 
       // 先关掉之前打开的详情
       if (detail) detail.parentNode.removeChild(detail);

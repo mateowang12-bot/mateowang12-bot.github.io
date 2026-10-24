@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>学习 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
+
+    <h1>学习 <span class="en">Learn</span></h1>
+    <p>全部内容都在这里。建议顺序：字母 → 单词 → 日常句子 → 语法，每天用“复习”巩固；学累了玩一局小游戏。<br>
+      <span class="en">Everything in one place. Suggested order: Alphabet → Words → Phrases → Grammar, and review every day.</span></p>
+
+    <!-- 3 组模块卡片（由下面的 JS 生成，数据在 js/modules.js） -->
+    <div id="groups"></div>
+  </div>
+
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../data/alphabet.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../data/grammar.js"></script>
+  <script src="../data/dialogues.js"></script>
+  <script src="../data/phrases.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/modules.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    var M = window.Modules;
+    function el(tag, className, text) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    }
+
+    function card(m) {
+      var ok = M.isAvailable(m);
+      // 可用的模块是链接 <a>，不可用的是普通 <div>（点不了）
+      var c = el(ok ? "a" : "div", "module-card" + (ok ? "" : " locked"));
+      c.id = "mod-" + m.id;
+      if (ok) c.href = M.href(m.url);
+      else c.setAttribute("aria-disabled", "true");
+      c.appendChild(el("div", "module-icon", m.icon)).setAttribute("aria-hidden", "true");
+      var body = el("div", "module-body");
+      var t = el("div", "module-title", m.zh);
+      t.appendChild(el("span", "en", m.en));
+      body.appendChild(t);
+      var desc = null;
+      try { desc = m.desc ? m.desc() : null; } catch (e) { desc = null; }
+      if (desc) {
+        var d = el("div", "module-desc", desc[0]);
+        d.appendChild(el("span", "en", " / " + desc[1]));
+        body.appendChild(d);
+      }
+      var text = "";
+      if (ok && m.progress) {
+        try { text = m.progress(); } catch (e2) { text = ""; }
+      }
+      if (text) body.appendChild(el("div", "module-progress", text));
+      if (!ok) body.appendChild(el("div", "module-status", m.lockedText || "即将开放 / Coming soon"));
+      c.appendChild(body);
+      if (ok) c.appendChild(el("span", "chev", "›")).setAttribute("aria-hidden", "true");
+      return c;
+    }
+
+    function render() {
+      var box = document.getElementById("groups");
+      box.innerHTML = "";
+      for (var g = 0; g < M.GROUPS.length; g++) {
+        var grp = M.GROUPS[g];
+        var h = el("h2", "group-title", grp.zh);
+        h.appendChild(el("span", "en", grp.en));
+        box.appendChild(h);
+        var list = el("div", "module-list");
+        for (var i = 0; i < grp.ids.length; i++) {
+          var m = M.get(grp.ids[i]);
+          if (m) list.appendChild(card(m));
+        }
+        box.appendChild(list);
+      }
+    }
+    render();
+    window.addEventListener("load", render); // AI 对话：window.claude 可能稍后才出现
+    window.addEventListener("progress-synced", render);
+    window.addEventListener("pageshow", function (ev) { if (ev.persisted) render(); });
+  </script>
+</body>
+</html>

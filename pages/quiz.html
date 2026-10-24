@@ -11,13 +11,12 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#fdf8f2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1d1714" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
 </head>
 <body>
-  <div class="flag-bar"></div>
   <div class="container">
-    <a class="back-link" href="../index.html">← 返回首页</a>
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
 
     <h1>小测验 <span class="en">Quiz</span></h1>
 
@@ -72,9 +71,12 @@
   </div>
 
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
   <script src="../data/words.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
+  <script src="../js/words-util.js"></script>
   <script src="../js/pwa.js"></script>
   <script>
     // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
@@ -129,14 +131,8 @@
 
     function collectWords() {
       if (!LESSONS || !LESSONS.length) return;
-      for (var i = 0; i < LESSONS.length; i++) {
-        var ws = (LESSONS[i] && LESSONS[i].words) || [];
-        for (var j = 0; j < ws.length; j++) {
-          var w = ws[j];
-          // 至少要有西语和一种意思，才能出题
-          if (w && w.es && (w.zh || w.en)) ALL.push({ word: w, lesson: i });
-        }
-      }
+      // 至少要有西语和一种意思，才能出题（WordsUtil.collectWords 里判断）
+      ALL = window.WordsUtil.collectWords();
     }
 
     function meaningText(w) {
@@ -144,54 +140,8 @@
       return w.zh || w.en || "";
     }
 
-    // 比较用：去掉大小写、标点、首尾空格
-    function norm(s) {
-      return String(s || "").toLowerCase()
-        .replace(/[¿?¡!。，,.？！（）()\s—-]/g, "");
-    }
-    // 把“好；挺好”“well / fine”拆成几个意思
-    function parts(s, sep) {
-      var out = [];
-      var arr = String(s || "").split(sep);
-      for (var i = 0; i < arr.length; i++) {
-        var p = norm(arr[i]);
-        if (p) out.push(p);
-      }
-      return out;
-    }
-    function shareAny(a, b) {
-      for (var i = 0; i < a.length; i++) {
-        if (b.indexOf(a[i]) !== -1) return true;
-      }
-      return false;
-    }
-    // 意思太接近、但文字不同的词：手动写成“互斥”，不放在同一题里
-    // （每一对写的是单词的 id）
-    var EXCLUSIVE = [
-      ["adios", "hasta-luego"],   // 再见 / 回头见：都是告别
-      ["que-tal", "como-estas"]   // 怎么样；你好吗？ / 你好吗？（中文规则也能拦住，这里再保险一次）
-    ];
-    function exclusive(a, b) {
-      if (!a.id || !b.id) return false;
-      for (var i = 0; i < EXCLUSIVE.length; i++) {
-        var p = EXCLUSIVE[i];
-        if ((p[0] === a.id && p[1] === b.id) || (p[0] === b.id && p[1] === a.id)) return true;
-      }
-      return false;
-    }
-
-    // 两个词会不会让选项“撞车”：西语相同、中文相同（或有一个意思相同）、英文意思相同、手动互斥
+    // 两个词会不会让选项“撞车”（西语相同、意思相同、手动互斥……）：规则在 js/words-util.js 的 WordsUtil.conflicts
     // 例如 perdón（对不起；打扰一下）和 lo siento（对不起；很抱歉）不能放在同一题里
-    function conflicts(a, b) {
-      if (a === b) return true;
-      if (a.id && b.id && a.id === b.id) return true;
-      if (exclusive(a, b)) return true;
-      if (norm(a.es) === norm(b.es)) return true;
-      if (a.zh && b.zh && norm(a.zh) === norm(b.zh)) return true;
-      if (shareAny(parts(a.zh, /[；;]/), parts(b.zh, /[；;]/))) return true;
-      if (shareAny(parts(a.en, /\//), parts(b.en, /\//))) return true;
-      return false;
-    }
 
     // ---------- 当前设置和状态 ----------
     var settings = { lessons: [], types: [] }; // 选中的课（下标）、题型（id）
@@ -203,8 +153,7 @@
     var wrongPicks = []; // 和 wrongItems 一一对应：{ chosen: 选错的那个 ALL 项, type: 题型 }
 
     // ---------- 开始界面 ----------
-    var lessonChecks = [];
-    var allCheck;
+    var lessonPicker = null; // 选课列表（js/words-util.js 的 lessonPicker：全部 / 基础·进阶全选 / 每一课）
     var typeChecks = [];
 
     function makeCheck(labelZh, labelEn, checked) {
@@ -221,36 +170,24 @@
     }
 
     function buildSetup() {
-      var box = $("lesson-checks");
-
-      var all = makeCheck("全部", "All lessons", true);
-      all.label.className += " quiz-check-all";
-      allCheck = all.box;
-      allCheck.onchange = function () {
-        for (var i = 0; i < lessonChecks.length; i++) {
-          if (!lessonChecks[i].box.disabled) lessonChecks[i].box.checked = allCheck.checked;
+      // 课多的时候分成“基础 / 进阶”两组，每组可以一键全选
+      var groups = window.WordsUtil.lessonGroups(LESSONS);
+      var pickerGroups = [];
+      for (var g = 0; g < groups.length; g++) {
+        var items = [];
+        for (var n = 0; n < groups[g].indices.length; n++) {
+          var i = groups[g].indices[n];
+          var ls = LESSONS[i] || {};
+          var count = 0;
+          for (var k = 0; k < ALL.length; k++) if (ALL[k].lesson === i) count++;
+          items.push({ key: i, zh: (i + 1) + ". " + (ls.titleZh || ""), en: (ls.titleEn || "") + " · " + count + " 个词", count: count });
         }
-        syncChecked();
-      };
-      box.appendChild(all.label);
-
-      for (var i = 0; i < LESSONS.length; i++) {
-        var ls = LESSONS[i] || {};
-        var count = 0;
-        for (var k = 0; k < ALL.length; k++) if (ALL[k].lesson === i) count++;
-        var c = makeCheck((i + 1) + ". " + (ls.titleZh || ""), (ls.titleEn || "") + " · " + count + " 个词", count > 0);
-        if (!count) {
-          c.box.disabled = true;
-          c.label.className += " disabled";
-        }
-        c.box.onchange = function () {
-          updateAllCheck();
-          syncChecked();
-        };
-        c.index = i;
-        lessonChecks.push(c);
-        box.appendChild(c.label);
+        pickerGroups.push({ zh: groups[g].zh, en: groups[g].en, items: items });
       }
+      lessonPicker = window.WordsUtil.lessonPicker($("lesson-checks"), pickerGroups, {
+        allLabel: ["全部", "All lessons"],
+        onChange: syncChecked
+      });
 
       var tbox = $("type-checks");
       for (var t = 0; t < TYPES.length; t++) {
@@ -262,14 +199,6 @@
       }
       syncChecked();
       updateVoiceHint();
-    }
-
-    function updateAllCheck() {
-      var all = true;
-      for (var i = 0; i < lessonChecks.length; i++) {
-        if (!lessonChecks[i].box.disabled && !lessonChecks[i].box.checked) all = false;
-      }
-      allCheck.checked = all;
     }
 
     // 勾选的项加高亮
@@ -308,10 +237,7 @@
     }
 
     function readSettings() {
-      var ls = [];
-      for (var i = 0; i < lessonChecks.length; i++) {
-        if (lessonChecks[i].box.checked && !lessonChecks[i].box.disabled) ls.push(lessonChecks[i].index);
-      }
+      var ls = lessonPicker ? lessonPicker.selected() : [];
       var ts = [];
       for (var t = 0; t < typeChecks.length; t++) {
         if (typeChecks[t].box.checked) ts.push(typeChecks[t].id);
@@ -350,22 +276,7 @@
     // ---------- 出题 ----------
     // 给一个词挑干扰项：先从同一课抽，不够再从其他课抽；和正确答案、和彼此都不能撞车
     function pickDistractors(item) {
-      var same = [], other = [];
-      for (var i = 0; i < ALL.length; i++) {
-        if (ALL[i] === item) continue;
-        (ALL[i].lesson === item.lesson ? same : other).push(ALL[i]);
-      }
-      var candidates = shuffled(same).concat(shuffled(other));
-      var chosen = [];
-      for (var j = 0; j < candidates.length && chosen.length < MAX_OPTIONS - 1; j++) {
-        var c = candidates[j];
-        var ok = !conflicts(c.word, item.word);
-        for (var k = 0; ok && k < chosen.length; k++) {
-          if (conflicts(c.word, chosen[k].word)) ok = false;
-        }
-        if (ok) chosen.push(c);
-      }
-      return chosen;
+      return window.WordsUtil.pickDistractors(item, ALL, MAX_OPTIONS - 1);
     }
 
     function makeQuestion(item, type) {
@@ -421,7 +332,8 @@
       box.innerHTML = "";
       if (q.type === "es2meaning") {
         box.appendChild(el("div", "quiz-prompt-label", "这个西语词是什么意思？ / What does it mean?"));
-        box.appendChild(el("div", "quiz-prompt-es", w.es));
+        box.appendChild(el("div", "quiz-prompt-es fit-word", w.es));
+        window.WordsUtil.fitAll(box); // 长词不从中间断开，放不下就缩小字号
       } else if (q.type === "meaning2es") {
         box.appendChild(el("div", "quiz-prompt-label", "西语怎么说？ / How do you say it in Spanish?"));
         box.appendChild(el("div", "quiz-prompt-meaning", meaningText(w)));
@@ -506,6 +418,8 @@
     // 钩子：每答完一题调用一次，记录这个词的熟练度（try/catch 在 js/storage.js 里）
     function onAnswered(word, correct) {
       if (window.Progress && word && word.id) window.Progress.markWord(word.id, correct);
+      // 答对一题加经验值（数值在 js/storage.js 的 XP_RULES）
+      if (correct && window.Progress && window.Progress.award) window.Progress.award("quizRight");
     }
 
     function nextQuestion() {

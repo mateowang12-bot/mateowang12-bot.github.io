@@ -2,7 +2,8 @@
 // 离线网站（PWA）小助手（pwa.js）
 // 只在网站放到网上（https: 或 http:，例如 GitHub Pages）时起作用：
 //   1) 注册网站根目录的 sw.js（service worker），把网站存进手机，断网也能打开；
-//      本地双击 file:// 打开、页面嵌在 iframe 里（claude.ai 版）、或浏览器不支持时，什么都不做。
+//      本地双击 file:// 打开、页面嵌在 iframe 里（claude.ai 版）、页面里没有 manifest 标签（不是 web/ 版）、
+//      或浏览器不支持时，什么都不做。
 //      路径全部按“本文件所在位置”算（js/pwa.js 的上一层就是网站根目录），
 //      所以首页、pages/ 里的子页面、网站放在子路径（例如 /repo-name/）下都能用。
 //   2) 有新版本下载好了：首页显示“网站已更新，下次打开生效”（页面里有 #pwa-update 时）。
@@ -36,6 +37,14 @@
   var framed = true;
   try { framed = window.top !== window; } catch (e) { framed = true; }
   if (framed) return;
+
+  // 页面里没有 <link rel="manifest">（本地版、claude.ai 的 publish 版）：不是离线网站版，不注册（也就不会去请求不存在的 sw.js）。
+  // 只有 tools/build-web.ps1 生成的 web/ 版页面里有这个标签（本文件放在 body 末尾，head 里的标签已经在了）
+  try {
+    if (!document.querySelector('link[rel="manifest"]')) return;
+  } catch (e) {
+    return;
+  }
 
   // 网站根目录：js/pwa.js 的上一层
   var rootUrl, swUrl;

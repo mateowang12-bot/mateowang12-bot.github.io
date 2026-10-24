@@ -1,6 +1,8 @@
 // ============================================
 // 共用发音功能（speak.js）
 // 用法：speakSpanish("hola")  —— 朗读一段西班牙语（必须在点击处理函数里同步调用，iPhone 才肯出声）
+//       speakSpanish("hola", true) —— 不打断上一句，排在后面读
+//       speakSpanish("hola", false, function () {...}) —— 这一句读完（或读不出来）时调用回调，只调一次
 //       hasSpanishVoice()     —— 设备上有没有西语语音（true / false）
 //       isIOSDevice()         —— 是不是 iPhone / iPad
 // ============================================
@@ -108,18 +110,43 @@
     if (voicesLoaded && !spanishVoice) showNotice(NO_VOICE_MSG);
   }
 
+  // 正在朗读 / 排队中的句子。有些浏览器（Chrome / Edge）会把没人引用的 utterance 当垃圾回收掉，
+  // 结果 end 事件永远不来；放在这里留个引用，读完（end / error）再删掉。
+  var alive = [];
+
   // 朗读西班牙语。注意：iPhone 要求在“用户点击”的处理函数里同步调用，
   // 不要放进 setTimeout / Promise 之后，否则不出声。
-  function speakSpanish(text) {
-    if (!text) return;
+  // queue = true：不打断正在读的上一句，排在它后面读（情景对话里“我”说完、对方接着说时用）
+  // onEnd（可选）：这一句读完（end）或读不出来（error，包括被 cancel 打断）时调用，只调一次。
+  //   用途：让画面切换和声音对上（例如单词页“记住了”：读完当前词再换卡片）。
+  //   不传 onEnd 时和以前完全一样，其他页面只传 1–2 个参数照常工作。
+  //   注意：有的设备可能永远不发 end / error，调用方要自己加兜底计时器。
+  function speakSpanish(text, queue, onEnd) {
+    var done = false;
+    // 只调一次；回调里抛错也不影响页面
+    function finish() {
+      if (done) return;
+      done = true;
+      if (typeof onEnd === "function") {
+        try { onEnd(); } catch (e) {}
+      }
+    }
+    // 读不出来的情况（没有文字、浏览器不支持、出错）：稍后调用 onEnd，
+    // 用 setTimeout 是为了让调用方先把自己的状态设好，再收到回调
+    function finishLater() {
+      if (typeof onEnd === "function") setTimeout(finish, 0);
+    }
+
+    if (!text) { finishLater(); return; }
     if (!synth || typeof SpeechSynthesisUtterance === "undefined") {
       showNotice(NO_SUPPORT_MSG);
+      finishLater();
       return;
     }
     if (!spanishVoice) pickVoice();
 
     try {
-      synth.cancel(); // 先停掉上一句，避免排队
+      if (!queue) synth.cancel(); // 先停掉上一句，避免排队
       if (synth.paused) synth.resume(); // iPhone 切回网页后朗读有时停在“暂停”状态
       var u = new SpeechSynthesisUtterance(text);
       u.lang = "es-ES";
@@ -128,9 +155,19 @@
         if (langOf(spanishVoice) !== "es-es" && spanishVoice.lang) u.lang = spanishVoice.lang;
       }
       u.rate = IS_IOS ? 0.85 : 0.8; // 稍慢一点，方便初学者听清（iPhone 的语速刻度略不同）
+      alive.push(u);
+      var release = function () {
+        for (var i = alive.length - 1; i >= 0; i--) if (alive[i] === u) alive.splice(i, 1);
+        finish();
+      };
+      u.onend = release;
+      u.onerror = release;
+      // 防止 alive 无限变长（例如某些设备从来不发 end）：只留最近 20 句
+      if (alive.length > 20) alive.splice(0, alive.length - 20);
       synth.speak(u);
     } catch (e) {
       // 朗读失败不影响页面
+      finishLater();
     }
 
     if (voicesLoaded) {

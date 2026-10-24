@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>小游戏 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
+
+    <h1>小游戏 <span class="en">Games</span></h1>
+    <p>学累了就玩一局！用学过的单词和句子，轻松再练一遍。每个游戏都会记下你的最高分。<br>
+      <span class="en">Take a break and play! Each game keeps your best score.</span></p>
+
+    <div class="game-list" id="game-list"></div>
+  </div>
+
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/words-util.js"></script>
+  <script src="../js/games.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    var el = window.WordsUtil.el;
+    function render() {
+      var box = document.getElementById("game-list");
+      box.innerHTML = "";
+      var G = window.GameKit.GAMES;
+      for (var i = 0; i < G.length; i++) {
+        var g = G[i];
+        var a = el("a", "game-card");
+        a.href = g.url;
+        a.id = "game-" + g.id;
+        a.appendChild(el("div", "game-icon", g.icon));
+        var t = el("div", "game-title", g.zh + " ");
+        t.appendChild(el("span", "en", g.en));
+        a.appendChild(t);
+        var d = el("div", "game-desc");
+        d.appendChild(el("div", "", g.desc[0]));
+        d.appendChild(el("div", "en", g.desc[1]));
+        a.appendChild(d);
+        a.appendChild(el("div", "game-best", "最高分：" + window.GameKit.bestText(g.id)));
+        a.appendChild(el("div", "game-go", "开始玩 →"));
+        box.appendChild(a);
+      }
+    }
+    render();
+    window.addEventListener("pageshow", function (ev) { if (ev.persisted) render(); });
+    window.addEventListener("progress-synced", render);
+  </script>
+</body>
+</html>
