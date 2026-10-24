@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>收藏 · 我的西语学习站</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/skin-early.js"></script>
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="../index.html">‹ 返回首页</a>
+
+    <h1>🎁 收藏 <span class="en">Collection</span></h1>
+    <p>闯关得到的星星每满 10 颗，就能打开一个宝箱，里面有新头像或新的界面颜色。打败每个区域的 Boss 还能在护照上盖一枚邮票。<br>
+      <span class="en">Every 10 stars opens a chest with a new avatar or theme. Beat each region's boss to collect a passport stamp.</span></p>
+
+    <!-- 预览主题时出现 -->
+    <div class="preview-bar" id="preview-bar" hidden>
+      <span id="preview-text"></span>
+      <button type="button" class="btn btn-small btn-light" id="preview-end">结束预览 / End preview</button>
+    </div>
+
+    <h2>宝箱 <span class="en">Chests</span></h2>
+    <div class="chest-box" id="chest-box">
+      <div class="chest-icon" id="chest-icon" aria-hidden="true">🎁</div>
+      <div class="chest-count" id="chest-count"></div>
+      <div class="pbar is-xp" aria-hidden="true"><span id="chest-bar"></span></div>
+      <div class="small-tip" id="chest-next"></div>
+      <div class="card-nav"><button type="button" class="btn btn-big" id="chest-open">打开宝箱 / Open</button></div>
+      <div id="chest-reward" aria-live="polite"></div>
+    </div>
+
+    <h2>头像 <span class="en">Avatars</span></h2>
+    <p class="panel-note" id="avatar-note"></p>
+    <div class="pick-grid" id="avatars" role="group" aria-label="头像 / Avatars"></div>
+
+    <h2>界面主题 <span class="en">Themes</span></h2>
+    <p class="panel-note">点已经拥有的主题马上换上；还没拥有的可以点一下“预览”。深色模式下也会跟着变。</p>
+    <div class="pick-grid skin-grid" id="skins" role="group" aria-label="界面主题 / Themes"></div>
+
+    <h2>护照邮票 <span class="en">Passport</span></h2>
+    <p class="panel-note" id="stamp-note"></p>
+    <div class="passport" id="passport"></div>
+  </div>
+
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../data/alphabet.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../data/phrases.js"></script>
+  <script src="../data/grammar.js"></script>
+  <script src="../data/dialogues.js"></script>
+  <script src="../data/levels.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/world.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script>
+    var P = window.Progress || null, W = window.World, N = window.SiteNav;
+    function $(id) { return document.getElementById(id); }
+    function el(tag, cls, text) {
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined && text !== null && text !== "") e.textContent = String(text);
+      return e;
+    }
+    var previewing = null;
+    var reduce = false;
+    try { reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+
+    // ---------- 宝箱 ----------
+    var opening = false;
+    function renderChest() {
+      var stars = P ? P.starsTotal() : 0;
+      var avail = P ? P.chestsAvailable() : 0;
+      var per = P ? P.STARS_PER_CHEST : 10;
+      $("chest-count").textContent = avail > 0 ? "有 " + avail + " 个宝箱可以打开！" : "还没有能打开的宝箱";
+      var inCycle = stars % per;
+      $("chest-bar").style.width = (avail > 0 ? 100 : 100 * inCycle / per).toFixed(1) + "%";
+      $("chest-next").textContent = "一共 ⭐ " + stars + " 颗星 · 已开 " + (P ? P.chestsOpened() : 0) + " 个 · " +
+        (avail > 0 ? "点下面的按钮打开" : "再得 " + (per - inCycle) + " 颗星就能开下一个") + " / Every " + per + " stars = 1 chest";
+      $("chest-open").disabled = avail < 1 || opening;
+    }
+    $("chest-open").onclick = function () {
+      if (opening || !P || P.chestsAvailable() < 1) return;
+      opening = true;
+      $("chest-open").disabled = true;
+      var icon = $("chest-icon");
+      icon.classList.remove("shake");
+      void icon.offsetWidth;
+      icon.classList.add("shake");
+      var res = W.openChest();
+      setTimeout(function () {
+        opening = false;
+        icon.classList.remove("shake");
+        showReward(res);
+        renderAll();
+      }, reduce ? 0 : 750);
+    };
+    function showReward(res) {
+      var box = $("chest-reward");
+      box.innerHTML = "";
+      if (!res) return;
+      var c = el("div", "reward-card pop-in");
+      if (res.kind === "xp") {
+        c.appendChild(el("div", "reward-emoji", "⭐"));
+        c.appendChild(el("div", "chest-count", "+" + (res.xp ? res.xp.gained : 0) + " XP"));
+        c.appendChild(el("div", "small-tip", "头像和主题都已经集齐了，这次给经验值！"));
+      } else {
+        var it = res.item;
+        c.appendChild(el("div", "reward-emoji", it.emoji));
+        c.appendChild(el("div", "chest-count", (res.kind === "avatar" ? "新头像：" : "新主题：") + it.zh));
+        c.appendChild(el("div", "en", it.en));
+        var use = el("button", "btn", res.kind === "avatar" ? "马上用这个头像" : "马上换上这个主题");
+        use.type = "button";
+        use.id = "reward-use";
+        use.onclick = function () {
+          var ch = {};
+          ch[res.kind === "avatar" ? "avatar" : "skin"] = it.id;
+          P.setProfile(ch);
+          endPreview();
+          renderAll();
+          use.disabled = true;
+          use.textContent = "✓ 已换上";
+        };
+        c.appendChild(use);
+      }
+      box.appendChild(c);
+    }
+
+    // ---------- 头像 ----------
+    function renderAvatars() {
+      var box = $("avatars");
+      box.innerHTML = "";
+      var o = P ? P.owned() : { avatars: { suitcase: 1 } };
+      var cur = P ? P.profile().avatar : "suitcase";
+      var n = 0;
+      W.AVATARS.forEach(function (a) {
+        var own = !!o.avatars[a.id];
+        if (own) n++;
+        var b = el("button", "pick" + (own ? "" : " is-locked"));
+        b.type = "button";
+        b.id = "avatar-" + a.id;
+        b.setAttribute("aria-pressed", own && a.id === cur ? "true" : "false");
+        b.appendChild(el("span", "pick-emoji", a.emoji));
+        b.appendChild(el("span", "pick-name", own ? a.zh : "🔒 " + a.zh));
+        b.setAttribute("aria-label", a.zh + (own ? (a.id === cur ? "（正在用）" : "") : "（还没拥有，开宝箱可能得到）"));
+        if (own) b.onclick = function () { P.setProfile({ avatar: a.id }); renderAll(); $("avatar-" + a.id).focus(); };
+        else b.onclick = function () { $("avatar-note").textContent = "🔒 " + a.zh + " 还没拥有：开宝箱可能得到它。"; };
+        box.appendChild(b);
+      });
+      $("avatar-note").textContent = "已拥有 " + n + " / " + W.AVATARS.length + " 个。点一下就换上。";
+    }
+
+    // ---------- 主题 ----------
+    function renderSkins() {
+      var box = $("skins");
+      box.innerHTML = "";
+      var o = P ? P.owned() : { skins: { "default": 1 } };
+      var cur = P ? P.profile().skin : "default";
+      W.SKINS.forEach(function (s) {
+        var own = !!o.skins[s.id];
+        var b = el("button", "pick" + (own ? "" : " is-locked"));
+        b.type = "button";
+        b.id = "skin-" + s.id;
+        b.setAttribute("aria-pressed", own && s.id === cur ? "true" : "false");
+        b.appendChild(el("span", "pick-emoji", s.emoji));
+        var sw = el("span", "skin-swatch");
+        sw.setAttribute("data-skin", s.id); // 小色块用这个主题的颜色
+        sw.setAttribute("aria-hidden", "true");
+        sw.appendChild(el("i"));
+        sw.appendChild(el("i"));
+        sw.appendChild(el("i"));
+        b.appendChild(sw);
+        b.appendChild(el("span", "pick-name", own ? s.zh + (s.id === cur ? " ✓" : "") : "🔒 " + s.zh + " · 点击预览"));
+        b.onclick = function () {
+          if (own) {
+            P.setProfile({ skin: s.id });
+            endPreview();
+            renderAll();
+            $("skin-" + s.id).focus();
+          } else {
+            startPreview(s);
+          }
+        };
+        box.appendChild(b);
+      });
+    }
+    function startPreview(s) {
+      previewing = s.id;
+      if (N && N.preview) N.preview(s.id);
+      $("preview-text").textContent = "预览中：" + s.emoji + " " + s.zh + "（还没拥有，开宝箱可能得到）";
+      $("preview-bar").hidden = false;
+    }
+    function endPreview() {
+      previewing = null;
+      if (N && N.preview) N.preview(null);
+      $("preview-bar").hidden = true;
+    }
+    $("preview-end").onclick = endPreview;
+
+    // ---------- 护照邮票 ----------
+    function renderStamps() {
+      var box = $("passport");
+      box.innerHTML = "";
+      var got = P ? P.stamps() : {};
+      var n = 0;
+      W.regions().forEach(function (r) {
+        var has = !!got[r.id];
+        if (has) n++;
+        var c = el("div", "stamp" + (has ? " got" : ""));
+        c.appendChild(el("div", "stamp-emoji", r.emoji || "📍"));
+        c.appendChild(el("div", "stamp-name", r.stampZh || r.titleZh || ""));
+        if (r.stampEn) c.appendChild(el("div", "en", r.stampEn));
+        c.appendChild(el("div", "small-tip", has ? "✓ 已获得" : "打败 Boss 获得"));
+        c.setAttribute("aria-label", (r.stampZh || r.titleZh) + (has ? "：已获得" : "：还没获得"));
+        box.appendChild(c);
+      });
+      $("stamp-note").textContent = "已收集 " + n + " / " + W.regions().length + " 枚。";
+    }
+
+    function renderAll() {
+      renderChest();
+      renderAvatars();
+      renderSkins();
+      renderStamps();
+    }
+    renderAll();
+    window.addEventListener("progress-synced", renderAll);
+    window.addEventListener("pageshow", function (ev) { if (ev.persisted) renderAll(); });
+    // 离开页面时结束预览（不影响别的页面：预览只在这个页面的内存里）
+    window.addEventListener("pagehide", function () { if (previewing && N && N.preview) N.preview(null); });
+  </script>
+</body>
+</html>

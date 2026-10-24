@@ -9,7 +9,7 @@
 // 网站内容一变，build-web.ps1 算出的 VERSION 就变，sw.js 跟着变，
 // 浏览器联网时发现 sw.js 变了，就在后台装新版本，下次打开页面生效。
 // ============================================
-var VERSION = "7db2908c00ac";
+var VERSION = "2da7969477e6";
 var SCOPE = self.registration ? self.registration.scope : new URL("./", self.location).href;
 var PREFIX = "es-study:" + SCOPE + ":";   // 同一个 github.io 域名下可能有别的网站：缓存名带上网站地址
 var CACHE = PREFIX + VERSION;
@@ -19,6 +19,7 @@ var FILES = [
   "data/alphabet.js",
   "data/dialogues.js",
   "data/grammar.js",
+  "data/levels.js",
   "data/phrases.js",
   "data/words.js",
   "icons/apple-touch-icon.png",
@@ -27,16 +28,21 @@ var FILES = [
   "index.html",
   "js/claude-bridge.js",
   "js/games.js",
+  "js/map.js",
   "js/modules.js",
   "js/nav.js",
+  "js/play.js",
   "js/pwa.js",
+  "js/skin-early.js",
   "js/speak.js",
   "js/storage.js",
   "js/swipe.js",
   "js/words-util.js",
+  "js/world.js",
   "manifest.webmanifest",
   "pages/alphabet.html",
   "pages/chat.html",
+  "pages/collection.html",
   "pages/dialogue.html",
   "pages/game-guess.html",
   "pages/game-match.html",
@@ -47,6 +53,7 @@ var FILES = [
   "pages/learn.html",
   "pages/me.html",
   "pages/phrases.html",
+  "pages/play.html",
   "pages/quiz.html",
   "pages/review.html",
   "pages/words.html"

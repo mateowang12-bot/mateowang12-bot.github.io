@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>学习 · 我的西语学习站</title>
+  <title>练习 · 我的西语学习站</title>
   <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" href="../icons/icon-192.png">
@@ -18,9 +19,48 @@
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>学习 <span class="en">Learn</span></h1>
-    <p>全部内容都在这里。建议顺序：字母 → 单词 → 日常句子 → 语法，每天用“复习”巩固；学累了玩一局小游戏。<br>
-      <span class="en">Everything in one place. Suggested order: Alphabet → Words → Phrases → Grammar, and review every day.</span></p>
+    <h1>练习 <span class="en">Practice</span></h1>
+    <p>冒险地图之外的自由练习：全部内容都在这里。建议顺序：字母 → 单词 → 日常句子 → 语法，每天用“复习”巩固；学累了玩一局小游戏。<br>
+      <span class="en">Free practice outside the adventure map. Suggested order: Alphabet → Words → Phrases → Grammar, and review every day.</span></p>
+
+    <!-- 继续学习：下一步学什么（js/modules.js 的 Modules.recommend；阶段 11 从首页移到这里） -->
+    <section class="continue-card learn-top" id="continue-card" aria-labelledby="continue-title">
+      <div class="continue-label">继续学习 · CONTINUE</div>
+      <div class="continue-main">
+        <div class="continue-icon" id="continue-icon" aria-hidden="true">📇</div>
+        <div>
+          <div class="continue-kicker" id="continue-kicker"></div>
+          <div class="continue-title" id="continue-title"></div>
+        </div>
+      </div>
+      <p class="continue-desc" id="continue-desc"></p>
+      <div class="continue-progress" id="continue-progress" hidden>
+        <div class="continue-progress-text"><span>已掌握 / Mastered</span><span id="continue-progress-num"></span></div>
+        <div class="pbar" role="progressbar" aria-valuemin="0" id="continue-pbar"><span id="continue-pbar-fill"></span></div>
+      </div>
+      <a class="btn btn-big btn-block" id="continue-btn" href="words.html">开始学习</a>
+      <div class="continue-alt" id="continue-alt"></div>
+    </section>
+
+    <!-- 今日小卡片 -->
+    <div class="today-grid">
+      <a class="today-card" id="today-review" href="review.html">
+        <div class="today-icon" aria-hidden="true">🔁</div>
+        <div class="today-num" id="today-due">0</div>
+        <div class="today-label">待复习 <span class="en">Due</span></div>
+      </a>
+      <a class="today-card" href="me.html">
+        <div class="today-icon" aria-hidden="true">⭐</div>
+        <div class="today-num" id="today-xp">0 / 20</div>
+        <div class="pbar is-xp" aria-hidden="true"><span id="today-xp-bar"></span></div>
+        <div class="today-label">今日目标 <span class="en">Goal</span></div>
+      </a>
+      <div class="today-card">
+        <div class="today-icon" aria-hidden="true">📝</div>
+        <div class="today-num" id="today-items">0</div>
+        <div class="today-label">今天学了 <span class="en">Today</span></div>
+      </div>
+    </div>
 
     <!-- 3 组模块卡片（由下面的 JS 生成，数据在 js/modules.js） -->
     <div id="groups"></div>
@@ -91,10 +131,65 @@
         box.appendChild(list);
       }
     }
-    render();
-    window.addEventListener("load", render); // AI 对话：window.claude 可能稍后才出现
-    window.addEventListener("progress-synced", render);
-    window.addEventListener("pageshow", function (ev) { if (ev.persisted) render(); });
+    function $(id) { return document.getElementById(id); }
+    var P = window.Progress || null;
+    // “继续学习”大卡片（原来在首页）
+    function renderContinue() {
+      var r = M.recommend();
+      $("continue-icon").textContent = r.icon || "📚";
+      $("continue-kicker").textContent = r.kicker || "";
+      var t = $("continue-title");
+      t.textContent = r.title || "";
+      if (r.titleEn) t.appendChild(el("span", "en", r.titleEn));
+      var d = $("continue-desc");
+      d.textContent = (r.desc && r.desc[0]) || "";
+      if (r.desc && r.desc[1]) d.appendChild(el("span", "en", r.desc[1]));
+      var pr = $("continue-progress");
+      if (r.progress && r.progress.total) {
+        pr.hidden = false;
+        $("continue-progress-num").textContent = r.progress.done + " / " + r.progress.total;
+        $("continue-pbar").setAttribute("aria-valuemax", String(r.progress.total));
+        $("continue-pbar").setAttribute("aria-valuenow", String(r.progress.done));
+        $("continue-pbar-fill").style.width = (100 * r.progress.done / r.progress.total).toFixed(1) + "%";
+      } else {
+        pr.hidden = true;
+      }
+      var b = $("continue-btn");
+      b.textContent = (r.btn || "开始学习") + " →";
+      b.href = r.url;
+      b.setAttribute("data-rec", r.id);
+      var alt = $("continue-alt");
+      alt.innerHTML = "";
+      if (r.alt && r.alt.length) {
+        alt.appendChild(document.createTextNode("或者："));
+        for (var i = 0; i < r.alt.length; i++) {
+          if (i) alt.appendChild(document.createTextNode(" · "));
+          var a = document.createElement("a");
+          a.href = r.alt[i].url;
+          a.textContent = r.alt[i].text;
+          alt.appendChild(a);
+        }
+      }
+    }
+    function renderToday() {
+      var s = M.stats();
+      var xp = P ? P.xpToday() : 0, goal = P ? P.dailyGoal() : 20;
+      $("today-due").textContent = s.due + " 个";
+      $("today-items").textContent = s.todayItems + " 个";
+      $("today-xp").textContent = xp + " / " + goal;
+      $("today-xp-bar").style.width = (Math.min(1, goal ? xp / goal : 0) * 100).toFixed(1) + "%";
+    }
+    function renderAll() {
+      renderContinue();
+      renderToday();
+      render();
+    }
+    renderAll();
+    window.addEventListener("load", renderAll); // AI 对话：window.claude 可能稍后才出现
+    window.addEventListener("progress-synced", renderAll);
+    window.addEventListener("progress-xp", renderToday);
+    window.addEventListener("pageshow", function (ev) { if (ev.persisted) renderAll(); });
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") renderAll(); });
   </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // 单词卡片 —— 由 content-writer 编写
 // 数据变量：window.WORD_LESSONS（课程数组，从简到难排列）
 // 每课字段：id, titleZh, titleEn, words
-// 每个词字段：id（全站唯一）, es, zh, en, note, example { es, zh, en }
+// 每个词字段：id（全站唯一）, es, zh, en, emoji（可选，用于“听音选图”，不重复）, note, example { es, zh, en }
 window.WORD_LESSONS = [
   {
     id: "greetings",
@@ -13,6 +13,7 @@ window.WORD_LESSONS = [
         es: "hola",
         zh: "你好",
         en: "hello / hi",
+        emoji: "👋",
         note: "h 不发音，读作 ola。",
         example: { es: "¡Hola! ¿Qué tal?", zh: "你好！怎么样？", en: "Hi! How's it going?" }
       },
@@ -21,6 +22,7 @@ window.WORD_LESSONS = [
         es: "buenos días",
         zh: "早上好；上午好",
         en: "good morning",
+        emoji: "🌅",
         note: "在西班牙一般用到吃午饭前（约下午两点）。",
         example: { es: "¡Hola, buenos días!", zh: "你好，早上好！", en: "Hello, good morning!" }
       },
@@ -29,6 +31,7 @@ window.WORD_LESSONS = [
         es: "buenas tardes",
         zh: "下午好",
         en: "good afternoon",
+        emoji: "🌇",
         note: "从午饭后用到天黑。",
         example: { es: "¡Buenas tardes! ¿Qué tal?", zh: "下午好！怎么样？", en: "Good afternoon! How's it going?" }
       },
@@ -37,6 +40,7 @@ window.WORD_LESSONS = [
         es: "buenas noches",
         zh: "晚上好；晚安",
         en: "good evening / good night",
+        emoji: "🌙",
         note: "见面和睡前告别都可以用。",
         example: { es: "¡Hola, buenas noches!", zh: "你好，晚上好！", en: "Hello, good evening!" }
       },
@@ -61,6 +65,7 @@ window.WORD_LESSONS = [
         es: "bien",
         zh: "好；挺好",
         en: "well / fine",
+        emoji: "👍",
         note: "muy bien = 很好。",
         example: { es: "—¿Cómo estás? —Bien.", zh: "——你好吗？——挺好。", en: "—How are you? —Fine." }
       },
@@ -100,6 +105,7 @@ window.WORD_LESSONS = [
         es: "sí",
         zh: "是；对",
         en: "yes",
+        emoji: "✅",
         note: "带重音的 sí 是“是”；不带重音的 si 是“如果”。",
         example: { es: "Sí, gracias.", zh: "好的，谢谢。", en: "Yes, thank you." }
       },
@@ -108,6 +114,7 @@ window.WORD_LESSONS = [
         es: "no",
         zh: "不；不是",
         en: "no",
+        emoji: "❌",
         note: "",
         example: { es: "No, gracias.", zh: "不用了，谢谢。", en: "No, thank you." }
       },
@@ -124,6 +131,7 @@ window.WORD_LESSONS = [
         es: "gracias",
         zh: "谢谢",
         en: "thank you / thanks",
+        emoji: "🙏",
         note: "muchas gracias = 非常感谢。ci 里的 c 在西班牙读得像英语 th，拉美读 s。",
         example: { es: "¡Muchas gracias!", zh: "非常感谢！", en: "Thank you very much!" }
       },
@@ -156,6 +164,7 @@ window.WORD_LESSONS = [
         es: "mucho gusto",
         zh: "很高兴认识你",
         en: "nice to meet you",
+        emoji: "🤝",
         note: "在西班牙更常说 encantado（男）/ encantada（女）；mucho gusto 在拉美更常用。",
         example: { es: "Hola, mucho gusto.", zh: "你好，很高兴认识你。", en: "Hi, nice to meet you." }
       },
@@ -187,6 +196,7 @@ window.WORD_LESSONS = [
         es: "cero",
         zh: "零",
         en: "zero",
+        emoji: "0️⃣",
         note: "在西班牙 ce 的 c 读得像英语 th，拉美读 s。",
         example: { es: "Cero, uno, dos.", zh: "零、一、二。", en: "Zero, one, two." }
       },
@@ -195,6 +205,7 @@ window.WORD_LESSONS = [
         es: "uno",
         zh: "一",
         en: "one",
+        emoji: "1️⃣",
         note: "放在阳性名词前变 un，放在阴性名词前变 una。",
         example: { es: "Uno, por favor.", zh: "请给我一个。", en: "One, please." }
       },
@@ -203,6 +214,7 @@ window.WORD_LESSONS = [
         es: "dos",
         zh: "二",
         en: "two",
+        emoji: "2️⃣",
         note: "",
         example: { es: "Dos, por favor.", zh: "请给我两个。", en: "Two, please." }
       },
@@ -211,6 +223,7 @@ window.WORD_LESSONS = [
         es: "tres",
         zh: "三",
         en: "three",
+        emoji: "3️⃣",
         note: "r 要轻轻弹一下舌头。",
         example: { es: "Uno, dos, tres.", zh: "一、二、三。", en: "One, two, three." }
       },
@@ -219,6 +232,7 @@ window.WORD_LESSONS = [
         es: "cuatro",
         zh: "四",
         en: "four",
+        emoji: "4️⃣",
         note: "",
         example: { es: "Dos y dos son cuatro.", zh: "二加二等于四。", en: "Two and two make four." }
       },
@@ -227,6 +241,7 @@ window.WORD_LESSONS = [
         es: "cinco",
         zh: "五",
         en: "five",
+        emoji: "5️⃣",
         note: "在西班牙 ci 的 c 读得像英语 th，拉美读 s。",
         example: { es: "Tres, cuatro, cinco.", zh: "三、四、五。", en: "Three, four, five." }
       }
@@ -242,6 +257,7 @@ window.WORD_LESSONS = [
         es: "seis",
         zh: "六",
         en: "six",
+        emoji: "6️⃣",
         note: "",
         example: { es: "Cinco, seis, siete.", zh: "五、六、七。", en: "Five, six, seven." }
       },
@@ -250,6 +266,7 @@ window.WORD_LESSONS = [
         es: "siete",
         zh: "七",
         en: "seven",
+        emoji: "7️⃣",
         note: "",
         example: { es: "Tres y cuatro son siete.", zh: "三加四等于七。", en: "Three and four make seven." }
       },
@@ -258,6 +275,7 @@ window.WORD_LESSONS = [
         es: "ocho",
         zh: "八",
         en: "eight",
+        emoji: "8️⃣",
         note: "ch 读音近似英语 church 的 ch（只是近似）。",
         example: { es: "Seis, siete, ocho.", zh: "六、七、八。", en: "Six, seven, eight." }
       },
@@ -266,6 +284,7 @@ window.WORD_LESSONS = [
         es: "nueve",
         zh: "九",
         en: "nine",
+        emoji: "9️⃣",
         note: "",
         example: { es: "Cinco y cuatro son nueve.", zh: "五加四等于九。", en: "Five and four make nine." }
       },
@@ -274,6 +293,7 @@ window.WORD_LESSONS = [
         es: "diez",
         zh: "十",
         en: "ten",
+        emoji: "🔟",
         note: "在西班牙 z 读得像英语 th，拉美读 s。",
         example: { es: "Cinco y cinco son diez.", zh: "五加五等于十。", en: "Five and five make ten." }
       }
@@ -289,6 +309,7 @@ window.WORD_LESSONS = [
         es: "rojo",
         zh: "红色（的）",
         en: "red",
+        emoji: "🟥",
         note: "阳性形式；修饰阴性名词变 roja。例句里的 es = “是”。",
         example: { es: "El tomate es rojo.", zh: "西红柿是红色的。", en: "The tomato is red." }
       },
@@ -297,6 +318,7 @@ window.WORD_LESSONS = [
         es: "amarillo",
         zh: "黄色（的）",
         en: "yellow",
+        emoji: "🟨",
         note: "阴性：amarilla。ll 在大多数地区读音近似 y。",
         example: { es: "El sol es amarillo.", zh: "太阳是黄色的。", en: "The sun is yellow." }
       },
@@ -305,6 +327,7 @@ window.WORD_LESSONS = [
         es: "azul",
         zh: "蓝色（的）",
         en: "blue",
+        emoji: "🟦",
         note: "阴阳性同形（复数 azules）。",
         example: { es: "El mar es azul.", zh: "大海是蓝色的。", en: "The sea is blue." }
       },
@@ -313,6 +336,7 @@ window.WORD_LESSONS = [
         es: "verde",
         zh: "绿色（的）",
         en: "green",
+        emoji: "🟩",
         note: "阴阳性同形。",
         example: { es: "La planta es verde.", zh: "这棵植物是绿色的。", en: "The plant is green." }
       },
@@ -321,6 +345,7 @@ window.WORD_LESSONS = [
         es: "blanco",
         zh: "白色（的）",
         en: "white",
+        emoji: "⬜",
         note: "阴性：blanca。",
         example: { es: "El papel es blanco.", zh: "纸是白色的。", en: "The paper is white." }
       },
@@ -329,6 +354,7 @@ window.WORD_LESSONS = [
         es: "negro",
         zh: "黑色（的）",
         en: "black",
+        emoji: "⬛",
         note: "阴性：negra。",
         example: { es: "El café es negro.", zh: "咖啡是黑色的。", en: "The coffee is black." }
       },
@@ -337,6 +363,7 @@ window.WORD_LESSONS = [
         es: "gris",
         zh: "灰色（的）",
         en: "gray",
+        emoji: "🩶",
         note: "阴阳性同形（复数 grises）。",
         example: { es: "El elefante es gris.", zh: "大象是灰色的。", en: "The elephant is gray." }
       },
@@ -345,6 +372,7 @@ window.WORD_LESSONS = [
         es: "naranja",
         zh: "橙色（的）",
         en: "orange",
+        emoji: "🟧",
         note: "作颜色时一般不变阴阳性。la naranja 也是“橙子”。也可以说 anaranjado。",
         example: { es: "La naranja es naranja.", zh: "橙子是橙色的。", en: "The orange is orange." }
       },
@@ -353,6 +381,7 @@ window.WORD_LESSONS = [
         es: "rosa",
         zh: "粉色（的）",
         en: "pink",
+        emoji: "🩷",
         note: "作颜色时一般不变阴阳性。la rosa 也是“玫瑰”。拉美多说 rosado。",
         example: { es: "La flor es rosa.", zh: "这朵花是粉色的。", en: "The flower is pink." }
       },
@@ -361,6 +390,7 @@ window.WORD_LESSONS = [
         es: "marrón",
         zh: "棕色（的）",
         en: "brown",
+        emoji: "🟫",
         note: "阴阳性同形（复数 marrones，没有重音）。拉美很多地方说 café。",
         example: { es: "El chocolate es marrón.", zh: "巧克力是棕色的。", en: "Chocolate is brown." }
       }
@@ -376,6 +406,7 @@ window.WORD_LESSONS = [
         es: "la familia",
         zh: "家人；家庭",
         en: "family",
+        emoji: "👨‍👩‍👧",
         note: "例句里的 mi = “我的”，es = “是”。",
         example: { es: "Es mi familia.", zh: "这是我的家人。", en: "This is my family." }
       },
@@ -384,6 +415,7 @@ window.WORD_LESSONS = [
         es: "la madre",
         zh: "母亲；妈妈",
         en: "mother",
+        emoji: "👩",
         note: "口语常说 mamá（注意重音在后面）。",
         example: { es: "Es mi madre.", zh: "这是我妈妈。", en: "This is my mother." }
       },
@@ -392,6 +424,7 @@ window.WORD_LESSONS = [
         es: "el padre",
         zh: "父亲；爸爸",
         en: "father",
+        emoji: "👨",
         note: "口语常说 papá。复数 los padres = 父母。",
         example: { es: "Mi padre y mi madre.", zh: "我爸爸和我妈妈。", en: "My father and my mother." }
       },
@@ -416,6 +449,7 @@ window.WORD_LESSONS = [
         es: "el hijo",
         zh: "儿子",
         en: "son",
+        emoji: "👦",
         note: "h 不发音，j 读音近似汉语 h（只是近似）。复数 los hijos 也可以指“子女”。",
         example: { es: "Es mi hijo.", zh: "这是我儿子。", en: "This is my son." }
       },
@@ -424,6 +458,7 @@ window.WORD_LESSONS = [
         es: "la hija",
         zh: "女儿",
         en: "daughter",
+        emoji: "👧",
         note: "h 不发音，j 读音近似汉语 h（只是近似）。",
         example: { es: "Mi hijo y mi hija.", zh: "我儿子和我女儿。", en: "My son and my daughter." }
       },
@@ -432,6 +467,7 @@ window.WORD_LESSONS = [
         es: "el abuelo",
         zh: "爷爷；外公",
         en: "grandfather",
+        emoji: "👴",
         note: "西语不分爷爷和外公。复数 los abuelos = 祖父母。",
         example: { es: "Es mi abuelo.", zh: "这是我爷爷。", en: "This is my grandfather." }
       },
@@ -440,6 +476,7 @@ window.WORD_LESSONS = [
         es: "la abuela",
         zh: "奶奶；外婆",
         en: "grandmother",
+        emoji: "👵",
         note: "西语不分奶奶和外婆。",
         example: { es: "Buenos días, abuela.", zh: "早上好，奶奶。", en: "Good morning, grandma." }
       }
@@ -456,6 +493,7 @@ window.WORD_LESSONS = [
         es: "el agua",
         zh: "水",
         en: "water",
+        emoji: "💧",
         note: "agua 其实是阴性名词，但因为开头是重读的 a，单数时前面用 el（形容词仍用阴性：el agua fría）。",
         example: { es: "Agua, por favor.", zh: "请给我水。", en: "Water, please." }
       },
@@ -464,6 +502,7 @@ window.WORD_LESSONS = [
         es: "el pan",
         zh: "面包",
         en: "bread",
+        emoji: "🍞",
         note: "",
         example: { es: "Pan y agua, por favor.", zh: "请给我面包和水。", en: "Bread and water, please." }
       },
@@ -472,6 +511,7 @@ window.WORD_LESSONS = [
         es: "el café",
         zh: "咖啡；咖啡馆",
         en: "coffee / café",
+        emoji: "☕",
         note: "重音在 é：ca-FÉ。café con leche（牛奶咖啡）在西班牙很常见。",
         example: { es: "Un café, por favor.", zh: "请来一杯咖啡。", en: "A coffee, please." }
       },
@@ -480,6 +520,7 @@ window.WORD_LESSONS = [
         es: "la leche",
         zh: "牛奶",
         en: "milk",
+        emoji: "🥛",
         note: "ch 读音近似英语 church 的 ch（只是近似）。",
         example: { es: "Un café con leche, por favor.", zh: "请来一杯牛奶咖啡。", en: "A coffee with milk, please." }
       },
@@ -496,6 +537,7 @@ window.WORD_LESSONS = [
         es: "la manzana",
         zh: "苹果",
         en: "apple",
+        emoji: "🍎",
         note: "在西班牙 z 读得像英语 th，拉美读 s。",
         example: { es: "La manzana es roja.", zh: "苹果是红色的。", en: "The apple is red." }
       },
@@ -504,6 +546,7 @@ window.WORD_LESSONS = [
         es: "el arroz",
         zh: "米饭；大米",
         en: "rice",
+        emoji: "🍚",
         note: "rr 要连续弹舌（“打嘟噜”）。z 在西班牙读得像英语 th，拉美读 s。",
         example: { es: "Arroz con pollo, por favor.", zh: "请来一份鸡肉饭。", en: "Chicken with rice, please." }
       },
@@ -512,6 +555,7 @@ window.WORD_LESSONS = [
         es: "el pollo",
         zh: "鸡肉",
         en: "chicken",
+        emoji: "🍗",
         note: "ll 在大多数地区读音近似 y：PO-yo。",
         example: { es: "Pollo y arroz, por favor.", zh: "请来鸡肉和米饭。", en: "Chicken and rice, please." }
       },
@@ -520,6 +564,7 @@ window.WORD_LESSONS = [
         es: "el pescado",
         zh: "鱼（食物）；鱼肉",
         en: "fish (as food)",
+        emoji: "🐟",
         note: "做成菜的鱼叫 pescado；水里活的鱼叫 el pez。",
         example: { es: "Pescado y pan, por favor.", zh: "请来鱼和面包。", en: "Fish and bread, please." }
       },
@@ -528,6 +573,7 @@ window.WORD_LESSONS = [
         es: "la carne",
         zh: "肉",
         en: "meat",
+        emoji: "🥩",
         note: "西班牙的菜单常分成 carne（肉类）和 pescado（鱼类）。",
         example: { es: "¿Carne o pescado?", zh: "要肉还是要鱼？", en: "Meat or fish?" }
       }
@@ -773,6 +819,7 @@ window.WORD_LESSONS = [
         es: "cien",
         zh: "一百",
         en: "one hundred",
+        emoji: "💯",
         note: "正好 100 说 cien；101 起变成 ciento：ciento uno（一百零一）。",
         example: { es: "Noventa más diez son cien.", zh: "九十加十等于一百。", en: "Ninety plus ten is one hundred." }
       }
@@ -796,6 +843,7 @@ window.WORD_LESSONS = [
         es: "hace calor",
         zh: "天气热",
         en: "it's hot (weather)",
+        emoji: "🌡️",
         note: "h 不发音。说“我觉得热”要用 tengo calor。",
         example: { es: "Hoy hace calor.", zh: "今天很热。", en: "It's hot today." }
       },
@@ -804,6 +852,7 @@ window.WORD_LESSONS = [
         es: "hace frío",
         zh: "天气冷",
         en: "it's cold (weather)",
+        emoji: "❄️",
         note: "说“我觉得冷”要用 tengo frío。mucho frío = 很冷。",
         example: { es: "Hoy hace mucho frío.", zh: "今天很冷。", en: "It's very cold today." }
       },
@@ -812,6 +861,7 @@ window.WORD_LESSONS = [
         es: "hace sol",
         zh: "出太阳；晴天",
         en: "it's sunny",
+        emoji: "☀️",
         note: "el sol = 太阳。",
         example: { es: "Hoy hace sol.", zh: "今天出太阳了。", en: "It's sunny today." }
       },
@@ -820,6 +870,7 @@ window.WORD_LESSONS = [
         es: "llueve",
         zh: "下雨",
         en: "it's raining / it rains",
+        emoji: "🌧️",
         note: "来自动词 llover（下雨），ll 读音近似 y。“正在下雨”也常说 está lloviendo。",
         example: { es: "Hoy llueve mucho.", zh: "今天雨下得很大。", en: "It's raining a lot today." }
       },
@@ -828,6 +879,7 @@ window.WORD_LESSONS = [
         es: "la primavera",
         zh: "春天",
         en: "spring",
+        emoji: "🌸",
         note: "南半球（阿根廷、智利等）季节和中国、西班牙相反。",
         example: { es: "Primavera, verano, otoño, invierno.", zh: "春、夏、秋、冬。", en: "Spring, summer, autumn, winter." }
       },
@@ -836,6 +888,7 @@ window.WORD_LESSONS = [
         es: "el verano",
         zh: "夏天",
         en: "summer",
+        emoji: "🏖️",
         note: "例句里的 en = 在。",
         example: { es: "En verano hace calor.", zh: "夏天很热。", en: "It's hot in summer." }
       },
@@ -844,6 +897,7 @@ window.WORD_LESSONS = [
         es: "el otoño",
         zh: "秋天",
         en: "autumn / fall",
+        emoji: "🍂",
         note: "注意 ñ：o-TO-ño。",
         example: { es: "En otoño llueve.", zh: "秋天会下雨。", en: "It rains in autumn." }
       },
@@ -852,6 +906,7 @@ window.WORD_LESSONS = [
         es: "el invierno",
         zh: "冬天",
         en: "winter",
+        emoji: "⛄",
         note: "",
         example: { es: "En invierno hace frío.", zh: "冬天很冷。", en: "It's cold in winter." }
       }
@@ -867,6 +922,7 @@ window.WORD_LESSONS = [
         es: "la casa",
         zh: "房子；家",
         en: "house / home",
+        emoji: "🏠",
         note: "en casa = 在家；a casa = 回家。",
         example: { es: "Mi casa es blanca.", zh: "我家（的房子）是白色的。", en: "My house is white." }
       },
@@ -875,6 +931,7 @@ window.WORD_LESSONS = [
         es: "la escuela",
         zh: "学校",
         en: "school",
+        emoji: "🏫",
         note: "",
         example: { es: "Es mi escuela.", zh: "这是我的学校。", en: "This is my school." }
       },
@@ -883,6 +940,7 @@ window.WORD_LESSONS = [
         es: "el restaurante",
         zh: "餐厅；饭馆",
         en: "restaurant",
+        emoji: "🍽️",
         note: "例句里的 dónde = 哪里，hay = 有。",
         example: { es: "¿Dónde hay un restaurante?", zh: "哪里有餐厅？", en: "Where is there a restaurant?" }
       },
@@ -891,6 +949,7 @@ window.WORD_LESSONS = [
         es: "el hospital",
         zh: "医院",
         en: "hospital",
+        emoji: "🏥",
         note: "h 不发音：os-pi-TAL。",
         example: { es: "El hospital es blanco.", zh: "医院是白色的。", en: "The hospital is white." }
       },
@@ -899,6 +958,7 @@ window.WORD_LESSONS = [
         es: "la tienda",
         zh: "商店",
         en: "shop / store",
+        emoji: "🏪",
         note: "",
         example: { es: "Es una tienda.", zh: "这是一家商店。", en: "It's a shop." }
       },
@@ -907,6 +967,7 @@ window.WORD_LESSONS = [
         es: "el baño",
         zh: "厕所；卫生间；浴室",
         en: "bathroom / toilet",
+        emoji: "🚻",
         note: "ñ 读音近似“尼”很快滑到后面的元音（只是近似）。西班牙的餐厅等公共场所也常说 los servicios 或 el aseo。",
         example: { es: "¿El baño, por favor?", zh: "请问厕所在哪儿？", en: "The bathroom, please?" }
       },
@@ -915,6 +976,7 @@ window.WORD_LESSONS = [
         es: "el hotel",
         zh: "酒店；宾馆",
         en: "hotel",
+        emoji: "🏨",
         note: "h 不发音，重音在后面：o-TEL。",
         example: { es: "Es un hotel.", zh: "这是一家酒店。", en: "It's a hotel." }
       },
@@ -931,6 +993,7 @@ window.WORD_LESSONS = [
         es: "el supermercado",
         zh: "超市",
         en: "supermarket",
+        emoji: "🛒",
         note: "例句里的 voy = 我去，al = a + el。",
         example: { es: "Voy al supermercado.", zh: "我去超市。", en: "I'm going to the supermarket." }
       },
@@ -939,6 +1002,7 @@ window.WORD_LESSONS = [
         es: "la estación",
         zh: "车站",
         en: "station",
+        emoji: "🚉",
         note: "-ción 结尾的词都是阴性，重音在 ó。火车站 = la estación de tren。",
         example: { es: "La estación de tren.", zh: "火车站。", en: "The train station." }
       }
@@ -954,6 +1018,7 @@ window.WORD_LESSONS = [
         es: "hablar",
         zh: "说；讲",
         en: "to speak / to talk",
+        emoji: "🗣️",
         note: "规则 -ar 动词：hablo, hablas, habla… h 不发音。",
         example: { es: "Hablo español.", zh: "我说西班牙语。", en: "I speak Spanish." }
       },
@@ -962,6 +1027,7 @@ window.WORD_LESSONS = [
         es: "comer",
         zh: "吃；吃饭",
         en: "to eat",
+        emoji: "😋",
         note: "规则 -er 动词：como, comes, come… 在西班牙 comer 也特指“吃午饭”。",
         example: { es: "Como arroz y pollo.", zh: "我吃米饭和鸡肉。", en: "I eat rice and chicken." }
       },
@@ -970,6 +1036,7 @@ window.WORD_LESSONS = [
         es: "beber",
         zh: "喝",
         en: "to drink",
+        emoji: "🥤",
         note: "规则 -er 动词：bebo, bebes, bebe… tomar（喝）在西班牙和拉美都很常用。",
         example: { es: "Bebo agua.", zh: "我喝水。", en: "I drink water." }
       },
@@ -986,6 +1053,7 @@ window.WORD_LESSONS = [
         es: "trabajar",
         zh: "工作",
         en: "to work",
+        emoji: "💼",
         note: "规则 -ar 动词：trabajo, trabajas, trabaja… j 读音近似汉语 h（只是近似）。",
         example: { es: "Trabajo en un hospital.", zh: "我在一家医院工作。", en: "I work in a hospital." }
       },
@@ -1002,6 +1070,7 @@ window.WORD_LESSONS = [
         es: "ir",
         zh: "去",
         en: "to go",
+        emoji: "🚶",
         note: "不规则！voy, vas, va, vamos, vais, van。去某地用 ir a…（a + el 合成 al）。",
         example: { es: "Voy a casa.", zh: "我回家。", en: "I'm going home." }
       },
@@ -1065,6 +1134,7 @@ window.WORD_LESSONS = [
         es: "malo",
         zh: "坏；不好",
         en: "bad",
+        emoji: "👎",
         note: "阴性：mala。放在阳性单数名词前变 mal。说“味道不好”在西班牙常用 está malo。",
         example: { es: "El café es malo.", zh: "这咖啡不好（质量差）。", en: "The coffee is bad." }
       },
@@ -1105,6 +1175,7 @@ window.WORD_LESSONS = [
         es: "nuevo",
         zh: "新；新的",
         en: "new",
+        emoji: "🆕",
         note: "阴性：nueva。",
         example: { es: "Mi casa es nueva.", zh: "我的房子是新的。", en: "My house is new." }
       },
@@ -1128,6 +1199,7 @@ window.WORD_LESSONS = [
         es: "el perro",
         zh: "狗",
         en: "dog",
+        emoji: "🐶",
         note: "rr 要连续弹舌（“打嘟噜”）。母狗：la perra。",
         example: { es: "Mi perro es negro.", zh: "我的狗是黑色的。", en: "My dog is black." }
       },
@@ -1136,6 +1208,7 @@ window.WORD_LESSONS = [
         es: "el gato",
         zh: "猫",
         en: "cat",
+        emoji: "🐱",
         note: "母猫：la gata。",
         example: { es: "El gato es blanco.", zh: "这只猫是白色的。", en: "The cat is white." }
       },
@@ -1144,6 +1217,7 @@ window.WORD_LESSONS = [
         es: "el pájaro",
         zh: "鸟",
         en: "bird",
+        emoji: "🐦",
         note: "重音在第一个 á：PÁ-ja-ro。j 读音近似汉语 h（只是近似）。",
         example: { es: "El pájaro es azul.", zh: "这只鸟是蓝色的。", en: "The bird is blue." }
       },
@@ -1152,6 +1226,7 @@ window.WORD_LESSONS = [
         es: "el pez",
         zh: "鱼（活的）",
         en: "fish (alive)",
+        emoji: "🐠",
         note: "复数 los peces。做成菜的鱼叫 el pescado。",
         example: { es: "El pez es naranja.", zh: "这条鱼是橙色的。", en: "The fish is orange." }
       },
@@ -1160,6 +1235,7 @@ window.WORD_LESSONS = [
         es: "el caballo",
         zh: "马",
         en: "horse",
+        emoji: "🐴",
         note: "ll 读音近似 y：ca-BA-yo。",
         example: { es: "El caballo es grande.", zh: "这匹马很大。", en: "The horse is big." }
       },
@@ -1168,6 +1244,7 @@ window.WORD_LESSONS = [
         es: "la vaca",
         zh: "奶牛；母牛",
         en: "cow",
+        emoji: "🐄",
         note: "b 和 v 在西语里读音一样。",
         example: { es: "La vaca es blanca y negra.", zh: "这头奶牛是黑白色的。", en: "The cow is black and white." }
       },
@@ -1176,6 +1253,7 @@ window.WORD_LESSONS = [
         es: "el cerdo",
         zh: "猪",
         en: "pig",
+        emoji: "🐷",
         note: "猪肉 = la carne de cerdo。拉美有些地方说 el chancho 或 el puerco。",
         example: { es: "El cerdo es rosa.", zh: "这头猪是粉色的。", en: "The pig is pink." }
       },
@@ -1184,6 +1262,7 @@ window.WORD_LESSONS = [
         es: "el ratón",
         zh: "老鼠；鼠标",
         en: "mouse",
+        emoji: "🐭",
         note: "复数 los ratones（没有重音符号）。也指电脑鼠标。",
         example: { es: "El ratón es pequeño.", zh: "这只老鼠很小。", en: "The mouse is small." }
       }
@@ -1207,6 +1286,7 @@ window.WORD_LESSONS = [
         es: "la camisa",
         zh: "衬衫",
         en: "shirt",
+        emoji: "👔",
         note: "颜色等形容词放在名词后面：una camisa blanca。",
         example: { es: "Una camisa blanca.", zh: "一件白衬衫。", en: "A white shirt." }
       },
@@ -1215,6 +1295,7 @@ window.WORD_LESSONS = [
         es: "la camiseta",
         zh: "T恤",
         en: "T-shirt",
+        emoji: "👕",
         note: "拉美有些地方说 la playera（墨西哥）或 la remera（阿根廷）。",
         example: { es: "La camiseta es roja.", zh: "这件T恤是红色的。", en: "The T-shirt is red." }
       },
@@ -1223,6 +1304,7 @@ window.WORD_LESSONS = [
         es: "los pantalones",
         zh: "裤子",
         en: "trousers / pants",
+        emoji: "👖",
         note: "西班牙也常用单数 el pantalón 指一条裤子。例句里的 son = “是”（复数）。",
         example: { es: "Los pantalones son negros.", zh: "这条裤子是黑色的。", en: "The trousers are black." }
       },
@@ -1231,6 +1313,7 @@ window.WORD_LESSONS = [
         es: "el vestido",
         zh: "连衣裙",
         en: "dress",
+        emoji: "👗",
         note: "",
         example: { es: "El vestido es rosa.", zh: "这条连衣裙是粉色的。", en: "The dress is pink." }
       },
@@ -1247,6 +1330,7 @@ window.WORD_LESSONS = [
         es: "los zapatos",
         zh: "鞋",
         en: "shoes",
+        emoji: "👞",
         note: "单数 el zapato = 一只鞋。z 在西班牙读得像英语 th，拉美读 s。",
         example: { es: "Los zapatos son nuevos.", zh: "这双鞋是新的。", en: "The shoes are new." }
       },
@@ -1255,6 +1339,7 @@ window.WORD_LESSONS = [
         es: "la chaqueta",
         zh: "夹克；短外套",
         en: "jacket",
+        emoji: "🧥",
         note: "qu 读 k。拉美有些地方说 la chamarra（墨西哥）或 la campera（阿根廷）。",
         example: { es: "La chaqueta es barata.", zh: "这件夹克很便宜。", en: "The jacket is cheap." }
       },
@@ -1286,6 +1371,7 @@ window.WORD_LESSONS = [
         es: "el ojo",
         zh: "眼睛",
         en: "eye",
+        emoji: "👁️",
         note: "复数 los ojos。j 读音近似汉语 h（只是近似）。",
         example: { es: "Tengo los ojos marrones.", zh: "我的眼睛是棕色的。", en: "I have brown eyes." }
       },
@@ -1294,6 +1380,7 @@ window.WORD_LESSONS = [
         es: "la boca",
         zh: "嘴",
         en: "mouth",
+        emoji: "👄",
         note: "",
         example: { es: "La boca y los ojos.", zh: "嘴和眼睛。", en: "The mouth and the eyes." }
       },
@@ -1302,6 +1389,7 @@ window.WORD_LESSONS = [
         es: "la nariz",
         zh: "鼻子",
         en: "nose",
+        emoji: "👃",
         note: "复数 las narices。z 在西班牙读得像英语 th，拉美读 s。",
         example: { es: "Tengo la nariz roja.", zh: "我的鼻子红了。", en: "My nose is red." }
       },
@@ -1310,6 +1398,7 @@ window.WORD_LESSONS = [
         es: "la oreja",
         zh: "耳朵",
         en: "ear",
+        emoji: "👂",
         note: "指外面看得见的耳朵。例句里的 del = de + el（……的）。",
         example: { es: "Las orejas del gato.", zh: "猫的耳朵。", en: "The cat's ears." }
       },
@@ -1318,6 +1407,7 @@ window.WORD_LESSONS = [
         es: "la mano",
         zh: "手",
         en: "hand",
+        emoji: "✋",
         note: "以 -o 结尾，却是阴性：la mano。",
         example: { es: "Tengo dos manos.", zh: "我有两只手。", en: "I have two hands." }
       },
@@ -1326,6 +1416,7 @@ window.WORD_LESSONS = [
         es: "el brazo",
         zh: "胳膊；手臂",
         en: "arm",
+        emoji: "💪",
         note: "",
         example: { es: "Me duele el brazo.", zh: "我胳膊疼。", en: "My arm hurts." }
       },
@@ -1334,6 +1425,7 @@ window.WORD_LESSONS = [
         es: "la pierna",
         zh: "腿",
         en: "leg",
+        emoji: "🦵",
         note: "",
         example: { es: "Me duele la pierna.", zh: "我腿疼。", en: "My leg hurts." }
       },
@@ -1342,6 +1434,7 @@ window.WORD_LESSONS = [
         es: "el pie",
         zh: "脚",
         en: "foot",
+        emoji: "🦶",
         note: "a pie = 步行、走路。",
         example: { es: "Voy a pie.", zh: "我走路去。", en: "I'm going on foot." }
       }

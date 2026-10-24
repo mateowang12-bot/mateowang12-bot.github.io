@@ -2,11 +2,13 @@
 // 底部导航栏 + 经验值小提示（nav.js）
 // 所有页面都引入，放在 claude-bridge.js 后面（第二个 script，页面 body 的最后面）。
 //
-// 1) 底部导航栏：🏠 首页 / 📚 学习 / 🎮 游戏 / 👤 我的，当前页面对应的标签高亮。
+// 0) 阶段 11：界面主题（html 的 data-skin），见下面 applySkin。
+// 1) 底部导航栏：🗺️ 冒险（首页地图）/ 📚 练习 / 🎁 收藏 / 👤 我的，当前页面对应的标签高亮（阶段 11 改的；游戏页属于“练习”）。
 //    链接全部按“本文件的位置”算出网站根目录（js/nav.js 的上一层），所以首页、pages/ 里的子页面都对。
 //    首页的文件名：本地版和 GitHub Pages 版是 index.html；claude.ai 版（publish/）是 home.html
 //    （tools/build-mobile.ps1 会把下面 HOME_FILE 这一行改成 "home.html"；当前页面本身就是根目录的 home.html 时也用它）。
-//    哪个标签算“当前”：根目录的页面 = 首页；pages/games.html、pages/game-*.html = 游戏；pages/me.html = 我的；其他 pages/ = 学习。
+//    哪个标签算“当前”：根目录的页面 = 冒险；pages/collection.html = 收藏；pages/me.html = 我的；其他 pages/（含游戏大厅和小游戏）= 练习。
+//    关卡页 pages/play.html 的 body 有 no-bottom-nav（一屏一题，像 App），不显示导航栏。
 //    页面 <body> 有 class="no-bottom-nav" 时不显示（例如外壳）。AI 对话聊天时 body 加 class="chatting"，CSS 会把导航栏藏起来，只留输入栏。
 // 2) 加经验值时（js/storage.js 派发 "progress-xp" 事件），在右上角弹一个小提示“+5 XP”，0.8 秒后自动消失，不挡内容（点不到它）。
 // 3) 当天第一次达到每日目标：显示“🎉 完成今天的目标！”（CSS 小动画；系统设了“减少动态效果”就不动）。
@@ -31,14 +33,50 @@
   var tab = "learn";
   if (!inPages) tab = "home";
   else if (file === "me.html") tab = "me";
-  else if (file === "games.html" || /^game-/.test(file)) tab = "games";
+  else if (file === "collection.html") tab = "collection";
+  else if (file === "play.html") tab = "home";
 
   var TABS = [
-    { id: "home", icon: "🏠", zh: "首页", en: "Home", url: homeFile },
-    { id: "learn", icon: "📚", zh: "学习", en: "Learn", url: "pages/learn.html" },
-    { id: "games", icon: "🎮", zh: "游戏", en: "Games", url: "pages/games.html" },
+    { id: "home", icon: "🗺️", zh: "冒险", en: "Adventure", url: homeFile },
+    { id: "learn", icon: "📚", zh: "练习", en: "Practice", url: "pages/learn.html" },
+    { id: "collection", icon: "🎁", zh: "收藏", en: "Collection", url: "pages/collection.html" },
     { id: "me", icon: "👤", zh: "我的", en: "Me", url: "pages/me.html" }
   ];
+
+  // ---------- 界面主题（阶段 11）：尽早设置 html 的 data-skin，免得先闪一下绿色 ----------
+  // 直接读进度 key 里的 profile.skin（storage.js 还没加载）；默认主题不设属性。
+  // 和深浅色的 data-theme 不冲突。换主题时 storage.js 派发 "profile-changed"，别的标签页改了会触发 "storage"。
+  var PROGRESS_KEY = "es-study-progress-v1";
+  var SKIN_IDS = { ocean: 1, sunset: 1, violet: 1 };
+  function savedSkin() {
+    try {
+      var t = window.localStorage ? window.localStorage.getItem(PROGRESS_KEY) : null;
+      var st = t ? JSON.parse(t) : null;
+      var p = st && st.profile;
+      var s = p && typeof p.skin === "string" ? p.skin : "";
+      // 主题必须是拥有的（防止清除记录后还留着旧主题）
+      if (!SKIN_IDS[s] || !(st.owned && st.owned.skins && st.owned.skins[s])) return "";
+      return s;
+    } catch (e) {
+      return "";
+    }
+  }
+  var previewSkin = null; // 收藏页“预览”时临时用的主题
+  function applySkin(s) {
+    var v = previewSkin !== null ? previewSkin : (s === undefined ? savedSkin() : s);
+    try {
+      var root = document.documentElement;
+      if (v && SKIN_IDS[v]) root.setAttribute("data-skin", v);
+      else root.removeAttribute("data-skin");
+    } catch (e) {}
+  }
+  applySkin();
+  try {
+    window.addEventListener("profile-changed", function () { applySkin(); });
+    window.addEventListener("progress-synced", function () { applySkin(); });
+    window.addEventListener("storage", function (ev) { if (!ev || ev.key === PROGRESS_KEY || ev.key === null) applySkin(); });
+    window.addEventListener("pageshow", function () { applySkin(); });
+  } catch (e) {}
 
   function el(tag, className, text) {
     var e = document.createElement(tag);
@@ -148,6 +186,10 @@
     tab: tab,
     root: ROOT,
     homeFile: homeFile,
-    celebrateKey: CELEBRATE_KEY
+    celebrateKey: CELEBRATE_KEY,
+    applySkin: applySkin,
+    // 收藏页预览主题：preview("ocean") 临时换上；preview(null) 结束预览、回到自己的主题
+    preview: function (s) { previewSkin = s ? String(s) : null; applySkin(); },
+    href: function (rel) { return (ROOT || (inPages ? "../" : "")) + rel; }
   };
 })();

@@ -75,6 +75,28 @@
 //   Progress.xpByDay()                  { "YYYY-MM-DD": xp } 的副本
 //   Progress.dailyGoal() / setDailyGoal(n)  每日目标（10 / 20 / 50 / 100，默认 20；存在 settings 里，跟着同步）
 //   Progress.studyDayKeys()             学过的日期列表（排好序）
+//
+// ---------- 冒险闯关（阶段 11；关卡数据和奖励清单在 js/world.js） ----------
+// 新字段：
+//   levels:  { 关卡id: { stars 0–3, best（最好正确率 0–100）, plays, lastSeen, since } }
+//   chests:  { opened（已开宝箱数）, since }
+//   owned:   { avatars: { 头像id: 时间 }, skins: { 主题id: 时间 } }（🧳 和默认主题不用存，总是拥有）
+//   profile: { avatar, skin, updatedAt }
+//   stamps:  { 区域id: 时间 }（护照邮票）
+//   daily:   { "YYYY-MM-DD": { done, stars, at, since } }（每日挑战）
+// 合并：levels 各项取较大；chests.opened 取较大；owned / stamps 并集（时间取较晚）；profile 取 updatedAt 新的
+//   （一样新按“头像|主题”文字取大的）；daily 按日期并集、done 或运算、stars 取较大；
+//   都按 resetAt 丢掉清除以前的记录：owned / stamps / profile 看时间；levels、chests、daily 的每条记录带 since
+//   （写的时候那台设备知道的 resetAt），since < resetAt 的整条丢掉（这样几个字段“各取较大”也和合并顺序无关）。
+// 清除记录：这些全部清空，头像回到 🧳、主题回到默认（profile.updatedAt = 清除时间）。
+//   Progress.recordLevel(id, stars, best) / getLevel(id) / levelsAll()
+//   Progress.awardLevel(id, stars)      过关经验值：同一关每天第一次 ⭐10 / ⭐⭐15 / ⭐⭐⭐20，再过 +5；失败不给
+//   Progress.recordDaily(day) / getDaily(day)   每日挑战（一天只领一次 +30 XP、+3 ⭐）
+//   Progress.dailyPick(day, items?)     今天每日挑战选中的内容（存在本机的 caps key：c.daily = { day, items }，当天不变）
+//   Progress.starsTotal()               星星总数 = 关卡星星 + 每日挑战星星
+//   Progress.chestsAvailable() / chestsOpened() / openChest(kind, id)   每 10 颗星一个宝箱
+//   Progress.owned() / profile() / setProfile({ avatar?, skin? })      （换了会派发 "profile-changed"）
+//   Progress.addStamp(regionId) / stamps()
 // ============================================
 (function () {
   var KEY = "es-study-progress-v1";
@@ -99,8 +121,18 @@
     dialogueRepeat: 5, // 同一个情景当天再练一次
     gameDone: 10,      // 小游戏完成一局
     letter: 1,         // 字母点一个（每个字母每天最多算一次）
-    chatMsg: 2         // AI 对话发一句（每天最多算 20 句）
+    chatMsg: 2,        // AI 对话发一句（每天最多算 20 句）
+    // ---- 阶段 11：冒险闯关 ----
+    level1: 10,        // 过关 ⭐（同一关每天第一次过关）
+    level2: 15,        // 过关 ⭐⭐（同一关每天第一次过关）
+    level3: 20,        // 过关 ⭐⭐⭐（同一关每天第一次过关）
+    levelRepeat: 5,    // 同一关当天再过一次（不管几颗星）；失败不给
+    dailyDone: 30,     // 每日挑战通关（每天只领一次，另外 +3 ⭐，见 DAILY_STARS）
+    chestXp: 20        // 宝箱里的头像和主题都拿完以后，开宝箱改给经验值
   };
+  var DAILY_STARS = 3;          // 每日挑战通关额外给的星星
+  var DEFAULT_AVATAR = "suitcase"; // 一开始就拥有的头像（🧳，头像清单在 js/world.js）
+  var DEFAULT_SKIN = "default";    // 默认界面主题（绿色）
   var CHAT_XP_DAILY_MAX = 20;
   var GOALS = [10, 20, 50, 100];
   var DEFAULT_GOAL = 20;
@@ -110,7 +142,31 @@
   }
 
   function emptyState() {
-    return { version: VERSION, words: {}, grammar: {}, dialogues: {}, alphabetSeen: false, alphabetAt: 0, alphabetLetters: {}, games: {}, days: {}, xp: {}, badges: {}, settings: defaultSettings(), resetAt: 0 };
+    return { version: VERSION, words: {}, grammar: {}, dialogues: {}, alphabetSeen: false, alphabetAt: 0, alphabetLetters: {}, games: {}, days: {}, xp: {}, badges: {}, settings: defaultSettings(),
+      levels: {}, chests: { opened: 0, since: 0 }, owned: { avatars: {}, skins: {} }, profile: defaultProfile(), stamps: {}, daily: {}, resetAt: 0 };
+  }
+  function defaultProfile() {
+    return { avatar: DEFAULT_AVATAR, skin: DEFAULT_SKIN, updatedAt: 0 };
+  }
+  var ID_RE = /^[A-Za-z0-9_\-:.]{1,80}$/;
+  // { id: 时间 } 这种“拥有 / 获得”的记录：只留合法的 id 和正数时间
+  function cleanTimes(src) {
+    var out = {};
+    var s = src && typeof src === "object" ? src : {};
+    for (var k in s) {
+      if (!has(s, k) || !ID_RE.test(k)) continue;
+      var t = num(s[k], 0);
+      if (t > 0) out[k] = t;
+    }
+    return out;
+  }
+  function cleanProfile(p) {
+    var out = defaultProfile();
+    if (!p || typeof p !== "object") return out;
+    if (typeof p.avatar === "string" && ID_RE.test(p.avatar)) out.avatar = p.avatar;
+    if (typeof p.skin === "string" && ID_RE.test(p.skin)) out.skin = p.skin;
+    out.updatedAt = Math.max(0, num(p.updatedAt, 0));
+    return out;
   }
 
   // ---------- 学习日（本地日期） ----------
@@ -263,6 +319,39 @@
       if (has(bd, bk) && num(bd[bk], 0) > 0) st.badges[bk] = num(bd[bk], 0);
     }
     st.settings = cleanSettings(raw.settings);
+    // 阶段 11：关卡、宝箱、拥有的头像 / 主题、个人形象、护照邮票、每日挑战（旧数据没有 → 空 / 默认）
+    var lv = raw.levels && typeof raw.levels === "object" ? raw.levels : {};
+    for (var lid in lv) {
+      if (!has(lv, lid) || !ID_RE.test(lid) || !lv[lid] || typeof lv[lid] !== "object") continue;
+      st.levels[lid] = {
+        stars: Math.max(0, Math.min(3, Math.floor(num(lv[lid].stars, 0)))),
+        best: Math.max(0, Math.min(100, Math.floor(num(lv[lid].best, 0)))),
+        plays: Math.max(0, Math.floor(num(lv[lid].plays, 0))),
+        lastSeen: Math.max(0, num(lv[lid].lastSeen, 0)),
+        since: Math.max(0, num(lv[lid].since, 0))
+      };
+    }
+    var ch = raw.chests && typeof raw.chests === "object" ? raw.chests : {};
+    st.chests = { opened: Math.max(0, Math.floor(num(ch.opened, 0))), since: Math.max(0, num(ch.since, 0)) };
+    var ow = raw.owned && typeof raw.owned === "object" ? raw.owned : {};
+    st.owned = { avatars: cleanTimes(ow.avatars), skins: cleanTimes(ow.skins) };
+    st.profile = cleanProfile(raw.profile);
+    st.stamps = cleanTimes(raw.stamps);
+    var dl = raw.daily && typeof raw.daily === "object" ? raw.daily : {};
+    var dkeys = [];
+    for (var dk in dl) {
+      if (has(dl, dk) && DAY_RE.test(dk) && dl[dk] && typeof dl[dk] === "object") dkeys.push(dk);
+    }
+    dkeys.sort();
+    for (var di = Math.max(0, dkeys.length - MAX_DAYS); di < dkeys.length; di++) {
+      var dv = dl[dkeys[di]];
+      st.daily[dkeys[di]] = {
+        done: !!dv.done,
+        stars: Math.max(0, Math.min(DAILY_STARS, Math.floor(num(dv.stars, 0)))),
+        at: Math.max(0, num(dv.at, 0)),
+        since: Math.max(0, num(dv.since, 0))
+      };
+    }
     st.resetAt = Math.max(0, num(raw.resetAt, 0));
     return st;
   }
@@ -629,7 +718,8 @@
     } catch (e) {
       c = capsMemory;
     }
-    if (!c || typeof c !== "object" || c.day !== today) c = { day: today, chat: 0, letters: {}, items: {}, dialogues: {} };
+    if (!c || typeof c !== "object" || c.day !== today) c = { day: today, chat: 0, letters: {}, items: {}, dialogues: {}, levels: {} };
+    if (!c.levels || typeof c.levels !== "object") c.levels = {};
     if (!c.letters || typeof c.letters !== "object") c.letters = {};
     if (!c.items || typeof c.items !== "object") c.items = {};
     if (!c.dialogues || typeof c.dialogues !== "object") c.dialogues = {};
@@ -734,6 +824,160 @@
     return { seen: st.alphabetSeen, letters: n };
   }
 
+  // ---------- 阶段 11：冒险闯关（关卡、宝箱、头像 / 主题、护照邮票、每日挑战） ----------
+  function getLevel(id) {
+    var r = load().levels[id];
+    return r ? { stars: r.stars, best: r.best, plays: r.plays, lastSeen: r.lastSeen } : null;
+  }
+  function levelsAll() {
+    var lv = load().levels, out = {};
+    for (var k in lv) if (has(lv, k)) out[k] = { stars: lv[k].stars, best: lv[k].best, plays: lv[k].plays, lastSeen: lv[k].lastSeen };
+    return out;
+  }
+  // 玩完一关（过关或失败都调用）：stars 0–3（0 = 失败），best = 这次的正确率 0–100
+  // → { stars, best, plays, previous（之前的星星）, improved（星星变多了）, first（第一次过关） }
+  function recordLevel(id, stars, best) {
+    if (!id || !ID_RE.test(String(id))) return null;
+    stars = Math.max(0, Math.min(3, Math.floor(num(stars, 0))));
+    best = Math.max(0, Math.min(100, Math.floor(num(best, 0))));
+    var st = load();
+    var r = st.levels[id];
+    if (!r || r.since < st.resetAt) r = { stars: 0, best: 0, plays: 0, lastSeen: 0, since: st.resetAt };
+    r.since = st.resetAt;
+    var prev = r.stars;
+    r.stars = Math.max(r.stars, stars);
+    if (stars > 0) r.best = Math.max(r.best, best); // 失败的那次不算“最好成绩”
+    r.plays++;
+    r.lastSeen = Date.now();
+    st.levels[id] = r;
+    markDay(st);
+    save(st);
+    var out = getLevel(id);
+    out.previous = prev;
+    out.improved = stars > prev;
+    out.first = prev === 0 && stars > 0;
+    return out;
+  }
+  // 过关给经验值：同一关每天第一次按星星给（level1/2/3），之后再过给 levelRepeat；stars = 0（失败）不给
+  function awardLevel(id, stars) {
+    stars = Math.floor(num(stars, 0));
+    if (!id || stars < 1) return null;
+    var c = loadCaps();
+    var k = String(id);
+    var n = c.levels[k] ? XP_RULES.levelRepeat : XP_RULES["level" + Math.min(3, stars)];
+    c.levels[k] = 1;
+    saveCaps(c);
+    return addXp(n);
+  }
+
+  // 每日挑战：{ "YYYY-MM-DD": { done, stars, at } }。一天只领一次奖励（+dailyDone XP、+DAILY_STARS ⭐）
+  // → { first: 这次是不是今天第一次通关（第一次才给奖励）, xp: addXp 的结果或 null }
+  function recordDaily(day) {
+    day = DAY_RE.test(String(day || "")) ? String(day) : dayKey();
+    var st = load();
+    var d = st.daily[day];
+    if (d && d.done && d.since >= st.resetAt) return { first: false, xp: null };
+    st.daily[day] = { done: true, stars: DAILY_STARS, at: Date.now(), since: st.resetAt };
+    markDay(st);
+    save(st);
+    return { first: true, xp: addXp(XP_RULES.dailyDone) };
+  }
+  // 今天每日挑战选中的内容（只存在本机的小 key 里，第二天自动作废）：
+  //   dailyPick(day) → 存过的 items 或 null；dailyPick(day, items) → 今天还没存就存下 items，返回今天的那一份
+  //   （当天第一次打开时定下来，之后学了新词、状态变了，题目也不会变）
+  function dailyPick(day, items) {
+    var c = loadCaps();
+    day = String(day || dayKey());
+    if (c.daily && c.daily.day === day && c.daily.items && typeof c.daily.items === "object") return c.daily.items;
+    if (!items || day !== c.day) return items || null;
+    c.daily = { day: day, items: items };
+    saveCaps(c);
+    return items;
+  }
+  function getDaily(day) {
+    var d = load().daily[day || dayKey()];
+    return d ? { done: d.done, stars: d.stars, at: d.at } : null;
+  }
+  // 星星总数 = 所有关卡的星星 + 每日挑战的额外星星
+  function starsTotal() {
+    var st = load(), n = 0, k;
+    for (k in st.levels) if (has(st.levels, k)) n += st.levels[k].stars;
+    for (k in st.daily) if (has(st.daily, k)) n += st.daily[k].stars;
+    return n;
+  }
+  // 宝箱：每 10 颗星一个；能开的个数 = floor(星星 / 10) − 已开的（不会是负数）
+  var STARS_PER_CHEST = 10;
+  function chestsOpened() {
+    var st = load();
+    return st.chests.since >= st.resetAt ? st.chests.opened : 0;
+  }
+  function chestsAvailable() {
+    return Math.max(0, Math.floor(starsTotal() / STARS_PER_CHEST) - chestsOpened());
+  }
+  // 开一个宝箱。kind = "avatar" / "skin"（id = 头像或主题的 id）/ "xp"（全部拿完以后改给经验值）
+  // 没有能开的宝箱 → null；→ { kind, id, xp }
+  function openChest(kind, id) {
+    if (chestsAvailable() < 1) return null;
+    var st = load();
+    var now = Date.now();
+    st.chests = { opened: (st.chests.since >= st.resetAt ? st.chests.opened : 0) + 1, since: st.resetAt };
+    if ((kind === "avatar" || kind === "skin") && id && ID_RE.test(String(id))) {
+      var field = kind === "avatar" ? "avatars" : "skins";
+      if (!st.owned[field][id]) st.owned[field][id] = now;
+    }
+    save(st);
+    var xp = null;
+    if (kind === "xp") xp = addXp(XP_RULES.chestXp);
+    return { kind: kind, id: id || null, xp: xp };
+  }
+  // 拥有的头像 / 主题（一开始的 🧳 和默认绿色主题总是拥有）
+  function owned() {
+    var o = load().owned, out = { avatars: {}, skins: {} }, k;
+    out.avatars[DEFAULT_AVATAR] = 1;
+    out.skins[DEFAULT_SKIN] = 1;
+    for (k in o.avatars) if (has(o.avatars, k)) out.avatars[k] = o.avatars[k];
+    for (k in o.skins) if (has(o.skins, k)) out.skins[k] = o.skins[k];
+    return out;
+  }
+  function profile() {
+    var p = load().profile;
+    var o = owned();
+    // 万一选中的东西不再拥有（例如清除记录后另一台设备合并过来）：退回默认
+    return {
+      avatar: o.avatars[p.avatar] ? p.avatar : DEFAULT_AVATAR,
+      skin: o.skins[p.skin] ? p.skin : DEFAULT_SKIN,
+      updatedAt: p.updatedAt
+    };
+  }
+  // 换头像 / 主题：只能选已经拥有的。changes = { avatar?, skin? }
+  function setProfile(changes) {
+    changes = changes || {};
+    var o = owned();
+    var st = load();
+    var cur = profile();
+    var p = { avatar: cur.avatar, skin: cur.skin, updatedAt: Math.max(Date.now(), st.profile.updatedAt + 1) };
+    if (changes.avatar && o.avatars[changes.avatar]) p.avatar = changes.avatar;
+    if (changes.skin && o.skins[changes.skin]) p.skin = changes.skin;
+    st.profile = p;
+    save(st);
+    fireEvent("profile-changed", { avatar: p.avatar, skin: p.skin });
+    return profile();
+  }
+  // 护照邮票：区域 boss 过关得一枚 → true = 这次是新得到的
+  function addStamp(regionId) {
+    if (!regionId || !ID_RE.test(String(regionId))) return false;
+    var st = load();
+    if (st.stamps[regionId]) return false;
+    st.stamps[regionId] = Date.now();
+    save(st);
+    return true;
+  }
+  function stamps() {
+    var s = load().stamps, out = {};
+    for (var k in s) if (has(s, k)) out[k] = s[k];
+    return out;
+  }
+
   // ---------- 清除 ----------
   // 不直接删掉 key，而是存一份空记录 + resetAt（清除的时间）：
   // 同步时其他设备上早于这个时间的记录也会被丢弃。
@@ -742,9 +986,12 @@
     var st = emptyState();
     st.resetAt = Math.max(Date.now(), old.resetAt + 1);
     st.settings = cleanSettings(old.settings); // 设置（每日目标）不是学习记录：保留
-    saveCaps({ day: dayKey(), chat: 0, letters: {}, items: {}, dialogues: {} });
+    // 关卡、宝箱、拥有的东西（只留初始头像）、邮票、每日挑战都清空；头像改回 🧳、主题改回默认（时间 = 清除时间，跨设备生效）
+    st.profile = { avatar: DEFAULT_AVATAR, skin: DEFAULT_SKIN, updatedAt: st.resetAt };
+    saveCaps({ day: dayKey(), chat: 0, letters: {}, items: {}, dialogues: {}, levels: {} });
     saveLocal(st);
     sync.changed(true); // 马上写到远端
+    fireEvent("profile-changed", { avatar: DEFAULT_AVATAR, skin: DEFAULT_SKIN });
   }
 
   // ---------- 合并两份进度（同步用） ----------
@@ -857,6 +1104,48 @@
       }
     }
 
+    // ---- 阶段 11 ----
+    // 关卡：stars / best / plays / lastSeen 都取较大。
+    // 清除记录：关卡、宝箱、每日挑战的记录带 since（写的时候那台设备知道的 resetAt），since 早于合并后的 resetAt 的整条丢掉。
+    // （不用 lastSeen 过滤：几个字段各取较大以后再按时间过滤，结果会和合并顺序有关；用 since 和顺序无关）
+    var lids = {};
+    for (id in a.levels) if (has(a.levels, id)) lids[id] = true;
+    for (id in b.levels) if (has(b.levels, id)) lids[id] = true;
+    for (id in lids) {
+      if (!has(lids, id)) continue;
+      x = has(a.levels, id) && a.levels[id].since >= R ? a.levels[id] : null;
+      y = has(b.levels, id) && b.levels[id].since >= R ? b.levels[id] : null;
+      if (!x && !y) continue;
+      if (!x || !y) {
+        var lo = x || y;
+        out.levels[id] = { stars: lo.stars, best: lo.best, plays: lo.plays, lastSeen: lo.lastSeen, since: R };
+        continue;
+      }
+      out.levels[id] = { stars: Math.max(x.stars, y.stars), best: Math.max(x.best, y.best), plays: Math.max(x.plays, y.plays), lastSeen: Math.max(x.lastSeen, y.lastSeen), since: R };
+    }
+    // 宝箱：已开的个数取较大（since 早于 resetAt = 清除记录之前开的，不算）
+    out.chests = { opened: Math.max(a.chests.since >= R ? a.chests.opened : 0, b.chests.since >= R ? b.chests.opened : 0), since: R };
+    // 拥有的头像 / 主题、护照邮票：并集，时间取较晚；早于 resetAt 的丢掉
+    out.owned = { avatars: unionTimes(a.owned.avatars, b.owned.avatars, R), skins: unionTimes(a.owned.skins, b.owned.skins, R) };
+    out.stamps = unionTimes(a.stamps, b.stamps, R);
+    // 个人形象：取 updatedAt 较新的；时间一样按“头像|主题”的文字取较大的（和顺序无关）；早于 resetAt 的当作默认
+    var pa = a.profile.updatedAt >= R ? a.profile : null;
+    var pb = b.profile.updatedAt >= R ? b.profile : null;
+    var pp = !pa ? pb : !pb ? pa :
+      (pa.updatedAt !== pb.updatedAt ? (pa.updatedAt > pb.updatedAt ? pa : pb) : ((pa.avatar + "|" + pa.skin) >= (pb.avatar + "|" + pb.skin) ? pa : pb));
+    out.profile = pp ? { avatar: pp.avatar, skin: pp.skin, updatedAt: pp.updatedAt } : defaultProfile();
+    // 每日挑战：按日期并集，done 取“或”，stars 取较大，at 取较晚；since 早于 resetAt 的丢掉
+    var dsd = [a.daily, b.daily];
+    for (var dd = 0; dd < 2; dd++) {
+      for (var dkey in dsd[dd]) {
+        if (!has(dsd[dd], dkey)) continue;
+        var e = dsd[dd][dkey];
+        if (e.since < R) continue;
+        var o = out.daily[dkey];
+        out.daily[dkey] = o ? { done: o.done || e.done, stars: Math.max(o.stars, e.stars), at: Math.max(o.at, e.at), since: R } : { done: e.done, stars: e.stars, at: e.at, since: R };
+      }
+    }
+
     // 设置：取较新的；时间一样取目标大的（结果和合并顺序无关）
     var sa = a.settings, sb = b.settings;
     var sp = sa.updatedAt !== sb.updatedAt ? (sa.updatedAt > sb.updatedAt ? sa : sb) : (sa.dailyGoal >= sb.dailyGoal ? sa : sb);
@@ -896,6 +1185,17 @@
       }
       out[id] = { best: best, total: total, done: x.done || y.done, lastSeen: Math.max(x.lastSeen, y.lastSeen) };
     }
+  }
+
+  function unionTimes(x, y, R) {
+    var out = {}, sides = [x, y];
+    for (var s = 0; s < 2; s++) {
+      for (var k in sides[s]) {
+        if (!has(sides[s], k) || sides[s][k] < R) continue;
+        out[k] = Math.max(out[k] || 0, sides[s][k]);
+      }
+    }
+    return out;
   }
 
   function hasKeys(o) {
@@ -1006,7 +1306,9 @@
         if (remote && same(merged, remote)) return;
         // 远端读到“没有”、本地也是空的：不写（防止读取出错时用空进度盖掉账号里的进度）
         if (!remote && !hasKeys(merged.words) && !hasKeys(merged.grammar) && !hasKeys(merged.dialogues) && !merged.lastQuiz && !merged.alphabetSeen &&
-            !hasKeys(merged.games) && !hasKeys(merged.days) && !hasKeys(merged.xp) && !hasKeys(merged.badges) && !merged.settings.updatedAt && !merged.resetAt) return;
+            !hasKeys(merged.games) && !hasKeys(merged.days) && !hasKeys(merged.xp) && !hasKeys(merged.badges) && !merged.settings.updatedAt && !merged.resetAt &&
+            !hasKeys(merged.levels) && !merged.chests.opened && !hasKeys(merged.owned.avatars) && !hasKeys(merged.owned.skins) &&
+            !merged.profile.updatedAt && !hasKeys(merged.stamps) && !hasKeys(merged.daily)) return;
         var body = JSON.parse(JSON.stringify(merged));
         return retryOnce(function () { return ref.set(body); });
       });
@@ -1218,6 +1520,27 @@
     setDailyGoal: setDailyGoal,
     unlockBadge: unlockBadge,
     badges: badges,
+    // 阶段 11：冒险闯关
+    DAILY_STARS: DAILY_STARS,
+    STARS_PER_CHEST: STARS_PER_CHEST,
+    DEFAULT_AVATAR: DEFAULT_AVATAR,
+    DEFAULT_SKIN: DEFAULT_SKIN,
+    getLevel: getLevel,
+    levelsAll: levelsAll,
+    recordLevel: recordLevel,
+    awardLevel: awardLevel,
+    recordDaily: recordDaily,
+    getDaily: getDaily,
+    dailyPick: dailyPick,
+    starsTotal: starsTotal,
+    chestsOpened: chestsOpened,
+    chestsAvailable: chestsAvailable,
+    openChest: openChest,
+    owned: owned,
+    profile: profile,
+    setProfile: setProfile,
+    addStamp: addStamp,
+    stamps: stamps,
     reset: reset,
     merge: merge,       // 合并两份进度（测试用）
     sync: sync.api

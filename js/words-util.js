@@ -3,12 +3,12 @@
 // 小测验、复习、日常句子、小游戏都用它。放在 data/*.js 之后、页面脚本之前引入。
 //
 //   WordsUtil.el(tag, className, text)          创建元素（文字用 textContent，安全）
-//   WordsUtil.shuffled(arr)                     洗牌（返回新数组）
+//   WordsUtil.shuffled(arr, rnd?)               洗牌（返回新数组；rnd 可选，自己的随机数函数）
 //   WordsUtil.sayButton(text, label)            “点一下就朗读”的按钮（在点击里同步朗读，iPhone 也能出声）
 //   WordsUtil.conflicts(a, b)                   两个词（或句子）放进同一道选择题会不会“撞车”
 //   WordsUtil.collectWords()                    所有课的词 → [{ word, lesson(课的下标), kind: "word" }]
 //   WordsUtil.collectPhrases()                  所有句子 → [{ word: 句子, lesson(组的下标), kind: "phrase" }]
-//   WordsUtil.pickDistractors(item, all, n)     给一道题挑 n 个不撞车的干扰项（先同一课，再别的课；只挑同一种 kind）
+//   WordsUtil.pickDistractors(item, all, n, rnd?)  给一道题挑 n 个不撞车的干扰项（先同一课，再别的课；只挑同一种 kind；rnd 可选）
 //   WordsUtil.lessonGroups(lessons)             把课分成“基础 / 进阶”两组 → [{ id, zh, en, indices }]
 //   WordsUtil.lessonPicker(box, groups, opts)   勾选范围的列表（全部 / 每组全选 / 每一课），见下面说明
 //   WordsUtil.masteryBadge(id, newText, pop)    状态小标记 + 掌握进度 3 个小圆点（○○○ → ●●● 已掌握 ✓）
@@ -23,10 +23,12 @@
     return e;
   }
 
-  function shuffled(arr) {
+  // rnd（可选）：自己的随机数函数（例如每日挑战用当天日期做种子）；不传就用 Math.random
+  function shuffled(arr, rnd) {
     var a = (arr || []).slice();
+    var R = typeof rnd === "function" ? rnd : Math.random;
     for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
+      var j = Math.floor(R() * (i + 1));
       var t = a[i];
       a[i] = a[j];
       a[j] = t;
@@ -139,14 +141,15 @@
   }
 
   // 干扰项：同一种（单词 / 句子），先同一课，再别的课；和正确答案、和彼此都不能撞车
-  function pickDistractors(item, all, n) {
+  // rnd（可选）：随机数函数，传了就用它打乱（同一个种子挑出一样的干扰项）；旧的 3 个参数的调用不受影响
+  function pickDistractors(item, all, n, rnd) {
     var same = [], other = [];
     for (var i = 0; i < all.length; i++) {
       var c = all[i];
       if (c === item || c.kind !== item.kind) continue;
       (c.lesson === item.lesson ? same : other).push(c);
     }
-    var candidates = shuffled(same).concat(shuffled(other));
+    var candidates = shuffled(same, rnd).concat(shuffled(other, rnd));
     var chosen = [];
     for (var j = 0; j < candidates.length && chosen.length < n; j++) {
       var cand = candidates[j];

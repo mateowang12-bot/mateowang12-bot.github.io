@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>我的 · 我的西语学习站</title>
   <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="../manifest.webmanifest">
   <link rel="icon" href="../icons/icon-192.png">
@@ -19,6 +20,9 @@
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
     <h1>我的 <span class="en">Me</span></h1>
+
+    <!-- 头像 + 段位（阶段 11） -->
+    <div class="me-hero" id="me-hero"></div>
 
     <!-- 统计卡片 -->
     <div class="stat-grid" id="stats"></div>
@@ -64,7 +68,7 @@
         <p class="panel-note">清除后从头开始（每日目标等设置会保留）。</p>
         <button type="button" class="btn btn-light btn-small" id="reset-btn" aria-expanded="false" aria-controls="reset-confirm">清除学习记录 / Reset progress</button>
         <div class="reset-confirm" id="reset-confirm" hidden>
-          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="en">已掌握的单词和句子、语法和情景对话的成绩、游戏最高分、连续学习天数、经验值都会清空，不能恢复。 / This cannot be undone.</span></span>
+          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="en">已掌握的单词和句子、语法和情景对话的成绩、游戏最高分、连续学习天数、经验值，以及冒险关卡的星星、宝箱、头像、主题、护照邮票、每日挑战都会清空（头像回到 🧳），不能恢复。请在所有设备都联网时再清除（否则还没同步的设备可能把旧记录带回来）。 / This cannot be undone.</span></span>
           <button type="button" class="btn btn-danger" id="reset-yes">确定清除</button>
           <button type="button" class="btn btn-light" id="reset-no">取消</button>
         </div>
@@ -80,8 +84,10 @@
   <script src="../data/grammar.js"></script>
   <script src="../data/dialogues.js"></script>
   <script src="../data/phrases.js"></script>
+  <script src="../data/levels.js"></script>
   <script src="../js/storage.js"></script>
   <script src="../js/modules.js"></script>
+  <script src="../js/world.js"></script>
   <script src="../js/pwa.js"></script>
   <script>
     var P = window.Progress || null;
@@ -311,8 +317,42 @@
     };
     if (!P) resetBtn.disabled = true;
 
+    // ---------- 头像 + 段位（阶段 11；段位常量在 js/world.js 的 RANKS） ----------
+    function renderHero() {
+      var box = $("me-hero");
+      box.innerHTML = "";
+      var W = window.World;
+      if (!W) return;
+      var prof = P ? P.profile() : { avatar: "suitcase" };
+      var av = W.avatar(prof.avatar);
+      var a = el("a", "me-avatar", av.emoji);
+      a.href = "collection.html";
+      a.setAttribute("aria-label", "我的头像：" + av.zh + "，点这里换 / Change avatar");
+      box.appendChild(a);
+      var rk = W.rank(P ? P.xpTotal() : 0);
+      var info = el("div", "");
+      var nm = el("div", "rank-name", rk.cur.emoji + " " + rk.cur.zh + " ");
+      nm.appendChild(el("span", "en", rk.cur.en));
+      info.appendChild(nm);
+      var bar = el("div", "pbar is-xp");
+      bar.setAttribute("role", "progressbar");
+      bar.setAttribute("aria-valuemin", "0");
+      bar.setAttribute("aria-valuemax", "100");
+      bar.setAttribute("aria-valuenow", String(Math.round(rk.ratio * 100)));
+      bar.setAttribute("aria-label", "到下一段位的进度 / Progress to next rank");
+      var fill = el("span");
+      fill.style.width = (rk.ratio * 100).toFixed(1) + "%";
+      bar.appendChild(fill);
+      info.appendChild(bar);
+      info.appendChild(el("div", "rank-next", rk.next ? "总经验值 " + rk.xp + " XP · 再得 " + (rk.next.min - rk.xp) + " XP 升到 " + rk.next.emoji + " " + rk.next.zh :
+        "总经验值 " + rk.xp + " XP · 已经是最高段位！"));
+      info.appendChild(el("div", "rank-next", "⭐ " + (P ? P.starsTotal() : 0) + " 颗星 · 护照邮票 " + (P ? Object.keys(P.stamps()).length : 0) + " 枚"));
+      box.appendChild(info);
+    }
+
     function renderAll() {
       var s = M.stats();
+      renderHero();
       renderStats(s);
       renderWeek();
       renderCal();
@@ -326,6 +366,7 @@
     window.addEventListener("progress-synced", renderAll);
     window.addEventListener("progress-xp", renderAll);
     window.addEventListener("progress-sync-status", renderSync);
+    window.addEventListener("profile-changed", renderAll);
     window.addEventListener("pageshow", function (ev) { if (ev.persisted) renderAll(); });
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible") renderAll();

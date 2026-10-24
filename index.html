@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>我的西语学习站</title>
+  <title>西班牙旅行冒险 · 我的西语学习站</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
@@ -16,23 +17,8 @@
 </head>
 <body>
   <div class="container">
-    <!-- 顶部：问候 + 🔥 连续天数 + ⭐ 今日经验值圆环（点一下去“我的”页） -->
-    <header class="home-top">
-      <div>
-        <div class="hello-title">¡Hola! 👋</div>
-        <div class="hello-sub">今天也学一点西语吧 <span class="en">Let's learn a little Spanish today</span></div>
-      </div>
-      <a class="stat-pill" id="stat-pill" href="pages/me.html" aria-label="我的学习记录 / My progress">
-        <span class="streak-chip" id="streak-chip">🔥 0 天</span>
-        <span class="xp-chip">
-          <svg class="xp-ring" id="xp-ring" viewBox="0 0 40 40" aria-hidden="true">
-            <circle class="xp-ring-track" cx="20" cy="20" r="16"></circle>
-            <circle class="xp-ring-fill" id="xp-ring-fill" cx="20" cy="20" r="16"></circle>
-          </svg>
-          <span class="xp-chip-text" id="xp-chip-text">⭐ 0/20</span>
-        </span>
-      </a>
-    </header>
+    <!-- 顶部状态栏：头像、🔥 连续天数、⭐ 今日 XP / 目标、🏆 段位、⭐ 星星总数、🎁 宝箱（js/map.js 生成） -->
+    <header class="map-top" id="map-top"></header>
 
     <!-- “添加到主屏幕”提示：只在 iPhone Safari、并且不是从主屏幕图标打开时由 js/pwa.js 显示 -->
     <div class="notice" id="install-tip" role="note" hidden>
@@ -40,58 +26,24 @@
       <button type="button" class="notice-close" title="关闭" aria-label="关闭 / Close">×</button>
     </div>
 
-    <!-- 继续学习：下一步学什么（js/modules.js 的 Modules.recommend） -->
-    <section class="continue-card" id="continue-card" aria-labelledby="continue-title">
-      <div class="continue-label">继续学习 · CONTINUE</div>
-      <div class="continue-main">
-        <div class="continue-icon" id="continue-icon" aria-hidden="true">📇</div>
-        <div>
-          <div class="continue-kicker" id="continue-kicker"></div>
-          <div class="continue-title" id="continue-title"></div>
-        </div>
-      </div>
-      <p class="continue-desc" id="continue-desc"></p>
-      <div class="continue-progress" id="continue-progress" hidden>
-        <div class="continue-progress-text"><span>已掌握 / Mastered</span><span id="continue-progress-num"></span></div>
-        <div class="pbar" role="progressbar" aria-valuemin="0" id="continue-pbar"><span id="continue-pbar-fill"></span></div>
-      </div>
-      <a class="btn btn-big btn-block" id="continue-btn" href="pages/words.html">开始学习</a>
-      <div class="continue-alt" id="continue-alt"></div>
-    </section>
+    <h1 class="sr-only">西班牙旅行冒险地图 / Spain adventure map</h1>
 
-    <!-- 今日小卡片 -->
-    <div class="today-grid">
-      <a class="today-card" id="today-review" href="pages/review.html">
-        <div class="today-icon" aria-hidden="true">🔁</div>
-        <div class="today-num" id="today-due">0</div>
-        <div class="today-label">待复习 <span class="en">Due</span></div>
-      </a>
-      <a class="today-card" href="pages/me.html">
-        <div class="today-icon" aria-hidden="true">⭐</div>
-        <div class="today-num" id="today-xp">0 / 20</div>
-        <div class="pbar is-xp" aria-hidden="true"><span id="today-xp-bar"></span></div>
-        <div class="today-label">今日目标 <span class="en">Goal</span></div>
-      </a>
-      <div class="today-card">
-        <div class="today-icon" aria-hidden="true">📝</div>
-        <div class="today-num" id="today-items">0</div>
-        <div class="today-label">今天学了 <span class="en">Today</span></div>
-      </div>
-    </div>
+    <!-- 每日挑战入口 -->
+    <div id="daily-box"></div>
 
-    <!-- 全部内容 → 学习页 -->
-    <a class="all-link" href="pages/learn.html">
-      <span>📚 全部内容 <span class="en">All lessons</span></span>
-      <span class="chev" aria-hidden="true">›</span>
-    </a>
+    <p class="map-note" id="map-note" hidden>临时地图：冒险关卡内容还在准备中，先用已有的课程闯关。 / Temporary map.</p>
+
+    <!-- 冒险地图：10 个区域从上往下，点关卡开始闯关 -->
+    <div class="map" id="map"></div>
 
     <div class="home-foot">
+      <a class="back-link" href="pages/learn.html">📚 自由练习：单词、句子、语法、小游戏 ›</a>
       <div class="sync-status" id="sync-status" role="status"></div>
       <div class="sync-status" id="pwa-update" role="status" hidden></div>
     </div>
   </div>
 
-  <!-- 学习内容（只用来数总数）和进度记录（普通 script，双击打开也能用） -->
+  <!-- 学习内容和进度记录（普通 script，双击打开也能用） -->
   <script src="js/claude-bridge.js"></script>
   <script src="js/nav.js"></script>
   <script src="data/alphabet.js"></script>
@@ -99,102 +51,13 @@
   <script src="data/grammar.js"></script>
   <script src="data/dialogues.js"></script>
   <script src="data/phrases.js"></script>
+  <script src="data/levels.js"></script>
   <script src="js/storage.js"></script>
-  <script src="js/modules.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/map.js"></script>
   <script src="js/pwa.js"></script>
   <script>
     var P = window.Progress || null;
-    var M = window.Modules;
-    function $(id) { return document.getElementById(id); }
-    var RING_LEN = 2 * Math.PI * 16; // 圆环周长（r = 16）
-
-    // 顶部状态：🔥 连续天数、⭐ 今日 XP / 目标
-    function renderTop() {
-      var streak = P ? P.streak() : 0;
-      var xp = P ? P.xpToday() : 0;
-      var goal = P ? P.dailyGoal() : 20;
-      var chip = $("streak-chip");
-      chip.textContent = "🔥 " + streak + " 天";
-      chip.classList.toggle("is-zero", !streak);
-      $("xp-chip-text").textContent = "⭐ " + xp + "/" + goal;
-      var ratio = Math.min(1, goal ? xp / goal : 0);
-      var fill = $("xp-ring-fill");
-      fill.style.strokeDasharray = RING_LEN.toFixed(2);
-      fill.style.strokeDashoffset = (RING_LEN * (1 - ratio)).toFixed(2);
-      $("xp-ring").classList.toggle("is-done", ratio >= 1);
-      $("stat-pill").setAttribute("aria-label", "连续学习 " + streak + " 天，今天 " + xp + " / " + goal + " XP。点这里看我的学习记录 / My progress");
-
-      $("today-xp").textContent = xp + " / " + goal;
-      $("today-xp-bar").style.width = (ratio * 100).toFixed(1) + "%";
-    }
-
-    // “继续学习”大卡片
-    function renderContinue() {
-      var r = M.recommend();
-      $("continue-icon").textContent = r.icon || "📚";
-      $("continue-kicker").textContent = r.kicker || "";
-      var t = $("continue-title");
-      t.textContent = r.title || "";
-      if (r.titleEn) {
-        var en = document.createElement("span");
-        en.className = "en";
-        en.textContent = r.titleEn;
-        t.appendChild(en);
-      }
-      var d = $("continue-desc");
-      d.textContent = (r.desc && r.desc[0]) || "";
-      if (r.desc && r.desc[1]) {
-        var den = document.createElement("span");
-        den.className = "en";
-        den.textContent = r.desc[1];
-        d.appendChild(den);
-      }
-      var pr = $("continue-progress");
-      if (r.progress && r.progress.total) {
-        pr.hidden = false;
-        $("continue-progress-num").textContent = r.progress.done + " / " + r.progress.total;
-        $("continue-pbar").setAttribute("aria-valuemax", String(r.progress.total));
-        $("continue-pbar").setAttribute("aria-valuenow", String(r.progress.done));
-        $("continue-pbar-fill").style.width = (100 * r.progress.done / r.progress.total).toFixed(1) + "%";
-      } else {
-        pr.hidden = true;
-      }
-      var b = $("continue-btn");
-      b.textContent = (r.btn || "开始学习") + " →";
-      b.href = r.url;
-      b.setAttribute("data-rec", r.id);
-      var alt = $("continue-alt");
-      alt.innerHTML = "";
-      if (r.alt && r.alt.length) {
-        alt.appendChild(document.createTextNode("或者："));
-        for (var i = 0; i < r.alt.length; i++) {
-          if (i) alt.appendChild(document.createTextNode(" · "));
-          var a = document.createElement("a");
-          a.href = r.alt[i].url;
-          a.textContent = r.alt[i].text;
-          alt.appendChild(a);
-        }
-      }
-    }
-
-    function renderToday() {
-      var s = M.stats();
-      $("today-due").textContent = s.due + " 个";
-      $("today-items").textContent = s.todayItems + " 个";
-    }
-
-    function render() {
-      renderTop();
-      renderContinue();
-      renderToday();
-    }
-    render();
-    // window.claude 可能稍后才出现；load 之后再算一次
-    window.addEventListener("load", render);
-    // 加了经验值（例如别的标签页）、另一台设备同步过来：重新算
-    window.addEventListener("progress-synced", render);
-    window.addEventListener("progress-xp", render);
-
     // 同步状态小字
     var SYNC_TEXT = {
       synced: "☁️ 进度已同步到你的 Claude 账号",
@@ -204,19 +67,13 @@
     };
     function renderSync() {
       var s = P && P.sync ? P.sync.status() : "local";
-      $("sync-status").textContent = SYNC_TEXT[s] || SYNC_TEXT.local;
+      document.getElementById("sync-status").textContent = SYNC_TEXT[s] || SYNC_TEXT.local;
     }
     renderSync();
     window.addEventListener("progress-sync-status", renderSync);
-
-    // 从别的页面“后退”回首页时（浏览器缓存的旧页面），重新算一遍，并把本地进度合并上传
+    // 从别的页面“后退”回来（浏览器缓存的旧页面）：把本地进度合并上传
     window.addEventListener("pageshow", function (ev) {
-      render();
       if (ev.persisted && P && P.sync) P.sync.flush();
-    });
-    // 切到别的应用、隔夜再切回来：重新算一遍（🔥 连续天数、今日 XP 会跟着日期更新）
-    document.addEventListener("visibilitychange", function () {
-      if (document.visibilityState === "visible") render();
     });
   </script>
 </body>
