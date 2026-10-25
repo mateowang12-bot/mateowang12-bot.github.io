@@ -132,7 +132,7 @@ window.WORD_LESSONS = [
         zh: "谢谢",
         en: "thank you / thanks",
         emoji: "🙏",
-        note: "muchas gracias = 非常感谢。ci 里的 c 在西班牙读得像英语 th，拉美读 s。",
+        note: "muchas gracias = 非常感谢。ci 里的 c 在西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "¡Muchas gracias!", zh: "非常感谢！", en: "Thank you very much!" }
       },
       {
@@ -197,7 +197,7 @@ window.WORD_LESSONS = [
         zh: "零",
         en: "zero",
         emoji: "0️⃣",
-        note: "在西班牙 ce 的 c 读得像英语 th，拉美读 s。",
+        note: "在西班牙 ce 的 c 读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "Cero, uno, dos.", zh: "零、一、二。", en: "Zero, one, two." }
       },
       {
@@ -242,7 +242,7 @@ window.WORD_LESSONS = [
         zh: "五",
         en: "five",
         emoji: "5️⃣",
-        note: "在西班牙 ci 的 c 读得像英语 th，拉美读 s。",
+        note: "在西班牙 ci 的 c 读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "Tres, cuatro, cinco.", zh: "三、四、五。", en: "Three, four, five." }
       }
     ]
@@ -276,7 +276,7 @@ window.WORD_LESSONS = [
         zh: "八",
         en: "eight",
         emoji: "8️⃣",
-        note: "ch 读音近似英语 church 的 ch（只是近似）。",
+        note: "ch 读音近似拼音 ch（“吃”的声母），但舌头不卷（只是近似）。",
         example: { es: "Seis, siete, ocho.", zh: "六、七、八。", en: "Six, seven, eight." }
       },
       {
@@ -294,7 +294,7 @@ window.WORD_LESSONS = [
         zh: "十",
         en: "ten",
         emoji: "🔟",
-        note: "在西班牙 z 读得像英语 th，拉美读 s。",
+        note: "在西班牙 z 读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "Cinco y cinco son diez.", zh: "五加五等于十。", en: "Five and five make ten." }
       }
     ]
@@ -521,7 +521,7 @@ window.WORD_LESSONS = [
         zh: "牛奶",
         en: "milk",
         emoji: "🥛",
-        note: "ch 读音近似英语 church 的 ch（只是近似）。",
+        note: "ch 读音近似拼音 ch（“吃”的声母），但舌头不卷（只是近似）。",
         example: { es: "Un café con leche, por favor.", zh: "请来一杯牛奶咖啡。", en: "A coffee with milk, please." }
       },
       {
@@ -538,7 +538,7 @@ window.WORD_LESSONS = [
         zh: "苹果",
         en: "apple",
         emoji: "🍎",
-        note: "在西班牙 z 读得像英语 th，拉美读 s。",
+        note: "在西班牙 z 读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "La manzana es roja.", zh: "苹果是红色的。", en: "The apple is red." }
       },
       {
@@ -547,7 +547,7 @@ window.WORD_LESSONS = [
         zh: "米饭；大米",
         en: "rice",
         emoji: "🍚",
-        note: "rr 要连续弹舌（“打嘟噜”）。z 在西班牙读得像英语 th，拉美读 s。",
+        note: "rr 要连续弹舌（“打嘟噜”）。z 在西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "Arroz con pollo, por favor.", zh: "请来一份鸡肉饭。", en: "Chicken with rice, please." }
       },
       {
@@ -676,7 +676,7 @@ window.WORD_LESSONS = [
         es: "once",
         zh: "十一",
         en: "eleven",
-        note: "读作 ON-ce，不是英语的 once。ce 在西班牙读得像英语 th，拉美读 s。例句里的 más = 加（plus）。",
+        note: "读作 ON-ce，两个音节，重音在 ON。ce 在西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。例句里的 más = 加。",
         example: { es: "Diez más uno son once.", zh: "十加一等于十一。", en: "Ten plus one is eleven." }
       },
       {
@@ -1331,7 +1331,7 @@ window.WORD_LESSONS = [
         zh: "鞋",
         en: "shoes",
         emoji: "👞",
-        note: "单数 el zapato = 一只鞋。z 在西班牙读得像英语 th，拉美读 s。",
+        note: "单数 el zapato = 一只鞋。z 在西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "Los zapatos son nuevos.", zh: "这双鞋是新的。", en: "The shoes are new." }
       },
       {
@@ -1390,7 +1390,7 @@ window.WORD_LESSONS = [
         zh: "鼻子",
         en: "nose",
         emoji: "👃",
-        note: "复数 las narices。z 在西班牙读得像英语 th，拉美读 s。",
+        note: "复数 las narices。z 在西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来），拉美读 s。",
         example: { es: "Tengo la nariz roja.", zh: "我的鼻子红了。", en: "My nose is red." }
       },
       {

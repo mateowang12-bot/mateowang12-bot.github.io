@@ -12,16 +12,15 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container" id="main">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>AI 对话 <span class="en">Chat with AI</span></h1>
-    <p>和 AI 老师用很简单的西语聊天。写错了它会温和地帮你改；不会说的时候可以用中文问“……怎么说？”。<br>
-      <span class="en">Chat in very simple Spanish. The AI gently corrects mistakes; ask in Chinese when you're stuck.</span></p>
+    <h1>AI 对话</h1>
+    <p>和 AI 老师用很简单的西语聊天。写错了它会温和地帮你改；不会说的时候可以用中文问“……怎么说？”。</p>
 
     <!-- 正在连接 -->
     <div class="chat-status" id="connecting" role="status">正在连接 Claude… / Connecting…</div>
@@ -29,26 +28,25 @@
     <!-- 不能用时的说明 -->
     <div id="unavailable" hidden>
       <div class="notice" role="status" id="unavailable-text"></div>
-      <p><a class="btn btn-link" href="dialogue.html">去练“情景对话” / Go to Dialogues →</a></p>
+      <p><a class="btn btn-link" href="dialogue.html">去练“情景对话” →</a></p>
     </div>
 
     <!-- 顶部：中文翻译开关、重新开始 -->
     <div class="switch-row" id="top-row" hidden>
       <label class="quiz-check" for="show-zh">
         <input type="checkbox" id="show-zh" checked>
-        <span class="quiz-check-text">显示中文翻译 <span class="en">Show Chinese</span></span>
+        <span class="quiz-check-text">显示中文翻译</span>
       </label>
-      <button type="button" class="btn btn-light" id="restart-btn">🔁 重新开始 / Restart</button>
+      <button type="button" class="btn btn-light" id="restart-btn">🔁 重新开始</button>
     </div>
 
     <!-- 开场：选话题 -->
     <div id="setup" hidden>
-      <h2>选一个话题 <span class="en">Pick a topic</span></h2>
-      <div class="lesson-list chat-topics" id="topic-list" role="group" aria-label="话题 / Topics"></div>
-      <p class="small-tip">第一次会弹出是否允许使用 Claude 的提示，点允许即可（用的是你自己的 Claude 额度）。<br>
-        <span class="en">The first time, Claude asks for permission — tap Allow (it uses your own Claude usage).</span></p>
+      <h2>选一个话题</h2>
+      <div class="lesson-list chat-topics" id="topic-list" role="group" aria-label="话题"></div>
+      <p class="small-tip">第一次会弹出是否允许使用 Claude 的提示，点允许即可（用的是你自己的 Claude 额度）。</p>
       <div class="chat-status is-wrong" id="setup-status" role="status" hidden></div>
-      <p><button type="button" class="btn quiz-big-btn" id="start-btn">开始聊天 / Start</button></p>
+      <p><button type="button" class="btn quiz-big-btn" id="start-btn">开始聊天</button></p>
     </div>
 
     <!-- 聊天记录 -->
@@ -64,7 +62,7 @@
       <div class="chat-bar-row">
         <input type="text" class="text-input" id="msg" maxlength="300"
           autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="send"
-          aria-label="输入消息 / Message"
+          aria-label="输入消息"
           placeholder="用西语回答，或者用中文问‘…怎么说’">
         <button type="submit" class="btn" id="send-btn">发送</button>
         <button type="button" class="btn btn-light" id="stop-btn" hidden>停止</button>
@@ -76,6 +74,8 @@
   <!-- 学过的词和语法（拼进给 AI 的规则里）、发音、连接 Claude -->
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/dialogues.js"></script>
   <script src="../data/words.js"></script>
   <script src="../data/grammar.js"></script>
@@ -107,8 +107,8 @@
     function sayButton(text, label) {
       var b = el("button", "say", label || "听");
       b.type = "button";
-      b.title = "点击朗读 / Click to listen";
-      b.setAttribute("aria-label", "朗读 / Listen: " + text);
+      b.title = "点击朗读";
+      b.setAttribute("aria-label", "朗读：" + text);
       b.onclick = function (ev) {
         ev.stopPropagation();
         if (window.speakSpanish) window.speakSpanish(text);
@@ -326,7 +326,6 @@
           b.type = "button";
           b.setAttribute("data-topic", t.id);
           b.appendChild(el("span", "lesson-title", t.zh));
-          b.appendChild(el("span", "en", t.en));
           b.onclick = function () {
             topic = t;
             markTopic();
@@ -353,7 +352,7 @@
       return row;
     }
     function addUser(text) {
-      var row = addRow("me", "我 / Me");
+      var row = addRow("me", "我");
       var b = el("div", "bubble");
       var line = el("div", "bubble-es", text);
       if (!CHINESE_RE.test(text) && /[a-záéíóúüñ]/i.test(text)) line.appendChild(sayButton(text));
@@ -363,10 +362,10 @@
       return row;
     }
     function addAi(r) {
-      var row = addRow("them", "AI 老师 / Teacher");
+      var row = addRow("them", "AI 老师");
       if (r.correction) {
         var fix = el("div", "mini-card fix");
-        fix.appendChild(el("div", "mini-card-title", "✏️ 小纠错 / Small fix"));
+        fix.appendChild(el("div", "mini-card-title", "✏️ 小纠错"));
         var l1 = el("div", "fix-line", "你写的：");
         l1.appendChild(el("span", "fix-old", r.correction.you_wrote));
         fix.appendChild(l1);
@@ -379,7 +378,7 @@
       }
       if (r.help_zh) {
         var help = el("div", "mini-card help");
-        help.appendChild(el("div", "mini-card-title", "💡 帮助 / Help"));
+        help.appendChild(el("div", "mini-card-title", "💡 帮助"));
         help.appendChild(el("div", "", r.help_zh));
         row.appendChild(help);
       }
@@ -393,8 +392,8 @@
       return row;
     }
     function addThinking() {
-      var row = addRow("them", "AI 老师 / Teacher");
-      var b = el("div", "bubble thinking", "思考中… / Thinking…");
+      var row = addRow("them", "AI 老师");
+      var b = el("div", "bubble thinking", "思考中…");
       row.appendChild(b);
       scrollShow(row);
       return row;
@@ -432,7 +431,7 @@
       box.innerHTML = "";
       box.appendChild(el("div", "", text));
       if (retry) {
-        var b = el("button", "btn", "重试 / Retry");
+        var b = el("button", "btn", "重试");
         b.type = "button";
         b.id = "retry-btn";
         b.onclick = function () {
@@ -516,25 +515,25 @@
         }
         if (code === "rate_limited") {
           undo();
-          showStatus(job.start ? "setup-status" : "chat-status", "用得太频繁或额度用完了，请稍后再试。 / Too many requests or usage limit reached. Please try again later.");
+          showStatus(job.start ? "setup-status" : "chat-status", "用得太频繁或额度用完了，请稍后再试。");
           return;
         }
         if (code === "session_expired") {
           undo();
-          showStatus(job.start ? "setup-status" : "chat-status", "登录已过期，请重新登录 claude.ai，然后再打开这个页面。 / Please sign in to claude.ai again.");
+          showStatus(job.start ? "setup-status" : "chat-status", "登录已过期，请重新登录 claude.ai，然后再打开这个页面。");
           return;
         }
         if (code === "invalid_request" || code === "prompt_too_large" || code === "transform_error" || code === "queue_overflow" ||
             code === "images_unavailable" || code === "tools_unavailable" || code === "image_rejected") {
           // 网页自己的问题：重试也没用，点“重新开始”
           undo();
-          showStatus(job.start ? "setup-status" : "chat-status", "出了点问题，请点“重新开始”。 / Something went wrong — please restart. (" + code + ")");
+          showStatus(job.start ? "setup-status" : "chat-status", "出了点问题，请点“重新开始”。（错误代码 " + code + ")");
           return;
         }
         // invalid_json / empty_completion / upstream_error / refused / 其他：用户点“重试”再试一次
         setStage("chat");
         unanswered = job;
-        showStatus("chat-status", "这次没回答好，点‘重试’再试一次。 / That didn't work — tap Retry.", job);
+        showStatus("chat-status", "这次没回答好，点‘重试’再试一次。", job);
       }
 
       // 撤回：开场就回到选话题；用户的那句话从记录里拿掉，放回输入框
@@ -588,7 +587,7 @@
     function markUnsent(row) {
       if (!row || row.className.indexOf("unsent") >= 0) return;
       row.className += " unsent";
-      row.appendChild(el("div", "chat-who", "（没发送成功 / Not sent）"));
+      row.appendChild(el("div", "chat-who", "（没发送成功）"));
     }
 
     function resetChat() {

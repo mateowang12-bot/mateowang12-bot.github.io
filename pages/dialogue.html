@@ -12,25 +12,24 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>情景对话 <span class="en">Dialogues</span></h1>
-    <p>选一个情景，和对方一句一句聊下去。轮到你时，选出（或打出）合适的西语。点 🔊 听发音。<br>
-      <span class="en">Pick a scene and talk step by step. When it's your turn, choose (or type) the right Spanish. Tap 🔊 to listen.</span></p>
+    <h1>情景对话</h1>
+    <p>选一个情景，和对方一句一句聊下去。轮到你时，选出（或打出）合适的西语。点 🔊 听发音。</p>
 
     <!-- 两种模式 -->
-    <div class="seg" role="group" aria-label="练习模式 / Mode">
-      <button type="button" class="btn" id="mode-choose" aria-pressed="true">选择模式 / Choose</button>
-      <button type="button" class="btn" id="mode-type" aria-pressed="false">✍️ 打字挑战 / Type it</button>
+    <div class="seg" role="group" aria-label="练习模式">
+      <button type="button" class="btn" id="mode-choose" aria-pressed="true">选择模式</button>
+      <button type="button" class="btn" id="mode-type" aria-pressed="false">✍️ 打字挑战</button>
     </div>
 
     <!-- 选情景（由 JS 生成，从简到难） -->
-    <h2>选一个情景 <span class="en">Scenes</span></h2>
+    <h2>选一个情景</h2>
     <div class="lesson-list" id="scene-list"></div>
 
     <!-- 对话区（由 JS 生成） -->
@@ -40,6 +39,8 @@
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/dialogues.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -59,8 +60,8 @@
     function sayButton(text, label) {
       var b = el("button", "say", label || "听");
       b.type = "button";
-      b.title = "点击朗读 / Click to listen";
-      b.setAttribute("aria-label", "朗读 / Listen: " + text);
+      b.title = "点击朗读";
+      b.setAttribute("aria-label", "朗读：" + text);
       b.onclick = function (ev) {
         ev.stopPropagation();
         speak(text);
@@ -235,7 +236,6 @@
           b.type = "button";
           b.appendChild(el("span", "lesson-num", String(idx + 1)));
           b.appendChild(el("span", "lesson-title", d.titleZh || "（未命名）"));
-          b.appendChild(el("span", "en", d.titleEn || ""));
           var mark = el("span", "lesson-mastered");
           mark.setAttribute("data-idx", String(idx));
           b.appendChild(mark);
@@ -258,7 +258,7 @@
           spans[i].textContent = "✓ 已完成 · 最好 " + g.best + " / " + g.total;
           spans[i].classList.add("all-done");
         } else {
-          spans[i].textContent = "还没练 / Not done";
+          spans[i].textContent = "还没练";
           spans[i].classList.remove("all-done");
         }
       }
@@ -277,14 +277,12 @@
 
       box.innerHTML = "";
       var head = el("h2", "", (idx + 1) + ". " + (d.titleZh || "") + " ");
-      head.appendChild(el("span", "en", d.titleEn || ""));
       box.appendChild(head);
 
       if (d.sceneZh || d.sceneEn || d.partner) {
         var sc = el("div", "dlg-scene");
         if (d.sceneZh) sc.appendChild(el("p", "", "🎬 " + d.sceneZh));
-        if (d.sceneEn) sc.appendChild(el("p", "en", d.sceneEn));
-        if (d.partner) sc.appendChild(el("p", "", "和你说话的人 / Talking with：" + d.partner));
+        if (d.partner) sc.appendChild(el("p", "", "和你说话的人：" + d.partner));
         box.appendChild(sc);
       }
 
@@ -325,38 +323,32 @@
       return row;
     }
 
-    // 气泡：西语（大字 + 🔊）、中文、英文（折叠）
-    function bubble(es, zh, en) {
+    // 气泡：西语（大字 + 🔊）、中文（阶段 12 起不显示英文）
+    function bubble(es, zh) {
       var b = el("div", "bubble");
       var line = el("div", "bubble-es", es);
       line.appendChild(sayButton(es));
       b.appendChild(line);
       if (zh) b.appendChild(el("div", "bubble-zh", zh));
-      if (en) {
-        var det = el("details");
-        det.appendChild(el("summary", "", "英文 / English"));
-        det.appendChild(el("span", "en", en));
-        b.appendChild(det);
-      }
       return b;
     }
 
     function noteCard(text, title) {
       var c = el("div", "mini-card");
-      c.appendChild(el("div", "mini-card-title", title || "💡 小提示 / Tip"));
+      c.appendChild(el("div", "mini-card-title", title || "💡 小提示"));
       c.appendChild(el("div", "", text));
       return c;
     }
 
     function addThem(ln) {
-      var row = addRow("them", run.item.src.partner || "对方 / Them");
+      var row = addRow("them", run.item.src.partner || "对方");
       row.appendChild(bubble(ln.es, ln.zh, ln.en));
       if (ln.note) row.appendChild(noteCard(ln.note));
       scrollShow(row);
     }
 
     function addMe(opt, extraNote) {
-      var row = addRow("me", "我 / Me");
+      var row = addRow("me", "我");
       row.appendChild(bubble(opt.es, opt.zh, opt.en));
       // extraNote = { title, text }：注意重音 / 注意 ñ / 标准答案
       if (extraNote) row.appendChild(noteCard(extraNote.text, extraNote.title));
@@ -366,6 +358,7 @@
 
     // 选对了 / 打对了：变成“我”的气泡，朗读，然后继续
     function answered(opt, extraNote) {
+      if (window.Sfx) window.Sfx.correct();
       if (!run.missed) run.score++;
       if (run.turnBox && run.turnBox.parentNode) run.turnBox.parentNode.removeChild(run.turnBox);
       run.turnBox = null;
@@ -383,9 +376,8 @@
       if (!ln) return;
       var old = run.turnBox;
       var t = el("div", "dlg-turn");
-      t.appendChild(el("div", "chat-who", "轮到你了 / Your turn"));
+      t.appendChild(el("div", "chat-who", "轮到你了"));
       if (ln.hintZh) t.appendChild(el("p", "dlg-hint", ln.hintZh));
-      if (ln.hintEn) t.appendChild(el("p", "en", ln.hintEn));
 
       if (mode === "type" && !forceChoose) buildTyping(t, ln);
       else buildChoices(t, ln);
@@ -415,10 +407,11 @@
             }
             // 选错：标红，显示这句的中文意思（“（错误说法）”这类括号说明不显示）和为什么，可以再选
             run.missed = true;
+            if (window.Sfx) window.Sfx.wrong();
             b.classList.add("wrong");
             b.disabled = true;
-            if (o.zh && !/^\s*[（(][^）)]*[）)]\s*$/.test(o.zh)) txt.appendChild(el("span", "en dlg-opt-text", o.zh));
-            txt.appendChild(el("span", "dlg-why", "✘ " + (o.whyZh || "不太合适，再想想。 / Not quite, try again.")));
+            if (o.zh && !/^\s*[（(][^）)]*[）)]\s*$/.test(o.zh)) txt.appendChild(el("span", "muted dlg-opt-zh", o.zh));
+            txt.appendChild(el("span", "dlg-why", "✘ " + (o.whyZh || "不太合适，再想想。")));
           };
           wrap.appendChild(b);
         })(opts[i], i);
@@ -436,9 +429,9 @@
       input.setAttribute("autocapitalize", "off");
       input.setAttribute("spellcheck", "false");
       input.setAttribute("enterkeyhint", "done");
-      input.setAttribute("aria-label", "用西语回答 / Answer in Spanish");
+      input.setAttribute("aria-label", "用西语回答");
       input.placeholder = "用西语打出你要说的话…";
-      var check = el("button", "btn", "检查 / Check");
+      var check = el("button", "btn", "检查");
       check.type = "button";
       row.appendChild(input);
       row.appendChild(check);
@@ -450,41 +443,41 @@
 
       t.appendChild(el("p", "small-tip",
         "小技巧：iPhone 键盘上的 🎤 麦克风可以直接说西语输入（先把键盘切换成西班牙语）；长按 n 打出 ñ，长按元音打出 á é í ó ú。大小写和标点不用管。"));
-      t.appendChild(el("p", "small-tip en", "Tip: use the keyboard's 🎤 to dictate. Capitals and punctuation don't matter."));
 
       function doCheck() {
         var r = checkTyped(input.value, ln);
         if (r.result === "empty") {
           fb.hidden = false;
           fb.className = "quiz-feedback";
-          fb.textContent = "先输入一句西语。 / Type something first.";
+          fb.textContent = "先输入一句西语。";
           return;
         }
         if (r.result !== "wrong") {
           var note = null;
-          if (r.result === "accent") note = { title: "✍️ 注意重音 / Accents", text: "注意重音：正确写法是 " + r.option.es };
+          if (r.result === "accent") note = { title: "✍️ 注意重音", text: "注意重音：正确写法是 " + r.option.es };
           else if (r.result === "enye") note = { title: "✍️ 注意 ñ", text: "注意：正确写法是 " + r.option.es + "（ñ 可以长按 n 打出来）" };
           if (r.alt) {
             // alsoOk 里的说法：气泡显示这句的标准写法，再小字提示标准答案
             var std = "标准答案：" + ln.answers[0].es;
-            note = note ? { title: note.title, text: note.text + "。" + std } : { title: "✅ 这样说也对 / Also correct", text: std };
+            note = note ? { title: note.title, text: note.text + "。" + std } : { title: "✅ 这样说也对", text: std };
           }
           answered(r.option, note);
           return;
         }
         // 打错：显示正确答案（打的是某个错误选项时，先说为什么不对），可以再打一次，或者看选项
         run.missed = true;
+        if (window.Sfx) window.Sfx.wrong();
         fb.hidden = false;
         fb.className = "quiz-feedback is-wrong";
         fb.innerHTML = "";
         if (r.wrongOption && r.wrongOption.whyZh) fb.appendChild(el("p", "dlg-why", "✘ " + r.wrongOption.whyZh));
-        fb.appendChild(el("div", "quiz-feedback-title", "✘ 不太对。正确答案是： / The answer is:"));
+        fb.appendChild(el("div", "quiz-feedback-title", "✘ 不太对。正确答案是："));
         var line = el("div", "quiz-feedback-word");
         line.appendChild(sayButton(r.option.es, r.option.es));
         if (r.option.zh) line.appendChild(el("span", "quiz-feedback-zh", r.option.zh));
         fb.appendChild(line);
-        fb.appendChild(el("p", "small-tip", "可以照着再打一次，或者点“看选项”。 / Type it again, or show the options."));
-        var show = el("button", "btn btn-light", "看选项 / Show options");
+        fb.appendChild(el("p", "small-tip", "可以照着再打一次，或者点“看选项”。"));
+        var show = el("button", "btn btn-light", "看选项");
         show.type = "button";
         show.onclick = function () { showTurn(true); };
         fb.appendChild(show);
@@ -503,6 +496,7 @@
 
     // 一个情景练完
     function finish() {
+      if (window.Sfx) window.Sfx.win();
       var item = run.item;
       var score = run.score, total = item.meCount;
       if (window.Progress && window.Progress.recordDialogue) window.Progress.recordDialogue(item.id, score, total);
@@ -514,21 +508,20 @@
       res.appendChild(el("div", "quiz-result-label", "Done!"));
       if (total) {
         res.appendChild(el("div", "quiz-result-msg", "本次第一次就答对 " + score + " / " + total + " 轮"));
-        res.appendChild(el("div", "quiz-result-msg en", "Right on the first try: " + score + " / " + total));
       }
       var nav = el("div", "card-nav");
-      var again = el("button", "btn btn-light", "🔁 再练一次 / Again");
+      var again = el("button", "btn btn-light", "🔁 再练一次");
       again.type = "button";
       var idx = run.idx;
       again.onclick = function () { startDialogue(idx); };
       nav.appendChild(again);
       if (idx + 1 < LIST.length) {
-        var next = el("button", "btn", "下一个情景 / Next →");
+        var next = el("button", "btn", "下一个情景 →");
         next.type = "button";
         next.onclick = function () { startDialogue(idx + 1); };
         nav.appendChild(next);
       } else {
-        var back = el("button", "btn", "全部情景都练过了，回到列表 / Back to scenes");
+        var back = el("button", "btn", "全部情景都练过了，回到列表");
         back.type = "button";
         back.onclick = function () {
           if (sceneList.scrollIntoView) sceneList.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -556,8 +549,7 @@
     $("mode-type").setAttribute("aria-pressed", mode === "type" ? "true" : "false");
     if (!LIST.length) {
       box.appendChild(el("div", "notice",
-        "没有找到情景对话内容（data/dialogues.js 没有加载到，或者还没写好）。请确认这个文件存在。" +
-        " / Dialogue data not found."));
+        "没有找到情景对话内容（data/dialogues.js 没有加载到，或者还没写好）。请确认这个文件存在。"));
     } else {
       buildScenes();
       // 打开指定的情景：dialogue.html#scene=情景id（也认 ?scene=情景id）。首页“继续学习”用它。

@@ -71,7 +71,7 @@
     close.className = "notice-close";
     close.type = "button";
     close.title = "关闭";
-    close.setAttribute("aria-label", "关闭 / Close");
+    close.setAttribute("aria-label", "关闭");
     close.textContent = "×";
     close.onclick = function () {
       if (box.parentNode) box.parentNode.removeChild(box);
@@ -88,22 +88,19 @@
   if (IS_IOS) {
     NO_VOICE_MSG =
       "你的 iPhone / iPad 好像没有西班牙语语音，所以可能听不到正确的发音。" +
-      "iPhone：设置 → 辅助功能 → 朗读内容 → 声音 → 西班牙语，下载一个声音（例如 Mónica），然后重新打开这个网页。" +
-      " / No Spanish voice found on this device.";
+      "iPhone：设置 → 辅助功能 → 朗读内容 → 声音 → 西班牙语，下载一个声音（例如 Mónica），然后重新打开这个网页。";
   } else if (IS_WINDOWS) {
     NO_VOICE_MSG =
       "你的电脑没有西班牙语语音，所以可能听不到正确的发音。" +
-      "可以在 Windows 设置 → 时间和语言 → 语音 里添加“西班牙语(西班牙)”，然后重新打开浏览器。" +
-      " / No Spanish voice found on this computer.";
+      "可以在 Windows 设置 → 时间和语言 → 语音 里添加“西班牙语(西班牙)”，然后重新打开浏览器。";
   } else {
     NO_VOICE_MSG =
       "你的设备好像没有西班牙语语音，所以可能听不到正确的发音。" +
-      "请在系统设置的“语音 / 朗读”里添加一个西班牙语（Español）声音，然后重新打开浏览器。" +
-      " / No Spanish voice found on this device.";
+      "请在系统设置的“语音 / 朗读”里添加一个西班牙语（Español）声音，然后重新打开浏览器。";
   }
   var NO_SUPPORT_MSG = IS_IOS ?
-    "这个浏览器不支持朗读功能，请用 iPhone 自带的 Safari 打开。 / This browser does not support speech." :
-    "你的浏览器不支持朗读功能，请换用最新版的 Edge 或 Chrome 浏览器。 / This browser does not support speech.";
+    "这个浏览器不支持朗读功能，请用 iPhone 自带的 Safari 打开。" :
+    "你的浏览器不支持朗读功能，请换用最新版的 Edge 或 Chrome 浏览器。";
 
   // 如果语音已加载但没有西语，就提示
   function checkVoice() {

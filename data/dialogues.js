@@ -32,7 +32,7 @@ window.DIALOGUES = [
           { es: "Sí, gracias.", zh: "是的，谢谢。", en: "Yes, thanks.", correct: false, whyZh: "答非所问：¿qué tal? 问的是“怎么样”，不能用“是”来回答。" }
         ],
         alsoOk: ["Estoy bien, gracias. ¿Y tú?", "Muy bien, gracias. ¿Y tú?", "Bien, ¿y tú?"],
-        note: "¿Y tú? = 你呢？（And you?）tú 要带重音。"
+        note: "¿Y tú? = 你呢？tú 要带重音。"
       },
       { who: "them", es: "Muy bien. ¿Y tu familia?", zh: "很好。你家里人呢？", en: "Very well. And your family?" },
       { who: "me",
@@ -43,7 +43,7 @@ window.DIALOGUES = [
           { es: "Muy bien, gracias.", zh: "很好，谢谢。", en: "Very well, thanks.", correct: true }
         ],
         alsoOk: ["Bien, gracias."],
-        note: "tu（不带重音）= 你的（your）：tu familia = 你的家人。和 tú（你）不一样。"
+        note: "tu（不带重音）= 你的：tu familia = 你的家人。和 tú（你）不一样。"
       },
       { who: "them", es: "¡Hasta luego!", zh: "回头见！", en: "See you later!" },
       { who: "me",
@@ -75,7 +75,7 @@ window.DIALOGUES = [
           { es: "Me llamo Javier.", zh: "我叫 Javier。", en: "My name is Javier.", correct: false, whyZh: "Javier 是他的名字，不是你的。" }
         ],
         alsoOk: ["Soy Lin.", "Hola, me llamo Lin.", "Hola, soy Lin."],
-        note: "新词：me llamo = 我叫（my name is）；¿Cómo te llamas? = 你叫什么名字？（What's your name?）。也可以说 Soy Lin.（我是 Lin）。ll 读音近似 y。"
+        note: "新词：me llamo = 我叫；¿Cómo te llamas? = 你叫什么名字？。也可以说 Soy Lin.（我是 Lin）。ll 读音近似 y。"
       },
       { who: "them", es: "Mucho gusto, Lin.", zh: "很高兴认识你，Lin。", en: "Nice to meet you, Lin." },
       { who: "me",
@@ -108,7 +108,7 @@ window.DIALOGUES = [
           { es: "Hola, Marta. Mucho gusto.", zh: "你好，Marta。很高兴认识你。", en: "Hi, Marta. Nice to meet you.", correct: true }
         ],
         alsoOk: ["Hola, Marta. Encantado.", "Hola, Marta. Encantada.", "Mucho gusto, Marta."],
-        note: "profesor = 老师（男）（teacher）；女老师是 profesora。"
+        note: "profesor = 老师（男）；女老师是 profesora。"
       },
       { who: "them", es: "¡Adiós, Lin! ¡Hasta luego!", zh: "再见，Lin！回头见！", en: "Bye, Lin! See you later!" },
       { who: "me",
@@ -151,7 +151,7 @@ window.DIALOGUES = [
           { es: "Perdón.", zh: "对不起。", en: "Sorry.", correct: false, whyZh: "你没做错事，这时该道谢。" }
         ],
         alsoOk: ["Gracias."],
-        note: "新词：Aquí tiene = 给您（Here you are），递东西给别人时说。"
+        note: "新词：Aquí tiene = 给您，递东西给别人时说。"
       },
       { who: "them", es: "De nada.", zh: "不客气。", en: "You're welcome." },
       { who: "me",
@@ -173,7 +173,7 @@ window.DIALOGUES = [
           { es: "Otro café, por favor.", zh: "请再来一杯咖啡。", en: "Another coffee, please.", correct: true }
         ],
         alsoOk: ["Otro, por favor.", "Un café, por favor."],
-        note: "新词：otro / otra = 另一个（another），要跟名词的阴阳性一致：otro café。"
+        note: "新词：otro / otra = 另一个，要跟名词的阴阳性一致：otro café。"
       },
       { who: "them", es: "Aquí tiene. ¡Ay, perdón!", zh: "给您。哎呀，对不起！", en: "Here you are. Oh, sorry!" },
       { who: "me",
@@ -184,10 +184,10 @@ window.DIALOGUES = [
           { es: "Por favor.", zh: "请。", en: "Please.", correct: false, whyZh: "por favor 用于请求别人做事，这里接不上。" }
         ],
         alsoOk: ["No pasa nada, gracias."],
-        note: "新词：No pasa nada = 没关系（It's OK / No problem），西班牙非常常用。"
+        note: "新词：No pasa nada = 没关系，西班牙非常常用。"
       },
       { who: "them", es: "Gracias, muy amable.", zh: "谢谢，您真好。", en: "Thank you, that's very kind.",
-        note: "muy amable = 您真好；您真客气（very kind），感谢别人体贴时常说。" }
+        note: "muy amable = 您真好；您真客气，感谢别人体贴时常说。" }
     ]
   },
 
@@ -207,7 +207,7 @@ window.DIALOGUES = [
           { es: "Sí, es tu familia.", zh: "是的，这是你的家人。", en: "Yes, this is your family.", correct: false, whyZh: "tu 是“你的”；说自己的家人要用 mi（我的）。" }
         ],
         alsoOk: ["Es mi familia.", "Sí, es mi familia, gracias."],
-        note: "新词：bonito / bonita = 好看的；漂亮的（pretty / lovely）。la foto（照片）是阴性，所以说 bonita。¡Qué…! = 真……啊！"
+        note: "新词：bonito / bonita = 好看的；漂亮的。la foto（照片）是阴性，所以说 bonita。¡Qué…! = 真……啊！"
       },
       { who: "them", es: "¿Y ella? ¿Es tu hermana?", zh: "那她呢？是你姐姐吗？", en: "And her? Is she your sister?" },
       { who: "me",
@@ -240,7 +240,7 @@ window.DIALOGUES = [
           { es: "Sí, tengo uno hermano y una hermana.", zh: "（错误说法）", en: "(incorrect)", correct: false, whyZh: "uno 放在阳性名词前要变成 un。" }
         ],
         alsoOk: ["Tengo un hermano y una hermana.", "Sí, un hermano y una hermana."],
-        note: "新词：¿Tienes…? = 你有……吗？（Do you have…?）；tengo = 我有（I have）。它们来自不规则动词 tener，以后再学。hermanos 在这里指“兄弟姐妹”。"
+        note: "新词：¿Tienes…? = 你有……吗？；tengo = 我有。它们来自不规则动词 tener，以后再学。hermanos 在这里指“兄弟姐妹”。"
       },
       { who: "them", es: "¿Y cómo se llama tu hermana?", zh: "那你姐姐叫什么名字？", en: "And what's your sister's name?" },
       { who: "me",
@@ -251,10 +251,10 @@ window.DIALOGUES = [
           { es: "Se llama Mei.", zh: "她叫 Mei。", en: "Her name is Mei.", correct: true }
         ],
         alsoOk: ["Mi hermana se llama Mei."],
-        note: "新词：se llama = 他/她叫（his / her name is）。me llamo 我叫，te llamas 你叫，se llama 他/她叫。"
+        note: "新词：se llama = 他/她叫。me llamo 我叫，te llamas 你叫，se llama 他/她叫。"
       },
       { who: "them", es: "¡Qué bonito nombre!", zh: "名字真好听！", en: "What a pretty name!",
-        note: "新词：el nombre = 名字（name），阳性，所以用 bonito。" }
+        note: "新词：el nombre = 名字，阳性，所以用 bonito。" }
     ]
   },
 
@@ -285,7 +285,7 @@ window.DIALOGUES = [
           { es: "Tengo diez hermanos.", zh: "我有十个兄弟姐妹。", en: "I have ten siblings.", correct: false, whyZh: "diez 是十，你只有两个（dos）。" }
         ],
         alsoOk: ["Dos.", "Tengo dos."],
-        note: "新词：¿Cuántos…? = 几个？多少？（How many…?）问阳性名词用 cuántos，阴性名词用 cuántas。"
+        note: "新词：¿Cuántos…? = 几个？多少？问阳性名词用 cuántos，阴性名词用 cuántas。"
       },
       { who: "them", es: "Yo tengo una hermana. ¿Dos y tres son…?", zh: "我有一个姐姐。二加三等于……？", en: "I have a sister. Two and three make…?" },
       { who: "me",
@@ -318,7 +318,7 @@ window.DIALOGUES = [
           { es: "Hay cinco dedo.", zh: "（错误说法）", en: "(incorrect)", correct: false, whyZh: "五根要用复数：dedos。" }
         ],
         alsoOk: ["Cinco.", "Hay cinco dedos.", "Hay cinco dedos en una mano."],
-        note: "新词：hay = 有（there is / there are），不变位，单数复数都用 hay；el dedo = 手指（finger）。la mano（手）是阴性，所以说 una mano。"
+        note: "新词：hay = 有，不变位，单数复数都用 hay；el dedo = 手指。la mano（手）是阴性，所以说 una mano。"
       },
       { who: "them", es: "¡Sí! ¡Muy bien!", zh: "对！真棒！", en: "Yes! Very good!" }
     ]
@@ -340,7 +340,7 @@ window.DIALOGUES = [
           { es: "El sol es amarillo.", zh: "太阳是黄色的。", en: "The sun is yellow.", correct: true }
         ],
         alsoOk: ["Es amarillo.", "Amarillo."],
-        note: "新词：¿De qué color es…? = ……是什么颜色？（What color is…?）；mira = 你看（look）。"
+        note: "新词：¿De qué color es…? = ……是什么颜色？；mira = 你看。"
       },
       { who: "them", es: "¿Y la flor?", zh: "那花呢？", en: "And the flower?" },
       { who: "me",
@@ -384,7 +384,7 @@ window.DIALOGUES = [
           { es: "Tu color favorito es el azul.", zh: "你最喜欢的颜色是蓝色。", en: "Your favorite color is blue.", correct: false, whyZh: "tu 是“你的”；说自己的要用 mi。" }
         ],
         alsoOk: ["Mi color favorito es azul.", "El azul."],
-        note: "新词：favorito / favorita = 最喜欢的（favorite）。el color 是阳性。"
+        note: "新词：favorito / favorita = 最喜欢的。el color 是阳性。"
       },
       { who: "them", es: "¡Y mi color favorito es el rojo!", zh: "我最喜欢的颜色是红色！", en: "And my favorite color is red!" }
     ]
@@ -406,7 +406,7 @@ window.DIALOGUES = [
           { es: "Soy en China.", zh: "（错误说法）", en: "(incorrect)", correct: false, whyZh: "“来自”要用 de；en 是“在”。" }
         ],
         alsoOk: ["Soy chino.", "Soy china.", "Soy chino, de China.", "Soy china, de China."],
-        note: "新词：¿De dónde eres? = 你是哪里人？（Where are you from?）dónde 带重音。也可以说 Soy chino（男）/ Soy china（女）。"
+        note: "新词：¿De dónde eres? = 你是哪里人？dónde 带重音。也可以说 Soy chino（男）/ Soy china（女）。"
       },
       { who: "them", es: "¡Ah, de China! Yo soy española, de Madrid.", zh: "啊，中国！我是西班牙人，马德里的。", en: "Oh, from China! I'm Spanish, from Madrid." },
       { who: "me",
@@ -428,7 +428,7 @@ window.DIALOGUES = [
           { es: "Sí, soy estudiante. Estudio español.", zh: "是的，我是学生。我学西班牙语。", en: "Yes, I'm a student. I study Spanish.", correct: true }
         ],
         alsoOk: ["Sí, soy estudiante y estudio español.", "Soy estudiante. Estudio español."],
-        note: "新词：médico / médica = 医生（doctor）；estudiar = 学习（to study），规则 -ar 动词，变位和 hablar 一样：estudio 我学。"
+        note: "新词：médico / médica = 医生；estudiar = 学习，规则 -ar 动词，变位和 hablar 一样：estudio 我学。"
       },
       { who: "them", es: "¡Muy bien! ¿Tu padre es médico también?", zh: "真好！你爸爸也是医生吗？", en: "Great! Is your father a doctor too?" },
       { who: "me",
@@ -439,7 +439,7 @@ window.DIALOGUES = [
           { es: "No, mi padre está profesor.", zh: "（错误说法）", en: "(incorrect)", correct: false, whyZh: "职业用 ser（es），不用 estar。" }
         ],
         alsoOk: ["No, es profesor."],
-        note: "新词：también = 也（too / also）。"
+        note: "新词：también = 也。"
       },
       { who: "them", es: "¿Y tu madre?", zh: "那你妈妈呢？", en: "And your mother?" },
       { who: "me",
@@ -453,7 +453,7 @@ window.DIALOGUES = [
         note: ""
       },
       { who: "them", es: "¡Como yo!", zh: "和我一样！", en: "Just like me!",
-        note: "这里的 como = 像……一样（like），和 comer 的“我吃”（como）拼写相同，意思不同。" }
+        note: "这里的 como = 像……一样，和 comer 的“我吃”（como）拼写相同，意思不同。" }
     ]
   },
 
@@ -473,7 +473,7 @@ window.DIALOGUES = [
           { es: "Está en casa.", zh: "他/她在家。", en: "He / She is at home.", correct: false, whyZh: "está 是“他/她在”；说“我在”要用 estoy。" }
         ],
         alsoOk: ["En casa.", "Estoy en casa, ¿y tú?"],
-        note: "¿Dónde estás? = 你在哪儿？（Where are you?）en casa = 在家（at home）。"
+        note: "¿Dónde estás? = 你在哪儿？en casa = 在家。"
       },
       { who: "them", es: "¿Y cómo estás?", zh: "你怎么样？", en: "And how are you?" },
       { who: "me",
@@ -484,7 +484,7 @@ window.DIALOGUES = [
           { es: "Hoy estoy triste.", zh: "我今天很难过。", en: "I'm sad today.", correct: true }
         ],
         alsoOk: ["Estoy triste hoy.", "Estoy triste."],
-        note: "hoy = 今天（today）；triste = 难过的（sad），阴阳性同形。"
+        note: "hoy = 今天；triste = 难过的，阴阳性同形。"
       },
       { who: "them", es: "¡Ay! ¿Por qué?", zh: "哎呀！为什么？", en: "Oh no! Why?" },
       { who: "me",
@@ -495,7 +495,7 @@ window.DIALOGUES = [
           { es: "Por qué mi familia vive en China.", zh: "（拼写错误）", en: "(spelling mistake)", correct: false, whyZh: "回答“因为”要写成 porque（连写、不带重音）；por qué 是“为什么”。" }
         ],
         alsoOk: ["Porque mi familia está en China."],
-        note: "新词：¿Por qué? = 为什么？（Why?），分开写、带重音；porque = 因为（because），连写、不带重音。"
+        note: "新词：¿Por qué? = 为什么？，分开写、带重音；porque = 因为，连写、不带重音。"
       },
       { who: "them", es: "Lo siento. ¿Hablas chino con ellos?", zh: "真遗憾。你和他们说中文吗？", en: "I'm sorry. Do you speak Chinese with them?" },
       { who: "me",
@@ -506,7 +506,7 @@ window.DIALOGUES = [
           { es: "Sí, hablo china con ellos.", zh: "（错误说法）", en: "(incorrect)", correct: false, whyZh: "语言名称用阳性：el chino（中文）；china 是“中国女性”。" }
         ],
         alsoOk: ["Sí, hablo chino."],
-        note: "新词：con = 和；跟（with）。这里的 lo siento 不是道歉，而是表示同情：“真遗憾”。"
+        note: "新词：con = 和；跟。这里的 lo siento 不是道歉，而是表示同情：“真遗憾”。"
       },
       { who: "them", es: "¿Y dónde comes? ¿En casa?", zh: "那你在哪儿吃饭？在家吗？", en: "And where do you eat? At home?" },
       { who: "me",
@@ -528,10 +528,10 @@ window.DIALOGUES = [
           { es: "¡Lo siento! ¡Hasta mañana!", zh: "对不起！明天见！", en: "Sorry! See you tomorrow!", correct: false, whyZh: "lo siento 听起来像在拒绝邀请，后面又说明天见，前后接不上。" }
         ],
         alsoOk: ["¡Sí, gracias! ¡Hasta mañana!", "¡Muchas gracias! ¡Hasta mañana!"],
-        note: "新词：mañana = 明天（tomorrow）；hasta mañana = 明天见。（la mañana 还有“上午”的意思。）"
+        note: "新词：mañana = 明天；hasta mañana = 明天见。（la mañana 还有“上午”的意思。）"
       },
       { who: "them", es: "¡Genial! ¡Hasta mañana, Lin!", zh: "太好了！明天见，Lin！", en: "Great! See you tomorrow, Lin!",
-        note: "新词：¡Genial! = 太好了！太棒了！（Great!），西班牙口语很常用。" }
+        note: "新词：¡Genial! = 太好了！太棒了！，西班牙口语很常用。" }
     ]
   }
 ];

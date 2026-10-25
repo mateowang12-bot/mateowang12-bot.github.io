@@ -25,7 +25,7 @@ window.ALPHABET = [
     lower: "c",
     name: "ce",
     speak: "ce",
-    soundZh: "在 a、o、u 前读 k，近似拼音 g（不送气），别读成送气的拼音 k；在 e、i 前，西班牙读咬舌音，像英语 think 里的 th。拉美在 e、i 前读 s",
+    soundZh: "在 a、o、u 前读 k，近似拼音 g（不送气），别读成送气的拼音 k；在 e、i 前，西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来）。拉美在 e、i 前读 s",
     soundEn: "Before a, o, u: like 'k' (no puff of air). Before e, i: in Spain like 'th' in 'think'. Latin America: like 's' before e, i",
     example: { es: "casa", zh: "房子", en: "house" }
   },
@@ -34,7 +34,7 @@ window.ALPHABET = [
     lower: "d",
     name: "de",
     speak: "de",
-    soundZh: "近似拼音 d，但声带要振动（浊音），比拼音 d 更“浊”；舌尖碰上门牙背面；在两个元音之间或词尾时变轻，接近英语 this 里的 th（近似）",
+    soundZh: "近似拼音 d，但声带要振动（浊音），比拼音 d 更“浊”；舌尖碰上门牙背面；在两个元音之间或词尾时变轻：舌尖轻轻放在上下门牙之间，声带振动，发出很软的音（近似）",
     soundEn: "Like 'd', voiced (vocal cords vibrate), so 'heavier' than pinyin d, with the tongue touching the upper teeth; softer between vowels or at the end of a word, close to 'th' in 'this'",
     example: { es: "dedo", zh: "手指", en: "finger" }
   },
@@ -70,7 +70,7 @@ window.ALPHABET = [
     lower: "h",
     name: "hache",
     speak: "hache",
-    soundZh: "不发音！看到 h 直接跳过（ch 组合除外，读音像英语 church 的 ch）",
+    soundZh: "不发音！看到 h 直接跳过（ch 组合除外，近似拼音 ch“吃”的声母，但舌头不卷）",
     soundEn: "Silent! Just skip it (except in 'ch', which sounds like 'ch' in 'church')",
     example: { es: "hola", zh: "你好", en: "hello" }
   },
@@ -88,7 +88,7 @@ window.ALPHABET = [
     lower: "j",
     name: "jota",
     speak: "jota",
-    soundZh: "近似拼音 h，但更靠喉咙、更用力，带一点摩擦声。拉美很多地区读得较轻，接近英语 h",
+    soundZh: "近似拼音 h，但更靠喉咙、更用力，带一点摩擦声。拉美很多地区读得较轻，像轻轻哈一口气（近似）",
     soundEn: "A strong, throaty 'h' (like Scottish 'loch'). In much of Latin America it is softer, like English 'h'",
     example: { es: "jamón", zh: "火腿", en: "ham" }
   },
@@ -205,7 +205,7 @@ window.ALPHABET = [
     lower: "v",
     name: "uve",
     speak: "uve",
-    soundZh: "和 B 读音完全一样（近似拼音 b），不要像英语 v 那样咬下唇。拉美很多地方把这个字母叫 “ve” 或 “ve corta”",
+    soundZh: "和 B 读音完全一样（近似拼音 b），不要用上牙咬下唇。拉美很多地方把这个字母叫 “ve” 或 “ve corta”",
     soundEn: "Sounds exactly like Spanish B, not like English 'v'. In much of Latin America the letter is called 've' or 've corta'",
     example: { es: "vaca", zh: "奶牛", en: "cow" }
   },
@@ -241,7 +241,7 @@ window.ALPHABET = [
     lower: "z",
     name: "zeta",
     speak: "zeta",
-    soundZh: "西班牙读咬舌音：舌尖轻放在上下齿之间，像英语 think 里的 th。拉美读 s",
+    soundZh: "西班牙读咬舌音：舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来。拉美读 s",
     soundEn: "In Spain like 'th' in 'think'. In Latin America like 's'",
     example: { es: "zapato", zh: "鞋", en: "shoe" }
   }
@@ -262,7 +262,7 @@ window.ALPHABET_TIPS = [
   {
     titleZh: "h 不发音",
     titleEn: "The letter h is silent",
-    zh: "h 永远不发音，hola 读作“o-la”。唯一的例外是 ch 组合，读音像英语 church 里的 ch。",
+    zh: "h 永远不发音，hola 读作“o-la”。唯一的例外是 ch 组合，读音近似拼音 ch（“吃”的声母），但舌头不卷（只是近似）。",
     en: "The letter h is never pronounced: 'hola' sounds like 'o-la'. The only exception is 'ch', which sounds like 'ch' in 'church'.",
     examples: [
       { es: "hola", zh: "你好", en: "hello" },
@@ -273,7 +273,7 @@ window.ALPHABET_TIPS = [
   {
     titleZh: "j 读成用力的 h",
     titleEn: "J sounds like a strong h",
-    zh: "j 近似拼音 h，但更靠喉咙、更用力，带一点摩擦声（近似）。拉美很多地区读得较轻，接近英语 h。",
+    zh: "j 近似拼音 h，但更靠喉咙、更用力，带一点摩擦声（近似）。拉美很多地区读得较轻，像轻轻哈一口气（近似）。",
     en: "J is a strong, throaty 'h', like Scottish 'loch'. In much of Latin America it is softer, like English 'h'.",
     examples: [
       { es: "jamón", zh: "火腿", en: "ham" },
@@ -306,7 +306,7 @@ window.ALPHABET_TIPS = [
   {
     titleZh: "c 和 z 的读法",
     titleEn: "How to say C and Z",
-    zh: "c 在 a、o、u 前读 k。c 在 e、i 前，以及所有的 z，在西班牙读咬舌音（像英语 think 的 th）。拉美这些地方都读 s。",
+    zh: "c 在 a、o、u 前读 k。c 在 e、i 前，以及所有的 z，在西班牙读咬舌音（舌尖轻轻放在上下门牙之间，往外送气，近似“丝”但舌头要伸出来）。拉美这些地方都读 s。",
     en: "C before a, o, u sounds like 'k'. C before e, i, and every Z, sound like 'th' in 'think' in Spain. In Latin America they sound like 's'.",
     examples: [
       { es: "casa", zh: "房子", en: "house" },

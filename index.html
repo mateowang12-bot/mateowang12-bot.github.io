@@ -12,26 +12,29 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <!-- 顶部状态栏：头像、🔥 连续天数、⭐ 今日 XP / 目标、🏆 段位、⭐ 星星总数、🎁 宝箱（js/map.js 生成） -->
     <header class="map-top" id="map-top"></header>
 
+    <!-- 吉祥物“橙橙” + 说话气泡（js/map.js 生成，吉祥物在 js/mascot.js） -->
+    <section class="map-hero" id="map-hero" aria-live="polite"></section>
+
     <!-- “添加到主屏幕”提示：只在 iPhone Safari、并且不是从主屏幕图标打开时由 js/pwa.js 显示 -->
     <div class="notice" id="install-tip" role="note" hidden>
       提示：点 Safari 底部的 <strong>分享</strong> 按钮 → <strong>添加到主屏幕</strong>，以后从桌面图标打开，断网也能用，进度也更不容易丢。以后请只从桌面图标打开（在 Safari 里学的进度不会带到图标里）。
-      <button type="button" class="notice-close" title="关闭" aria-label="关闭 / Close">×</button>
+      <button type="button" class="notice-close" title="关闭" aria-label="关闭">×</button>
     </div>
 
-    <h1 class="sr-only">西班牙旅行冒险地图 / Spain adventure map</h1>
+    <h1 class="sr-only">西班牙旅行冒险地图</h1>
 
     <!-- 每日挑战入口 -->
     <div id="daily-box"></div>
 
-    <p class="map-note" id="map-note" hidden>临时地图：冒险关卡内容还在准备中，先用已有的课程闯关。 / Temporary map.</p>
+    <p class="map-note" id="map-note" hidden>临时地图：冒险关卡内容还在准备中，先用已有的课程闯关。</p>
 
     <!-- 冒险地图：10 个区域从上往下，点关卡开始闯关 -->
     <div class="map" id="map"></div>
@@ -46,6 +49,8 @@
   <!-- 学习内容和进度记录（普通 script，双击打开也能用） -->
   <script src="js/claude-bridge.js"></script>
   <script src="js/nav.js"></script>
+  <script src="js/sfx.js"></script>
+  <script src="js/mascot.js"></script>
   <script src="data/alphabet.js"></script>
   <script src="data/words.js"></script>
   <script src="data/grammar.js"></script>

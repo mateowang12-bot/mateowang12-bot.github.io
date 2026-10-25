@@ -12,71 +12,70 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <div class="game-top-links">
       <a class="back-link" href="../index.html">‹ 返回首页</a>
-      <a class="back-link" href="games.html">🎮 游戏大厅 / Games</a>
+      <a class="back-link" href="games.html">🎮 游戏大厅</a>
     </div>
 
-    <h1>🔤 猜单词 <span class="en">Guess the Word</span></h1>
+    <h1>🔤 猜单词</h1>
 
     <div id="setup-screen">
-      <p>看中文和英文提示，一个一个字母猜出西语单词。重音字母当普通字母：猜 a 也会揭开 á。<br>
-        每个词有 6 颗 ❤️，猜错一次少一颗；猜出来时剩几颗就得几分。每轮 5 个词，满分 30 分。<br>
-        <span class="en">Guess the Spanish word letter by letter (a also reveals á). 6 hearts per word; hearts left = points. 5 words per round.</span></p>
+      <p>看中文提示，一个一个字母猜出西语单词。重音字母当普通字母：猜 a 也会揭开 á。<br>
+        每个词有 6 颗 ❤️，猜错一次少一颗；猜出来时剩几颗就得几分。每轮 5 个词，满分 30 分。</p>
       <p class="game-best" id="best-line"></p>
-      <h2>选择范围 <span class="en">Words from</span></h2>
+      <h2>选择范围</h2>
       <div class="quiz-check-list" id="scope-box"></div>
       <div id="setup-error"></div>
       <div class="card-nav">
-        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 / Start ▶</button>
+        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 ▶</button>
       </div>
     </div>
 
     <div id="play-screen" hidden>
       <div class="game-hud">
         <span>第 <span class="hud-strong" id="h-num"></span> / <span id="h-total"></span> 个词</span>
-        <span>得分 / Score：<span class="hud-strong" id="h-score">0</span></span>
+        <span>得分：<span class="hud-strong" id="h-score">0</span></span>
       </div>
       <div class="quiz-question">
-        <div class="quiz-prompt-label">这个词的西语是什么？ / What's the Spanish word?</div>
+        <div class="quiz-prompt-label">这个词的西语是什么？</div>
         <div class="guess-hint" id="q-zh"></div>
-        <div class="en" id="q-en"></div>
         <div class="guess-word" id="q-word" aria-live="polite"></div>
         <div class="hearts" id="q-hearts" aria-live="polite"></div>
       </div>
-      <div class="guess-keys" id="keys" role="group" aria-label="字母键盘 / Letters"></div>
+      <div class="guess-keys" id="keys" role="group" aria-label="字母键盘"></div>
       <div class="quiz-feedback" id="feedback" hidden></div>
       <div class="card-nav">
-        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一个词 / Next →</button>
+        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一个词 →</button>
       </div>
-      <p class="key-hint en">电脑键盘：直接打字母（也可以打 ñ 或带重音的字母），回车下一个词<br>
-        Keyboard: type letters, Enter for the next word</p>
+      <p class="key-hint muted">电脑键盘：直接打字母（也可以打 ñ 或带重音的字母），回车下一个词</p>
     </div>
 
     <div id="result-screen" hidden>
       <div class="quiz-result">
-        <div class="quiz-result-label">这一轮完成！你的得分 / Your score</div>
+        <div class="quiz-result-label">这一轮完成！你的得分</div>
         <div class="quiz-result-score" id="r-score"></div>
         <div class="quiz-result-msg" id="r-detail"></div>
         <div class="game-new-record" id="r-record" hidden></div>
-        <div class="quiz-result-msg en" id="r-best"></div>
+        <div class="quiz-result-msg muted" id="r-best"></div>
       </div>
       <div class="game-list-box" id="r-list"></div>
       <div class="card-nav">
-        <button type="button" class="btn" id="again-btn">🔁 再来一局 / Play again</button>
-        <button type="button" class="btn btn-light" id="setup-btn">换范围 / Change words</button>
-        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅 / Games</a>
+        <button type="button" class="btn" id="again-btn">🔁 再来一局</button>
+        <button type="button" class="btn btn-light" id="setup-btn">换范围</button>
+        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅</a>
       </div>
     </div>
   </div>
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/words.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -126,7 +125,7 @@
 
     function start() {
       var items = scope.items();
-      if (!items.length) { setupError("请至少选一课。 / Please choose at least one lesson."); return; }
+      if (!items.length) { setupError("请至少选一课。"); return; }
       var seen = {}, list = [];
       var sh = U.shuffled(items);
       for (var i = 0; i < sh.length && list.length < ROUND; i++) {
@@ -137,8 +136,7 @@
       }
       // 每轮固定 5 个词（满分 30，和最高分可比）；不够就请用户多选几课
       if (list.length < ROUND) {
-        setupError("选的范围里只有 " + list.length + " 个可以猜的单词（短语和太短的词不算），每轮需要 " + ROUND + " 个，请多选几课。" +
-          " / Only " + list.length + " guessable words here — please choose more lessons.");
+        setupError("选的范围里只有 " + list.length + " 个可以猜的单词（短语和太短的词不算），每轮需要 " + ROUND + " 个，请多选几课。");
         return;
       }
       setupError("");
@@ -177,7 +175,6 @@
       $("h-num").textContent = String(pos + 1);
       $("h-score").textContent = String(score);
       $("q-zh").textContent = r.item.word.zh || "";
-      $("q-en").textContent = r.item.word.en || "";
       for (var k in keyBtns) {
         keyBtns[k].disabled = false;
         keyBtns[k].className = "guess-key";
@@ -211,7 +208,7 @@
       for (var j = 0; j < HEARTS; j++) h += j < left ? "❤️" : "🤍";
       var hb = $("q-hearts");
       hb.textContent = h;
-      hb.setAttribute("aria-label", "还剩 " + left + " 次机会 / " + left + " hearts left");
+      hb.setAttribute("aria-label", "还剩 " + left + " 次机会");
     }
 
     function solvedAll() {
@@ -250,27 +247,26 @@
       results.push({ item: r.item, answer: r.answer, win: win, pts: pts });
       for (var k in keyBtns) keyBtns[k].disabled = true;
       if (window.speakSpanish) window.speakSpanish(w.es);
+      if (window.Sfx) { if (win) window.Sfx.correct(); else window.Sfx.wrong(); }
       var fb = $("feedback");
       fb.className = "quiz-feedback " + (win ? "is-correct" : "is-wrong");
       fb.innerHTML = "";
-      fb.appendChild(el("div", "quiz-feedback-title", win ? "✔ 猜对了！+" + pts + " 分 / Well done!" : "没关系，答案是： / The answer is:"));
+      fb.appendChild(el("div", "quiz-feedback-title", win ? "✔ 猜对了！+" + pts + " 分" : "没关系，答案是："));
       var line = el("div", "quiz-feedback-word");
       line.appendChild(U.sayButton(w.es));
       line.appendChild(el("span", "quiz-feedback-zh", w.zh || ""));
-      if (w.en) line.appendChild(el("span", "en", " / " + w.en));
       fb.appendChild(line);
       if (w.example && w.example.es) {
         var ex = el("div", "flash-example");
-        ex.appendChild(el("div", "flash-example-label", "例句 / Example"));
+        ex.appendChild(el("div", "flash-example-label", "例句"));
         ex.appendChild(U.sayButton(w.example.es));
         ex.appendChild(el("div", "", w.example.zh || ""));
-        ex.appendChild(el("div", "en", w.example.en || ""));
         fb.appendChild(ex);
       }
       fb.hidden = false;
       $("h-score").textContent = String(score);
       var nb = $("next-btn");
-      nb.textContent = pos + 1 < round.length ? "下一个词 / Next →" : "看结果 / See result →";
+      nb.textContent = pos + 1 < round.length ? "下一个词 →" : "看结果 →";
       nb.hidden = false;
       nb.focus();
     }
@@ -287,18 +283,18 @@
 
     function finish() {
       var res = K.record("guess", score, score > 0); // 0 分不给经验值
+      if (window.Sfx) window.Sfx.win();
       var wins = 0;
       for (var i = 0; i < results.length; i++) if (results[i].win) wins++;
       $("r-score").textContent = score + " / " + (round.length * HEARTS) + " 分";
       $("r-detail").textContent = "猜出 " + wins + " / " + round.length + " 个词";
       var rec = $("r-record");
       rec.hidden = !(res && res.isRecord && score > 0);
-      rec.textContent = res && res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 / New record!";
-      $("r-best").textContent = res ? "最高 " + res.best + " 分 · 玩过 " + res.plays + " 次 / Best: " + res.best : "";
+      rec.textContent = res && res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 ";
+      $("r-best").textContent = res ? "最高 " + res.best + " 分 · 玩过 " + res.plays + " 次" : "";
       var box = $("r-list");
       box.innerHTML = "";
       var h = el("h2", "", "这一轮的词 ");
-      h.appendChild(el("span", "en", "Words"));
       box.appendChild(h);
       var ul = el("ul", "word-list");
       for (var j = 0; j < results.length; j++) {
@@ -335,7 +331,7 @@
 
     if (!U.collectWords().length) {
       $("setup-screen").innerHTML = "";
-      $("setup-screen").appendChild(el("div", "notice", "没有找到单词内容（data/words.js 没有加载到）。 / Word data not found."));
+      $("setup-screen").appendChild(el("div", "notice", "没有找到单词内容（data/words.js 没有加载到）。"));
     } else {
       scope = K.scope($("scope-box"), "guess", { words: true, onChange: function () { setupError(""); } });
       showBest();

@@ -9,7 +9,7 @@
 // 网站内容一变，build-web.ps1 算出的 VERSION 就变，sw.js 跟着变，
 // 浏览器联网时发现 sw.js 变了，就在后台装新版本，下次打开页面生效。
 // ============================================
-var VERSION = "2da7969477e6";
+var VERSION = "329de3aa4f74";
 var SCOPE = self.registration ? self.registration.scope : new URL("./", self.location).href;
 var PREFIX = "es-study:" + SCOPE + ":";   // 同一个 github.io 域名下可能有别的网站：缓存名带上网站地址
 var CACHE = PREFIX + VERSION;
@@ -29,10 +29,12 @@ var FILES = [
   "js/claude-bridge.js",
   "js/games.js",
   "js/map.js",
+  "js/mascot.js",
   "js/modules.js",
   "js/nav.js",
   "js/play.js",
   "js/pwa.js",
+  "js/sfx.js",
   "js/skin-early.js",
   "js/speak.js",
   "js/storage.js",
@@ -85,14 +87,14 @@ function offlinePage() {
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
     '<title>离线 · 我的西语学习站</title><style>' +
     'body{margin:0;padding:48px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;' +
-    'font-size:18px;line-height:1.6;background:#f4f8f5;color:#1d2b24}' +
-    'a{display:inline-block;margin-top:12px;padding:12px 24px;border-radius:16px;background:#1b7f46;color:#fff;' +
-    'text-decoration:none;font-weight:bold;box-shadow:0 4px 0 #0f5530}' +
-    '@media (prefers-color-scheme: dark){body{background:#0f1814;color:#e6efe9}a{background:#3ccf74;color:#06210f;box-shadow:0 4px 0 #23914f}}' +
+    'font-size:18px;line-height:1.6;background:#f7faf4;color:#1f2a1c}' +
+    'a{display:inline-block;margin-top:12px;padding:12px 24px;border-radius:16px;background:#27870f;color:#fff;' +
+    'text-decoration:none;font-weight:bold;box-shadow:0 4px 0 #1a5e06}' +
+    '@media (prefers-color-scheme: dark){body{background:#121a14;color:#eaf2e6}a{background:#5fcf1c;color:#0b2600;box-shadow:0 4px 0 #3f9600}}' +
     '</style></head><body>' +
     '<h1>现在没有网络</h1>' +
-    '<p>这个页面还没缓存，联网后再打开。<br>You are offline, and this page has not been cached yet.</p>' +
-    '<p><a href="' + home + '">返回首页 / Home</a></p>' +
+    '<p>这个页面还没缓存，联网后再打开。</p>' +
+    '<p><a href="' + home + '">返回首页</a></p>' +
     '</body></html>';
   return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }

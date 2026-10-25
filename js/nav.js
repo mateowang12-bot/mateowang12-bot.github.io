@@ -90,7 +90,7 @@
     if (!body || body.classList.contains("no-bottom-nav") || document.getElementById("bottom-nav")) return;
     var nav = el("nav", "bottom-nav");
     nav.id = "bottom-nav";
-    nav.setAttribute("aria-label", "主导航 / Main menu");
+    nav.setAttribute("aria-label", "主导航");
     var inner = el("div", "bottom-nav-inner");
     for (var i = 0; i < TABS.length; i++) {
       var t = TABS[i];
@@ -98,7 +98,7 @@
       a.href = (ROOT || (inPages ? "../" : "")) + t.url;
       a.setAttribute("data-tab", t.id);
       if (t.id === tab) a.setAttribute("aria-current", "page");
-      a.setAttribute("aria-label", t.zh + " / " + t.en);
+      a.setAttribute("aria-label", t.zh);
       a.appendChild(el("span", "bn-icon", t.icon)).setAttribute("aria-hidden", "true");
       a.appendChild(el("span", "bn-label", t.zh));
       inner.appendChild(a);
@@ -144,15 +144,17 @@
     if (party && party.parentNode) party.parentNode.removeChild(party);
     party = el("div", "goal-party");
     party.setAttribute("role", "status");
-    party.appendChild(el("div", "goal-party-icon", "🎉"));
+    if (window.Mascot) party.appendChild(window.Mascot.el("party", "party is-small"));
+    else party.appendChild(el("div", "goal-party-icon", "🎉"));
     var t = el("div", "goal-party-text", "完成今天的目标！");
-    t.appendChild(el("span", "en", "Daily goal reached · " + info.today + " / " + info.goal + " XP"));
+    t.appendChild(el("span", "goal-party-sub", "今天 " + info.today + " / " + info.goal + " XP"));
     party.appendChild(t);
-    var close = el("button", "goal-party-close", "好的 / OK");
+    var close = el("button", "goal-party-close", "好的");
     close.type = "button";
     close.onclick = hideParty;
     party.appendChild(close);
     document.body.appendChild(party);
+    try { if (window.Sfx) window.Sfx.sparkle(); } catch (e) {}
     if (partyTimer) clearTimeout(partyTimer);
     partyTimer = setTimeout(hideParty, 3500);
     try { window.dispatchEvent(new Event("goal-celebrated")); } catch (e) {}

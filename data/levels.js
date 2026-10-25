@@ -66,7 +66,7 @@ window.WORLD = {
         },
         {
           id: "airport-6", type: "boss",
-          titleZh: "Boss：走出机场", titleEn: "Boss: Out of the airport",
+          titleZh: "大关：走出机场", titleEn: "Boss: Out of the airport",
           introZh: "字母和招呼语大混战，还有限时快答！闯过去就能拿到第一枚护照邮票。",
           introEn: "Letters and greetings all mixed up, plus a speed round! Win to get your first passport stamp.",
           items: {
@@ -120,7 +120,7 @@ window.WORLD = {
         },
         {
           id: "hotel-4", type: "normal",
-          titleZh: "数字 6–10 和“听不懂怎么办”", titleEn: "Numbers 6–10 & when you don't understand",
+          titleZh: "数到 10 和求助", titleEn: "Numbers 6–10 & when you don't understand",
           introZh: "数到 10，再学几句救命的话：我听不懂、请再说一遍、请说慢一点。",
           introEn: "Count to 10 and learn lifesaving phrases: I don't understand, please repeat, slower please.",
           items: {
@@ -141,7 +141,7 @@ window.WORLD = {
         },
         {
           id: "hotel-6", type: "boss",
-          titleZh: "Boss：拿到房卡", titleEn: "Boss: Get your room key",
+          titleZh: "大关：拿到房卡", titleEn: "Boss: Get your room key",
           introZh: "礼貌用语、数字 0–10、救命句子全部混在一起。会拼、会排，才能拿到房卡！",
           introEn: "Polite words, numbers 0–10 and lifesaving phrases all together. Spell and build sentences to get your key!",
           items: {
@@ -224,7 +224,7 @@ window.WORLD = {
         },
         {
           id: "cafe-6", type: "boss",
-          titleZh: "Boss：早餐大考验", titleEn: "Boss: The breakfast challenge",
+          titleZh: "大关：早餐大考验", titleEn: "Boss: The breakfast challenge",
           introZh: "食物、饮料和所有点餐句子一起上！限时快答别手软。",
           introEn: "All the food, drinks and ordering phrases at once, including a speed round!",
           items: {
@@ -294,7 +294,7 @@ window.WORLD = {
         },
         {
           id: "park-6", type: "boss",
-          titleZh: "Boss：彩虹广场", titleEn: "Boss: Rainbow square",
+          titleZh: "大关：彩虹广场", titleEn: "Boss: Rainbow square",
           introZh: "颜色、天气、季节一起考。拼单词、排句子、限时快答，全都来！",
           introEn: "Colors, weather and seasons together: spelling, sentence building and a speed round!",
           items: {
@@ -373,7 +373,7 @@ window.WORLD = {
         },
         {
           id: "home-6", type: "boss",
-          titleZh: "Boss：家庭大聚会", titleEn: "Boss: Big family gathering",
+          titleZh: "大关：家庭大聚会", titleEn: "Boss: Big family gathering",
           introZh: "家人、自我介绍、人称代词和 ser 一起考，看你能不能记住每个人！",
           introEn: "Family words, introductions, pronouns and ser all together. Can you remember everyone?",
           items: {
@@ -457,7 +457,7 @@ window.WORLD = {
         },
         {
           id: "shop-6", type: "boss",
-          titleZh: "Boss：大减价", titleEn: "Boss: The big sale",
+          titleZh: "大关：大减价", titleEn: "Boss: The big sale",
           introZh: "衣服、价格、形容词、购物句子和阴阳性全部上阵，抢到最划算的那件！",
           introEn: "Clothes, prices, adjectives, shopping phrases and gender all at once. Grab the best bargain!",
           items: {
@@ -542,7 +542,7 @@ window.WORLD = {
         },
         {
           id: "train-6", type: "boss",
-          titleZh: "Boss：赶上火车", titleEn: "Boss: Catch the train",
+          titleZh: "大关：赶上火车", titleEn: "Boss: Catch the train",
           introZh: "火车马上要开了！星期、数字、时间和出行句子全部混在一起，快！",
           introEn: "The train is about to leave! Days, numbers, times and travel phrases all mixed up. Hurry!",
           items: {
@@ -626,7 +626,7 @@ window.WORLD = {
         },
         {
           id: "pharmacy-6", type: "boss",
-          titleZh: "Boss：快点好起来", titleEn: "Boss: Get well soon",
+          titleZh: "大关：快点好起来", titleEn: "Boss: Get well soon",
           introZh: "身体部位、问路、感受和 estar 一起考。答对了，病就好了！",
           introEn: "Body parts, directions, feelings and estar all together. Get them right and you'll feel better!",
           items: {
@@ -702,7 +702,7 @@ window.WORLD = {
         },
         {
           id: "farm-6", type: "boss",
-          titleZh: "Boss：农场大丰收", titleEn: "Boss: Harvest time",
+          titleZh: "大关：农场大丰收", titleEn: "Boss: Harvest time",
           introZh: "动物、动词和变位全部混在一起，帮 Paco 把活儿干完！",
           introEn: "Animals, verbs and verb endings all mixed up. Help Paco finish the work!",
           items: {
@@ -720,7 +720,7 @@ window.WORLD = {
     {
       id: "party",
       titleZh: "告别派对", titleEn: "The Farewell Party", emoji: "🎉",
-      storyZh: "旅行的最后一天！早上你又碰到了 Carmen——原来机场那位 Carmen 就住在 Lucía 家楼下。晚上，Javier 为你开了一个告别派对。用上这一路学到的所有西语，打败最后的大 Boss，集齐全部邮票！",
+      storyZh: "旅行的最后一天！早上你又碰到了 Carmen——原来机场那位 Carmen 就住在 Lucía 家楼下。晚上，Javier 为你开了一个告别派对。用上这一路学到的所有西语，闯过最后的终极大关，集齐全部邮票！",
       storyEn: "The last day of your trip! In the morning you bump into Carmen again: the Carmen from the airport lives right below Lucía! In the evening Javier throws you a farewell party. Use all the Spanish you've learned, beat the final boss and complete your passport!",
       npc: { name: "Javier", emoji: "🕺", roleZh: "派对主人", roleEn: "party host" },
       stampZh: "告别派对邮票", stampEn: "Farewell Party stamp",
@@ -766,7 +766,7 @@ window.WORLD = {
         },
         {
           id: "party-5", type: "boss",
-          titleZh: "大 Boss：告别派对", titleEn: "Final Boss: The farewell party",
+          titleZh: "终极大关：告别派对", titleEn: "Final Boss: The farewell party",
           introZh: "整个旅行的内容大混战！单词、句子、语法、限时快答全来。打赢它，护照就集满啦！",
           introEn: "Everything from the whole trip! Words, phrases, grammar and a speed round. Win it to complete your passport!",
           items: {
@@ -811,7 +811,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "¿Qué tal el viaje?", zh: "旅途怎么样？", en: "How was the trip?",
-          note: "新词：el viaje = 旅行；旅途（trip）。" },
+          note: "新词：el viaje = 旅行；旅途。" },
         { who: "me",
           hintZh: "告诉她很好。", hintEn: "Tell her it was very good.",
           options: [
@@ -820,10 +820,10 @@ window.WORLD = {
             { es: "Buenas tardes.", zh: "下午好。", en: "Good afternoon.", correct: false, whyZh: "你们已经打过招呼了，而且现在是早上；她问的是“怎么样”。" }
           ],
           alsoOk: ["Bien.", "Muy bien, gracias.", "Bien, gracias."],
-          note: "muy = 很（very），muy bien = 很好。"
+          note: "muy = 很，muy bien = 很好。"
         },
         { who: "them", es: "El pasaporte, por favor.", zh: "请出示护照。", en: "Your passport, please.",
-          note: "新词：el pasaporte = 护照（passport）；por favor = 请（please），下一站酒店会正式学。" },
+          note: "新词：el pasaporte = 护照；por favor = 请，下一站酒店会正式学。" },
         { who: "me",
           hintZh: "把护照递给她，说一句“给您”。", hintEn: "Hand over your passport and say \"Here you are\".",
           options: [
@@ -832,10 +832,10 @@ window.WORLD = {
             { es: "Aquí tiene.", zh: "给您。", en: "Here you are.", correct: true }
           ],
           alsoOk: ["Sí, aquí tiene.", "Aquí tiene, señora."],
-          note: "新词：Aquí tiene = 给您（Here you are），递东西给别人时说。qu 读 k：a-KÍ TIE-ne。"
+          note: "新词：Aquí tiene = 给您，递东西给别人时说。qu 读 k：a-KÍ TIE-ne。"
         },
         { who: "them", es: "¿Es usted Lin?", zh: "您是 Lin 吗？", en: "Are you Lin?",
-          note: "新词：usted = 您（polite \"you\"）；es = 是。" },
+          note: "新词：usted = 您（尊称）；es = 是。" },
         { who: "me",
           hintZh: "你就是 Lin，说“是”。", hintEn: "You are Lin. Say yes.",
           options: [
@@ -844,10 +844,10 @@ window.WORLD = {
             { es: "Buenas noches.", zh: "晚上好。", en: "Good evening.", correct: false, whyZh: "她问你是不是 Lin，要回答“是”或“不是”。" }
           ],
           alsoOk: ["Sí, soy Lin.", "Sí, señora."],
-          note: "新词：sí = 是（yes），一定要带重音；no = 不；不是（no）。"
+          note: "新词：sí = 是，一定要带重音；no = 不；不是。"
         },
         { who: "them", es: "Muy bien, todo bien. ¡Hasta luego!", zh: "很好，没问题。回头见！", en: "Very good, everything's fine. See you!",
-          note: "todo bien = 一切都好；没问题（everything's fine）。" },
+          note: "todo bien = 一切都好；没问题。" },
         { who: "me",
           hintZh: "跟她道别。", hintEn: "Say goodbye to her.",
           options: [
@@ -859,7 +859,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "¡Adiós! ¡Buen viaje!", zh: "再见！旅途愉快！", en: "Bye! Have a good trip!",
-          note: "buen viaje = 旅途愉快（have a good trip）。" }
+          note: "buen viaje = 旅途愉快。" }
       ]
     },
 
@@ -882,7 +882,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "¿Su nombre, por favor?", zh: "请问您叫什么名字？", en: "Your name, please?",
-          note: "新词：su nombre = 您的名字（your name）。" },
+          note: "新词：su nombre = 您的名字。" },
         { who: "me",
           hintZh: "告诉他你叫 Lin。", hintEn: "Tell him your name is Lin.",
           options: [
@@ -894,7 +894,7 @@ window.WORLD = {
           note: "也可以说 Me llamo Lin（我叫 Lin），在“朋友家做客”那一站会学到。"
         },
         { who: "them", es: "¿Cómo se escribe?", zh: "怎么拼写？", en: "How do you spell it?",
-          note: "新词：¿Cómo se escribe? = 怎么拼写？（How do you spell it?）报字母时要用字母的名字：L 叫 ele，N 叫 ene。" },
+          note: "新词：¿Cómo se escribe? = 怎么拼写？报字母时要用字母的名字：L 叫 ele，N 叫 ene。" },
         { who: "me",
           hintZh: "用字母的名字拼出 L-I-N。", hintEn: "Spell L-I-N using the letter names.",
           options: [
@@ -906,7 +906,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "Gracias. Su habitación es la siete.", zh: "谢谢。您的房间是七号。", en: "Thank you. Your room is number seven.",
-          note: "新词：la habitación = 房间（room），h 不发音。" },
+          note: "新词：la habitación = 房间，h 不发音。" },
         { who: "me",
           hintZh: "你没听清，请他再说一遍。", hintEn: "You didn't catch it. Ask him to repeat.",
           options: [
@@ -918,7 +918,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "Sí, claro. La siete.", zh: "好的，当然。七号。", en: "Yes, of course. Number seven.",
-          note: "claro = 当然（of course）。" },
+          note: "claro = 当然。" },
         { who: "me",
           hintZh: "确认一下房间号是七，再谢谢他。", hintEn: "Confirm the room is seven, and thank him.",
           options: [
@@ -941,7 +941,7 @@ window.WORLD = {
       partner: "Nuria",
       lines: [
         { who: "them", es: "¡Hola, buenos días! ¿Le ayudo?", zh: "你好，早上好！需要帮忙吗？", en: "Hi, good morning! Can I help you?",
-          note: "¿Le ayudo? = 要我帮您吗？（Can I help you?），店员常这样问。" },
+          note: "¿Le ayudo? = 要我帮您吗？，店员常这样问。" },
         { who: "me",
           hintZh: "说你只是看看，谢谢。", hintEn: "Say you're just looking, thanks.",
           options: [
@@ -953,7 +953,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "Vale. ¡Mire, esta camiseta roja es nueva!", zh: "好的。您看，这件红T恤是新款！", en: "OK. Look, this red T-shirt is new!",
-          note: "mire = 您看（look）；esta = 这（件），后面接阴性名词。" },
+          note: "mire = 您看；esta = 这（件），后面接阴性名词。" },
         { who: "me",
           hintZh: "问问多少钱。", hintEn: "Ask how much it is.",
           options: [
@@ -965,7 +965,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "Cuesta cuarenta euros.", zh: "四十欧元。", en: "It's forty euros.",
-          note: "el euro = 欧元（euro）。" },
+          note: "el euro = 欧元。" },
         { who: "me",
           hintZh: "说这件T恤很贵，再问有没有便宜一点的。", hintEn: "Say the T-shirt is very expensive, and ask for something cheaper.",
           options: [
@@ -1021,7 +1021,7 @@ window.WORLD = {
       partner: "Diego",
       lines: [
         { who: "them", es: "Buenas tardes. ¿Adónde va?", zh: "下午好。您去哪儿？", en: "Good afternoon. Where are you going?",
-          note: "¿Adónde va? = 您去哪儿？（Where are you going?）adónde 带重音。" },
+          note: "¿Adónde va? = 您去哪儿？adónde 带重音。" },
         { who: "me",
           hintZh: "说要一张去 Toledo 的票。", hintEn: "Ask for a ticket to Toledo.",
           options: [
@@ -1044,7 +1044,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "¿Solo de ida?", zh: "只要单程吗？", en: "One way only?",
-          note: "solo de ida = 单程（one way）。" },
+          note: "solo de ida = 单程。" },
         { who: "me",
           hintZh: "说不，你要往返票。", hintEn: "Say no, you want a return ticket.",
           options: [
@@ -1100,7 +1100,7 @@ window.WORLD = {
       partner: "Teresa",
       lines: [
         { who: "them", es: "Buenas tardes. ¿Qué le pasa?", zh: "下午好。您怎么了？", en: "Good afternoon. What's wrong?",
-          note: "¿Qué le pasa? = 您怎么了？（What's wrong?）" },
+          note: "¿Qué le pasa? = 您怎么了？" },
         { who: "me",
           hintZh: "说你头疼。", hintEn: "Say you have a headache.",
           options: [
@@ -1112,7 +1112,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "¿Tiene fiebre?", zh: "您发烧吗？", en: "Do you have a fever?",
-          note: "新词：la fiebre = 发烧（fever）。" },
+          note: "新词：la fiebre = 发烧。" },
         { who: "me",
           hintZh: "说没有发烧，但是你觉得冷。", hintEn: "Say no fever, but you feel cold.",
           options: [
@@ -1121,7 +1121,7 @@ window.WORLD = {
             { es: "No, pero tengo frío.", zh: "没有，但是我觉得冷。", en: "No, but I feel cold.", correct: true }
           ],
           alsoOk: ["No. Tengo frío.", "No, pero tengo mucho frío."],
-          note: "新词：pero = 但是（but）。"
+          note: "新词：pero = 但是。"
         },
         { who: "them", es: "¿Le duelen los ojos?", zh: "您眼睛疼吗？", en: "Do your eyes hurt?",
           note: "对 usted（您）说 le duele / le duelen；说自己用 me duele / me duelen。" },
@@ -1136,7 +1136,7 @@ window.WORLD = {
           note: "第一个 no 是“不”（回答），第二个 no 放在 me 前面表示否定。"
         },
         { who: "them", es: "Tome esta pastilla dos veces al día, después de comer.", zh: "这种药片一天吃两次，饭后吃。", en: "Take this pill twice a day, after meals.",
-          note: "新词：tome = 请服用（take）；la pastilla = 药片（pill）；dos veces al día = 一天两次（twice a day）；después de comer = 饭后（after eating）。" },
+          note: "新词：tome = 请服用；la pastilla = 药片；dos veces al día = 一天两次；después de comer = 饭后。" },
         { who: "me",
           hintZh: "她说得太快了，请她说慢一点。", hintEn: "She spoke too fast. Ask her to speak more slowly.",
           options: [
@@ -1159,7 +1159,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "Cinco euros. Y beba mucha agua.", zh: "五欧元。还有，要多喝水。", en: "Five euros. And drink lots of water.",
-          note: "beba = 请喝（drink），来自 beber；mucha agua = 很多水（agua 是阴性，所以用 mucha）。" },
+          note: "beba = 请喝，来自 beber；mucha agua = 很多水（agua 是阴性，所以用 mucha）。" },
         { who: "me",
           hintZh: "谢谢她，跟她说再见。", hintEn: "Thank her and say goodbye.",
           options: [
@@ -1171,7 +1171,7 @@ window.WORLD = {
           note: ""
         },
         { who: "them", es: "¡De nada! ¡Que se mejore!", zh: "不客气！祝您早日康复！", en: "You're welcome! Get well soon!",
-          note: "¡Que se mejore! = 祝您早日康复（Get well soon!），对 usted 说。" }
+          note: "¡Que se mejore! = 祝您早日康复，对 usted 说。" }
       ]
     }
   ]

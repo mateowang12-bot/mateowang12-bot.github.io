@@ -145,7 +145,7 @@
     if (!p) return "";
     var a = p.alphabetInfo();
     var total = (window.ALPHABET || []).length;
-    if (!a.seen) return "还没开始 / Not started";
+    if (!a.seen) return "还没开始";
     return "已学过 ✓" + (total ? "（听过 " + Math.min(a.letters, total) + " / " + total + " 个）" : "");
   }
   function wordsProgress() {
@@ -164,7 +164,7 @@
     var p = P();
     if (!p || !p.lastQuiz) return "";
     var q = p.lastQuiz();
-    if (!q) return "还没做过 / Not yet";
+    if (!q) return "还没做过";
     return "上次得分 " + q.score + " / " + q.total;
   }
   function grammarProgress() {
@@ -177,7 +177,7 @@
     var p = P();
     if (!p) return "";
     var c = p.wordCounts(allWordIds().concat(allPhraseIds()));
-    if (!c.seen) return "先去学几个单词 / Study some words first";
+    if (!c.seen) return "先去学几个单词";
     return "待复习 " + c.due + " 个";
   }
   function dialogueProgress() {
@@ -190,7 +190,7 @@
     var p = P();
     if (!p || !p.getGame) return "";
     var n = stats().gamesPlays;
-    return n ? "玩过 " + n + " 局" : "还没玩过 / Not played yet";
+    return n ? "玩过 " + n + " 局" : "还没玩过";
   }
   function always() { return true; }
   function claudeOnly() { return !!(window.getClaude && window.getClaude()); }
@@ -207,7 +207,7 @@
       desc: fixed("看词选意思，检验学会没有", "Pick the right meaning to check what you've learned") },
     { id: "dialogue", icon: "🎭", zh: "情景对话",   en: "Dialogues",                url: "pages/dialogue.html", group: "practice", available: always, progress: dialogueProgress, desc: dialogueDesc },
     { id: "chat",     icon: "🤖", zh: "AI 对话",    en: "Chat with AI",             url: "pages/chat.html",     group: "practice", available: claudeOnly,
-      lockedText: "只在 Claude 版可用 / Claude version only",
+      lockedText: "只在 Claude 版可用",
       desc: fixed("用简单的西语和 AI 老师聊天，写错了温和地帮你改", "Chat in simple Spanish; the AI gently corrects you") },
     { id: "games",    icon: "🎮", zh: "小游戏",     en: "Games",                    url: "pages/games.html",    group: "relax", available: always, progress: gamesProgress,
       desc: fixed("翻牌配对、60 秒快答、拼句子、猜单词", "Memory match, speed quiz, sentence builder, word guess") }
@@ -309,13 +309,13 @@
     // 字母：从没打开过字母页、而且还没学过任何单词 / 句子时才推荐（学过词以后字母只放在备选里）
     if (!a.seen && !s.seen) {
       main = {
-        id: "alphabet", icon: "🔤", kicker: "第一步 · Step 1", title: "字母与发音", titleEn: "Alphabet & Pronunciation",
+        id: "alphabet", icon: "🔤", kicker: "第一步", title: "字母与发音", titleEn: "Alphabet & Pronunciation",
         desc: ["从字母开始：点一下字母，听它怎么读", "Start with the letters — tap to listen"],
         btn: "开始学字母", url: "pages/alphabet.html"
       };
     } else if (s.dueOld >= REVIEW_MIN) {
       main = {
-        id: "review", icon: "🔁", kicker: "复习 · Review", title: "有 " + s.dueOld + " 个词该复习了", titleEn: s.dueOld + " items to review",
+        id: "review", icon: "🔁", kicker: "复习", title: "有 " + s.dueOld + " 个词该复习了", titleEn: s.dueOld + " items to review",
         desc: ["趁还记得，花几分钟巩固一下", "A few minutes now helps you remember"],
         btn: "开始复习", url: "pages/review.html"
       };

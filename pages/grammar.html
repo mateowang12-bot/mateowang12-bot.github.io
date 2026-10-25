@@ -12,20 +12,19 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>基础语法 <span class="en">Basic Grammar</span></h1>
-    <p>按顺序一课一课学：先看讲解和表格，再做练习。点 🔊 听发音。<br>
-      <span class="en">Study one lesson at a time: read, then practice. Tap 🔊 to listen.</span></p>
+    <h1>基础语法</h1>
+    <p>按顺序一课一课学：先看讲解和表格，再做练习。点 🔊 听发音。</p>
 
     <!-- 选课区（由 JS 生成）：默认收起（宽屏时展开），点一下展开 -->
     <details class="lesson-picker" id="lesson-picker">
-      <summary><span class="lesson-picker-label">选课 <span class="en">Lessons</span></span>
+      <summary><span class="lesson-picker-label">选课</span>
         <span class="lesson-picker-current" id="lesson-current"></span></summary>
       <div class="lesson-list" id="lesson-list"></div>
     </details>
@@ -37,6 +36,8 @@
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/grammar.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -54,7 +55,7 @@
     function sayButton(text, label) {
       var b = el("button", "say", label || text);
       b.type = "button";
-      b.title = "点击朗读 / Click to listen";
+      b.title = "点击朗读";
       b.onclick = function (ev) {
         ev.stopPropagation();
         if (window.speakSpanish) window.speakSpanish(text);
@@ -66,12 +67,10 @@
       return document.getElementById(id);
     }
 
-    // 中文 + 英文两行（英文用灰色）
+    // 说明文字（阶段 12 起只显示中文；第三个参数 en 不再显示）
     function bilingual(className, zh, en) {
       var p = el("p", className);
       if (zh) p.appendChild(el("span", "", zh));
-      if (zh && en) p.appendChild(el("br"));
-      if (en) p.appendChild(el("span", "en", en));
       return p;
     }
 
@@ -150,7 +149,6 @@
           b.type = "button";
           b.appendChild(el("span", "lesson-num", String(idx + 1)));
           b.appendChild(el("span", "lesson-title", ls.titleZh || "（未命名）"));
-          b.appendChild(el("span", "en", ls.titleEn || ""));
           var mark = el("span", "lesson-mastered");
           mark.setAttribute("data-idx", String(idx));
           b.appendChild(mark);
@@ -174,7 +172,7 @@
           spans[i].textContent = "✓ 已完成 · 最好 " + g.best + " / " + g.total;
           spans[i].classList.add("all-done");
         } else {
-          spans[i].textContent = "还没完成 / Not done";
+          spans[i].textContent = "还没完成";
           spans[i].classList.remove("all-done");
         }
       }
@@ -207,7 +205,6 @@
       box.innerHTML = "";
 
       var head = el("h2", "", (lessonIndex + 1) + ". " + (ls.titleZh || "") + " ");
-      head.appendChild(el("span", "en", ls.titleEn || ""));
       box.appendChild(head);
 
       // 1) 介绍
@@ -225,7 +222,6 @@
       var points = ls.points || [];
       if (points.length) {
         var h = el("h3", "gram-sub", "要点 ");
-        h.appendChild(el("span", "en", "Key points"));
         box.appendChild(h);
         for (var p = 0; p < points.length; p++) {
           if (points[p]) box.appendChild(renderPoint(points[p], p));
@@ -234,18 +230,17 @@
 
       // 4) 练习
       var hx = el("h3", "gram-sub", "练习 ");
-      hx.appendChild(el("span", "en", "Practice"));
       box.appendChild(hx);
       box.appendChild(renderExercises());
 
       // 上一课 / 下一课
       var nav = el("div", "card-nav gram-lesson-nav");
       var pi = neighbor(-1), ni = neighbor(1);
-      var prevBtn = el("button", "btn btn-light", "← 上一课 / Previous");
+      var prevBtn = el("button", "btn btn-light", "← 上一课");
       prevBtn.type = "button";
       prevBtn.disabled = pi === -1;
       prevBtn.onclick = function () { selectLesson(pi, true); };
-      var nextBtn = el("button", "btn", "下一课 / Next →");
+      var nextBtn = el("button", "btn", "下一课 →");
       nextBtn.type = "button";
       nextBtn.disabled = ni === -1;
       nextBtn.onclick = function () { selectLesson(ni, true); };
@@ -296,7 +291,6 @@
       var wrap = el("div", "gram-table-block");
       if (tb.captionZh || tb.captionEn) {
         var cap = el("div", "gram-caption", tb.captionZh || "");
-        if (tb.captionEn) cap.appendChild(el("span", "en", " " + tb.captionEn));
         wrap.appendChild(cap);
       }
       var scroller = el("div", "gram-table-wrap");
@@ -353,7 +347,6 @@
       title.appendChild(el("span", "gram-point-num", String(idx + 1)));
       title.appendChild(document.createTextNode(pt.zh || ""));
       card.appendChild(title);
-      if (pt.en) card.appendChild(el("p", "en gram-point-en", pt.en));
       var exs = pt.examples || [];
       if (exs.length) {
         var list = el("ul", "gram-examples");
@@ -364,7 +357,6 @@
           if (ex.es) li.appendChild(sayButton(ex.es));
           var mean = el("div", "gram-example-meaning");
           if (ex.zh) mean.appendChild(el("span", "", ex.zh));
-          if (ex.en) mean.appendChild(el("span", "en", (ex.zh ? " / " : "") + ex.en));
           li.appendChild(mean);
           list.appendChild(li);
         }
@@ -393,7 +385,7 @@
       var wrap = el("div", "gram-exercises");
       var exs = lessonExercises(LESSONS[lessonIndex]);
       if (!exs.length) {
-        wrap.appendChild(el("div", "notice", "这一课暂时没有练习。 / No exercises for this lesson yet."));
+        wrap.appendChild(el("div", "notice", "这一课暂时没有练习。"));
         return wrap;
       }
       for (var i = 0; i < exs.length; i++) {
@@ -405,7 +397,7 @@
       updateScore();
 
       var row = el("div", "card-nav");
-      var redo = el("button", "btn btn-light", "🔁 重做本课练习 / Redo");
+      var redo = el("button", "btn btn-light", "🔁 重做本课练习");
       redo.type = "button";
       redo.onclick = function () {
         resetAnswers(lessonIndex);
@@ -422,17 +414,16 @@
       if (!scoreEl) return;
       var r = lessonScore();
       scoreEl.innerHTML = "";
-      scoreEl.appendChild(el("div", "quiz-result-label", "本课得分 / Score"));
+      scoreEl.appendChild(el("div", "quiz-result-label", "本课得分"));
       scoreEl.appendChild(el("div", "quiz-result-score", r.score + " / " + r.total));
       if (r.done < r.total) {
-        scoreEl.appendChild(el("div", "en", "已答 " + r.done + " / " + r.total + " 题 / Answered " + r.done + " of " + r.total));
+        scoreEl.appendChild(el("div", "muted", "已答 " + r.done + " / " + r.total + " 题"));
       } else {
         var ratio = r.total ? r.score / r.total : 0;
         var msg = ratio === 1 ? ["满分！太棒了！", "Perfect score!"] :
           ratio >= 0.7 ? ["很好！看看错题的解释再试一次。", "Well done! Check the explanations and try again."] :
           ["慢慢来，再读一遍要点，然后重做练习。", "Take your time: reread the key points and redo the practice."];
         scoreEl.appendChild(el("div", "quiz-result-msg", msg[0]));
-        scoreEl.appendChild(el("div", "quiz-result-msg en", msg[1]));
       }
       scoreEl.classList.toggle("gram-score-done", r.done === r.total);
     }
@@ -452,7 +443,7 @@
         if (parts[i]) prompt.appendChild(document.createTextNode(parts[i]));
         if (i < parts.length - 1) {
           var b = el("span", "gram-blank");
-          b.setAttribute("aria-label", "空格 / blank");
+          b.setAttribute("aria-label", "空格");
           prompt.appendChild(b);
           blanks.push(b);
         }
@@ -503,8 +494,8 @@
       fb.innerHTML = "";
       fb.className = "quiz-feedback " + (correct ? "is-correct" : "is-wrong");
       fb.appendChild(el("div", "quiz-feedback-title",
-        correct ? "✔ 答对了！ / Correct!" :
-          "✘ 答错了，正确答案是 " + ex.options[ex.answer] + " / Not quite. The answer is " + ex.options[ex.answer]));
+        correct ? "✔ 答对了！" :
+          "✘ 答错了，正确答案是 " + ex.options[ex.answer]));
       var line = el("div", "quiz-feedback-word");
       line.appendChild(sayButton(fullSentence(ex), String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer])));
       fb.appendChild(line);
@@ -523,6 +514,7 @@
       var card = box.querySelectorAll(".gram-exercise")[idx];
       var p = card._parts;
       showAnswered(ex, optIdx, p.blanks, p.btns, p.fb);
+      if (window.Sfx) { if (optIdx === ex.answer) window.Sfx.correct(); else window.Sfx.wrong(); }
       updateScore();
 
       var correct = optIdx === ex.answer;
@@ -550,8 +542,7 @@
     // ---------- 启动 ----------
     if (!hasData()) {
       box.appendChild(el("div", "notice",
-        "没有找到语法内容（data/grammar.js 没有加载到）。请确认这个文件存在。" +
-        " / Grammar data not found."));
+        "没有找到语法内容（data/grammar.js 没有加载到）。请确认这个文件存在。"));
     } else {
       buildLessons();
       var first = 0;

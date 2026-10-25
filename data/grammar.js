@@ -15,20 +15,20 @@ window.GRAMMAR_LESSONS = [
       {
         captionZh: "人称代词一览",
         captionEn: "Subject pronouns at a glance",
-        headers: ["西语 Español", "中文", "English"],
+        headers: ["西语 Español", "中文"],
         rows: [
-          ["yo", "我", "I"],
-          ["tú", "你（熟人之间）", "you (informal)"],
-          ["él", "他", "he"],
-          ["ella", "她", "she"],
-          ["usted", "您（尊称）", "you (formal)"],
-          ["nosotros", "我们（全是男性，或男女都有）", "we (masculine / mixed group)"],
-          ["nosotras", "我们（全是女性）", "we (all female)"],
-          ["vosotros", "你们（全是男性，或男女都有；主要在西班牙用）", "you all (masculine / mixed; mainly Spain)"],
-          ["vosotras", "你们（全是女性；主要在西班牙用）", "you all (all female; mainly Spain)"],
-          ["ellos", "他们（全是男性，或男女都有）", "they (masculine / mixed group)"],
-          ["ellas", "她们（全是女性）", "they (all female)"],
-          ["ustedes", "诸位、你们（尊称；拉美所有场合都用）", "you all (formal; in Latin America for everyone)"]
+          ["yo", "我"],
+          ["tú", "你（熟人之间）"],
+          ["él", "他"],
+          ["ella", "她"],
+          ["usted", "您（尊称）"],
+          ["nosotros", "我们（全是男性，或男女都有）"],
+          ["nosotras", "我们（全是女性）"],
+          ["vosotros", "你们（全是男性，或男女都有；主要在西班牙用）"],
+          ["vosotras", "你们（全是女性；主要在西班牙用）"],
+          ["ellos", "他们（全是男性，或男女都有）"],
+          ["ellas", "她们（全是女性）"],
+          ["ustedes", "诸位、你们（尊称；拉美所有场合都用）"]
         ]
       }
     ],
@@ -66,7 +66,7 @@ window.GRAMMAR_LESSONS = [
         ]
       },
       {
-        zh: "小心重音符号：tú（你）和 tu（你的）不一样；él（他）和 el（定冠词，相当于英语 the）不一样。",
+        zh: "小心重音符号：tú（你）和 tu（你的）不一样；él（他）和 el（定冠词，放在名词前面，中文一般不翻译）不一样。",
         en: "Watch the accent marks: tú (you) is different from tu (your); él (he) is different from el (the).",
         examples: [
           { es: "Tú eres mi hermano.", zh: "你是我的兄弟。", en: "You are my brother." },
@@ -145,33 +145,33 @@ window.GRAMMAR_LESSONS = [
     id: "gender-articles",
     titleZh: "名词的阴阳性和冠词",
     titleEn: "Noun gender and articles",
-    introZh: "西语的每个名词都有“性别”：阳性或阴性。名词前面的冠词（相当于英语的 the 和 a）要跟着名词的阴阳性和单复数变化。",
+    introZh: "西语的每个名词都有“性别”：阳性或阴性。名词前面的冠词（意思类似“这个”“一个”，中文常常不翻译）要跟着名词的阴阳性和单复数变化。",
     introEn: "Every Spanish noun has a gender: masculine or feminine. The article in front of it (like English \"the\" and \"a\") changes to match the noun's gender and number.",
     tables: [
       {
         captionZh: "冠词表",
         captionEn: "Articles",
-        headers: ["", "阳性 Masculine", "阴性 Feminine"],
+        headers: ["", "阳性", "阴性"],
         rows: [
-          ["定冠词·单数（中文常不翻译）the", "el", "la"],
-          ["定冠词·复数（中文常不翻译）the", "los", "las"],
-          ["不定冠词·单数（一个）a / an", "un", "una"],
-          ["不定冠词·复数（一些）some", "unos", "unas"]
+          ["定冠词·单数（中文常不翻译）", "el", "la"],
+          ["定冠词·复数（中文常不翻译）", "los", "las"],
+          ["不定冠词·单数（一个）", "un", "una"],
+          ["不定冠词·复数（一些）", "unos", "unas"]
         ]
       },
       {
         captionZh: "例词（记名词时连冠词一起记）",
         captionEn: "Example words (learn each noun with its article)",
-        headers: ["西语 Español", "中文", "English"],
+        headers: ["西语 Español", "中文"],
         rows: [
-          ["el hermano", "兄弟", "the brother"],
-          ["la hermana", "姐妹", "the sister"],
-          ["los hijos", "儿子们；子女", "the sons / the children"],
-          ["las hijas", "女儿们", "the daughters"],
-          ["el padre", "父亲（-e 结尾，要单独记）", "the father (ends in -e: memorize)"],
-          ["la flor", "花（辅音结尾，要单独记）", "the flower (ends in a consonant: memorize)"],
-          ["el día", "天；白天（例外：-a 结尾但是阳性）", "the day (exception: masculine)"],
-          ["la mano", "手（例外：-o 结尾但是阴性）", "the hand (exception: feminine)"]
+          ["el hermano", "兄弟"],
+          ["la hermana", "姐妹"],
+          ["los hijos", "儿子们；子女"],
+          ["las hijas", "女儿们"],
+          ["el padre", "父亲（-e 结尾，要单独记）"],
+          ["la flor", "花（辅音结尾，要单独记）"],
+          ["el día", "天；白天（例外：-a 结尾但是阳性）"],
+          ["la mano", "手（例外：-o 结尾但是阴性）"]
         ]
       }
     ],
@@ -293,14 +293,14 @@ window.GRAMMAR_LESSONS = [
       {
         captionZh: "ser 现在时变位",
         captionEn: "ser: present tense",
-        headers: ["人称 Person", "ser", "中文", "English"],
+        headers: ["人称", "ser", "中文"],
         rows: [
-          ["yo", "soy", "我是", "I am"],
-          ["tú", "eres", "你是", "you are"],
-          ["él / ella / usted", "es", "他/她是；您是", "he / she is; you (formal) are"],
-          ["nosotros / nosotras", "somos", "我们是", "we are"],
-          ["vosotros / vosotras", "sois", "你们是", "you all are"],
-          ["ellos / ellas / ustedes", "son", "他们/她们是；诸位是", "they are; you all (formal) are"]
+          ["yo", "soy", "我是"],
+          ["tú", "eres", "你是"],
+          ["él / ella / usted", "es", "他/她是；您是"],
+          ["nosotros / nosotras", "somos", "我们是"],
+          ["vosotros / vosotras", "sois", "你们是"],
+          ["ellos / ellas / ustedes", "son", "他们/她们是；诸位是"]
         ]
       }
     ],
@@ -415,14 +415,14 @@ window.GRAMMAR_LESSONS = [
       {
         captionZh: "estar 现在时变位（注意重音）",
         captionEn: "estar: present tense (watch the accents)",
-        headers: ["人称 Person", "estar", "中文", "English"],
+        headers: ["人称", "estar", "中文"],
         rows: [
-          ["yo", "estoy", "我在/我（处于）", "I am"],
-          ["tú", "estás", "你在/你（处于）", "you are"],
-          ["él / ella / usted", "está", "他/她在；您在", "he / she is; you (formal) are"],
-          ["nosotros / nosotras", "estamos", "我们在", "we are"],
-          ["vosotros / vosotras", "estáis", "你们在", "you all are"],
-          ["ellos / ellas / ustedes", "están", "他们/她们在；诸位在", "they are; you all (formal) are"]
+          ["yo", "estoy", "我在/我（处于）"],
+          ["tú", "estás", "你在/你（处于）"],
+          ["él / ella / usted", "está", "他/她在；您在"],
+          ["nosotros / nosotras", "estamos", "我们在"],
+          ["vosotros / vosotras", "estáis", "你们在"],
+          ["ellos / ellas / ustedes", "están", "他们/她们在；诸位在"]
         ]
       },
       {
@@ -430,10 +430,10 @@ window.GRAMMAR_LESSONS = [
         captionEn: "ser vs. estar: ser = what it is, estar = how / where it is",
         headers: ["", "ser", "estar"],
         rows: [
-          ["说什么 What it tells", "本质：身份、国籍、职业、性格（不容易变）Identity, nationality, job, personality", "状态和位置：现在怎么样、在哪儿（会变）Current state, mood, location"],
-          ["例 Example", "Soy Ana.（我是安娜。）", "Estoy bien.（我挺好。）"],
-          ["例 Example", "Soy de Madrid.（我是马德里人。）", "Estoy en Madrid.（我在马德里。）"],
-          ["例 Example", "Mi hermano es alegre.（我哥哥性格开朗。）", "Mi hermano está triste hoy.（我哥哥今天很难过。）"]
+          ["说什么", "本质：身份、国籍、职业、性格（不容易变）", "状态和位置：现在怎么样、在哪儿（会变）"],
+          ["例", "Soy Ana.（我是安娜。）", "Estoy bien.（我挺好。）"],
+          ["例", "Soy de Madrid.（我是马德里人。）", "Estoy en Madrid.（我在马德里。）"],
+          ["例", "Mi hermano es alegre.（我哥哥性格开朗。）", "Mi hermano está triste hoy.（我哥哥今天很难过。）"]
         ]
       }
     ],
@@ -549,7 +549,7 @@ window.GRAMMAR_LESSONS = [
       {
         captionZh: "三个例子：hablar（说）、comer（吃）、vivir（住；生活）",
         captionEn: "Three models: hablar (to speak), comer (to eat), vivir (to live)",
-        headers: ["人称 Person", "hablar 说 speak", "comer 吃 eat", "vivir 住 live"],
+        headers: ["人称", "hablar 说", "comer 吃", "vivir 住"],
         rows: [
           ["yo", "hablo", "como", "vivo"],
           ["tú", "hablas", "comes", "vives"],
@@ -562,7 +562,7 @@ window.GRAMMAR_LESSONS = [
       {
         captionZh: "词尾规律（去掉 -ar / -er / -ir 后加上）",
         captionEn: "Endings (added after dropping -ar / -er / -ir)",
-        headers: ["人称 Person", "-ar", "-er", "-ir"],
+        headers: ["人称", "-ar", "-er", "-ir"],
         rows: [
           ["yo", "-o", "-o", "-o"],
           ["tú", "-as", "-es", "-es"],

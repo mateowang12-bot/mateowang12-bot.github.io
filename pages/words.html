@@ -12,20 +12,19 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>单词卡片 <span class="en">Word Cards</span></h1>
-    <p>先选一课。看西语，想一想意思，再点卡片翻面看答案。点 🔊 听发音。<br>
-      <span class="en">Pick a lesson. Tap the card to flip it. Tap 🔊 to listen.</span></p>
+    <h1>单词卡片</h1>
+    <p>先选一课。看西语，想一想意思，再点卡片翻面看答案。点 🔊 听发音。</p>
 
     <!-- 选课区（由 JS 生成）：课多时分“基础 / 进阶”两组；默认收起（宽屏且课程 ≤ 8 课时展开），点一下展开选课 -->
     <details class="lesson-picker" id="lesson-picker">
-      <summary><span class="lesson-picker-label">选课 <span class="en">Lessons</span></span>
+      <summary><span class="lesson-picker-label">选课</span>
         <span class="lesson-picker-current" id="lesson-current"></span></summary>
       <div class="lesson-list" id="lesson-list"></div>
     </details>
@@ -33,16 +32,18 @@
     <!-- 卡片区（由 JS 生成） -->
     <div id="deck"></div>
 
-    <p class="key-hint en">手机：在卡片上左滑看下一张、右滑看上一张，点一下翻面 / Phone: swipe left or right to move, tap to flip<br>
-      电脑键盘：← → 切换卡片，空格键翻面 / Keyboard: ← → to move, Space to flip</p>
+    <p class="key-hint muted">手机：在卡片上左滑看下一张、右滑看上一张，点一下翻面<br>
+      电脑键盘：← → 切换卡片，空格键翻面</p>
 
-    <h2>本课单词一览 <span class="en">Word list</span></h2>
+    <h2>本课单词一览</h2>
     <ul class="word-list" id="word-list"></ul>
   </div>
 
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/words.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -62,7 +63,7 @@
     function sayButton(text, label) {
       var b = el("button", "say", label || text);
       b.type = "button";
-      b.title = "点击朗读 / Click to listen";
+      b.title = "点击朗读";
       b.onclick = function (ev) {
         ev.stopPropagation();
         // 提示等待期间点了 🔊（例如听例句）：不再自动换卡，让用户把这句听完，之后自己点“下一个”
@@ -147,7 +148,7 @@
     var P = window.Progress || null;
     // 状态小标记 + 掌握进度圆点（js/words-util.js）：○○○ 新词 → ●○○ → ●●○ → ●●● 已掌握 ✓
     function statusBadge(word, pop) {
-      return U.masteryBadge(word && word.id, "新词 / New", pop);
+      return U.masteryBadge(word && word.id, "新词", pop);
     }
     function lessonIds(ls) {
       var ids = [];
@@ -169,7 +170,7 @@
       var groups = U ? U.lessonGroups(LESSONS) : [{ zh: "", indices: LESSONS.map(function (x, i) { return i; }) }];
       for (var g = 0; g < groups.length; g++) {
         if (groups[g].zh) {
-          lessonBox.appendChild(el("div", "lesson-group-title", groups[g].zh + " / " + groups[g].en));
+          lessonBox.appendChild(el("div", "lesson-group-title", groups[g].zh));
         }
         for (var n = 0; n < groups[g].indices.length; n++) addLessonButton(groups[g].indices[n]);
       }
@@ -184,7 +185,7 @@
           b.appendChild(el("span", "lesson-num", String(idx + 1)));
           var t = el("span", "lesson-title", ls.titleZh || "");
           b.appendChild(t);
-          b.appendChild(el("span", "en", (ls.titleEn || "") + " · " + count + " 个词"));
+          b.appendChild(el("span", "muted lesson-sub", count + " 个词"));
           var m = el("span", "lesson-mastered");
           m.setAttribute("data-idx", String(idx));
           b.appendChild(m);
@@ -236,7 +237,6 @@
       cb.checked = autoPlay;
       lab.appendChild(cb);
       var lt = el("span", "quiz-check-text", "🔊 自动发音 ");
-      lt.appendChild(el("span", "en", "Auto-play"));
       lab.appendChild(lt);
       lab.classList.toggle("active", autoPlay);
       cb.onchange = function () {
@@ -251,7 +251,7 @@
       cardEl = el("div", "flashcard");
       cardEl.setAttribute("role", "button");
       cardEl.setAttribute("tabindex", "0");
-      cardEl.title = "点击翻面 / Click to flip";
+      cardEl.title = "点击翻面";
 
       var inner = el("div", "flashcard-inner");
 
@@ -262,7 +262,7 @@
       frontSay = el("div", "flash-say");
       front.appendChild(frontWord);
       front.appendChild(frontSay);
-      front.appendChild(el("div", "flash-hint", "点一下看意思 / Tap to flip"));
+      front.appendChild(el("div", "flash-hint", "点一下看意思"));
 
       backBox = el("div", "flashcard-face flashcard-back");
 
@@ -278,7 +278,7 @@
       toastEl.setAttribute("aria-live", "polite");
       toastText = el("div", "card-toast-text");
       toastNext = el("div", "card-toast-next");
-      nowBtn = el("button", "btn btn-light btn-small card-toast-btn", "马上下一张 → / Next now");
+      nowBtn = el("button", "btn btn-light btn-small card-toast-btn", "马上下一张 → ");
       nowBtn.type = "button";
       nowBtn.onclick = function (ev) {
         ev.stopPropagation();
@@ -303,10 +303,10 @@
 
       // “还不熟 / 我记住了”按钮（建一次；点的时候记当前这张卡）
       actionsBox = el("div", "card-actions");
-      noBtn = el("button", "btn btn-light btn-notyet", "✗ 还不熟 / Not yet");
+      noBtn = el("button", "btn btn-light btn-notyet", "✗ 还不熟");
       noBtn.type = "button";
       noBtn.onclick = function () { markAndNext(false); };
-      yesBtn = el("button", "btn btn-gotit", "✓ 我记住了 / Got it");
+      yesBtn = el("button", "btn btn-gotit", "✓ 我记住了");
       yesBtn.type = "button";
       yesBtn.onclick = function () { markAndNext(true); };
       actionsBox.appendChild(noBtn);
@@ -318,7 +318,6 @@
       actionsArea.appendChild(toastEl);
 
       var rule = el("p", "mastery-hint", "点 3 次“记住了”就算掌握；“还不熟”会让它重新开始。 ");
-      rule.appendChild(el("span", "en", "/ Mark “Got it” 3 times to master a word."));
 
       // 上一个 / 进度 / 下一个 / 打乱
       var nav = el("div", "card-nav");
@@ -334,7 +333,7 @@
       nav.appendChild(nextBtn);
 
       var shuffleRow = el("div", "card-nav");
-      var shuffleBtn = el("button", "btn btn-light", "🔀 打乱顺序 / Shuffle");
+      var shuffleBtn = el("button", "btn btn-light", "🔀 打乱顺序");
       shuffleBtn.type = "button";
       shuffleBtn.onclick = shuffle;
       shuffleRow.appendChild(shuffleBtn);
@@ -366,7 +365,7 @@
       // 正面：状态标记 + 西语 + 朗读按钮
       frontWord.textContent = w.es || "";
       frontSay.innerHTML = "";
-      frontSay.appendChild(sayButton(w.es, "听发音 / Listen"));
+      frontSay.appendChild(sayButton(w.es, "听发音"));
 
       // 背面：状态标记、中文、英文、备注、例句
       backBox.innerHTML = "";
@@ -375,16 +374,14 @@
       var head = el("div", "flash-back-es fit-word", w.es || "");
       backBox.appendChild(head);
       backBox.appendChild(el("div", "flash-zh", w.zh || ""));
-      backBox.appendChild(el("div", "flash-en en", w.en || ""));
       if (w.note) {
         backBox.appendChild(el("div", "flash-note", "💡 " + w.note));
       }
       if (w.example && w.example.es) {
         var ex = el("div", "flash-example");
-        ex.appendChild(el("div", "flash-example-label", "例句 / Example"));
+        ex.appendChild(el("div", "flash-example-label", "例句"));
         ex.appendChild(sayButton(w.example.es));
         ex.appendChild(el("div", "", w.example.zh || ""));
-        ex.appendChild(el("div", "en", w.example.en || ""));
         backBox.appendChild(ex);
       }
       refreshCardBadges(w, false);
@@ -418,7 +415,6 @@
       toastEl.className = "card-toast kind-" + msg.kind;
       // 中文一行（粗体），英文小一号另起一行
       toastText.textContent = msg.zh;
-      toastText.appendChild(el("span", "en", " / " + msg.en));
       setToastHint(hint);
       // 提示替换按钮行。焦点原来在“记住了 / 还不熟”上（键盘用户）：移到“马上下一张”，
       // 因为看不见的按钮不能拿着焦点
@@ -452,6 +448,8 @@
       if (!word || !word.id) return;
       var before = P.getBox(word.id);
       P.markWord(word.id, known);
+      // 音效 + 触感（js/sfx.js）：记住了 = 叮咚，还不熟 = 啵（不用“答错”的声音，免得像在批评）
+      if (window.Sfx) { if (known) window.Sfx.correct(); else { window.Sfx.pop(); window.Sfx.buzz(10); } }
       // 经验值（数值在 js/storage.js 的 XP_RULES）；同一个词每天只有第一次给经验值
       if (P.award) P.award(known ? "wordGot" : "wordNotYet", word.id);
       var after = P.getBox(word.id);
@@ -466,7 +464,7 @@
       // 浏览器根本不支持朗读（没有 speechSynthesis）时不写“🔊 先听一遍”，免得用户等声音
       var canHear = canSpeak && !!window.speechSynthesis;
       showToast(U.markMessage(before, after, known), order.length > 1 ?
-        (canHear ? "🔊 先听一遍，稍后自动下一张… / Next card soon…" : "稍后自动下一张… / Next card soon…") : "");
+        (canHear ? "🔊 先听一遍，稍后自动下一张…" : "稍后自动下一张…") : "");
 
       var seq = ++waitSeq;
       waitStart = Date.now();
@@ -534,7 +532,7 @@
       clearTimeout(waitTimer);
       waitTimer = null;
       waitSeq++; // 当前词稍后的 onEnd 作废
-      setToastHint("已暂停自动切换 / Auto-next paused");
+      setToastHint("已暂停自动切换");
     }
 
     function setFlipped(v) {
@@ -596,7 +594,6 @@
           b.type = "button";
           b.appendChild(el("strong", "", w.es || ""));
           b.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
-          b.appendChild(el("span", "en", "/ " + (w.en || "")));
           var badgeBox = el("span", "word-list-badge");
           badgeBox.appendChild(statusBadge(w));
           b.appendChild(badgeBox);
@@ -695,8 +692,7 @@
     // ---------- 启动 ----------
     if (!hasData()) {
       deckBox.appendChild(el("div", "notice",
-        "没有找到单词内容（data/words.js 没有加载到）。请确认这个文件存在。" +
-        " / Word data not found."));
+        "没有找到单词内容（data/words.js 没有加载到）。请确认这个文件存在。"));
       document.querySelector(".key-hint").hidden = true;
     } else {
       buildLessons();

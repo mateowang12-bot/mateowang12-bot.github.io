@@ -12,33 +12,32 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>日常句子 <span class="en">Everyday Phrases</span></h1>
-    <p>先选一组句子。点 🔊 听发音，跟着读几遍；会了就点“✓ 记住了”。<br>
-      <span class="en">Pick a group. Tap 🔊 to listen and repeat. Mark the ones you know.</span></p>
+    <h1>日常句子</h1>
+    <p>先选一组句子。点 🔊 听发音，跟着读几遍；会了就点“✓ 记住了”。</p>
 
     <!-- 选组（由 JS 生成，从简到难）：默认收起（宽屏时展开），点一下展开 -->
     <details class="lesson-picker" id="group-picker">
-      <summary><span class="lesson-picker-label">选一组 <span class="en">Groups</span></span>
+      <summary><span class="lesson-picker-label">选一组</span>
         <span class="lesson-picker-current" id="group-current"></span></summary>
-      <div class="lesson-list" id="group-list" role="group" aria-label="句子分组 / Groups"></div>
+      <div class="lesson-list" id="group-list" role="group" aria-label="句子分组"></div>
     </details>
 
     <!-- 自测开关 -->
     <div class="switch-row" id="switch-row" hidden>
       <label class="quiz-check" for="hide-zh">
         <input type="checkbox" id="hide-zh">
-        <span class="quiz-check-text">只看西语（遮住中文） <span class="en">Spanish only (self-test)</span></span>
+        <span class="quiz-check-text">只看西语（遮住中文）</span>
       </label>
     </div>
     <p class="mastery-hint mastery-hint-left" id="mastery-hint" hidden>每句点 3 次“记住了”就算掌握；“还不熟”会让它重新开始。
-      <span class="en">/ Mark “Got it” 3 times to master a phrase.</span></p>
+</p>
 
     <div id="group-box"></div>
   </div>
@@ -46,6 +45,8 @@
   <!-- 学习内容、发音、进度（普通 script，双击打开也能用） -->
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/phrases.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -71,7 +72,7 @@
     }
     // 状态小标记 + 掌握进度圆点（js/words-util.js）：○○○ 新句 → ●○○ → ●●○ → ●●● 已掌握 ✓
     function statusBadge(p, pop) {
-      return U.masteryBadge(p.id, "新句 / New", pop);
+      return U.masteryBadge(p.id, "新句", pop);
     }
 
     // ---------- “只看西语”开关（记在 localStorage，读写失败也没关系） ----------
@@ -106,7 +107,7 @@
           b.setAttribute("data-idx", String(idx));
           b.appendChild(el("span", "lesson-num", String(idx + 1)));
           b.appendChild(el("span", "lesson-title", g.titleZh || ""));
-          b.appendChild(el("span", "en", (g.titleEn || "") + " · " + n + " 句"));
+          b.appendChild(el("span", "muted lesson-sub", n + " 句"));
           var m = el("span", "lesson-mastered");
           m.setAttribute("data-idx", String(idx));
           b.appendChild(m);
@@ -141,12 +142,10 @@
       var box = $("group-box");
       box.innerHTML = "";
       var h = el("h2", "", (g.titleZh || "") + " ");
-      h.appendChild(el("span", "en", g.titleEn || ""));
       box.appendChild(h);
       if (g.sceneZh || g.sceneEn) {
         var sc = el("div", "dlg-scene phrase-scene");
         if (g.sceneZh) sc.appendChild(el("p", "", g.sceneZh));
-        if (g.sceneEn) sc.appendChild(el("p", "en", g.sceneEn));
         box.appendChild(sc);
       }
       var list = el("div", "phrase-list");
@@ -172,30 +171,23 @@
       // 只看西语时：这些部分先遮住，点“看中文”再显示
       var hid = el("div", "phrase-hideable");
       if (p.zh) hid.appendChild(el("div", "phrase-zh", p.zh));
-      if (p.en) {
-        var d = el("details");
-        d.appendChild(el("summary", "", "英文 / English"));
-        d.appendChild(el("div", "en", p.en));
-        hid.appendChild(d);
-      }
       if (p.note) hid.appendChild(el("div", "phrase-note", "💡 " + p.note));
       card.appendChild(hid);
 
       if (p.reply && p.reply.es) {
         var r = el("div", "phrase-reply");
-        r.appendChild(el("div", "phrase-reply-label", "对方可能回答： / They might reply:"));
+        r.appendChild(el("div", "phrase-reply-label", "对方可能回答："));
         var res = el("div", "phrase-reply-es");
         res.appendChild(document.createTextNode(p.reply.es + " "));
         res.appendChild(sayButton(p.reply.es, "听"));
         r.appendChild(res);
         var rh = el("div", "phrase-hideable");
         if (p.reply.zh) rh.appendChild(el("div", "", p.reply.zh));
-        if (p.reply.en) rh.appendChild(el("div", "en", p.reply.en));
         r.appendChild(rh);
         card.appendChild(r);
       }
 
-      var reveal = el("button", "btn btn-light btn-small reveal-btn", "👀 看中文 / Show meaning");
+      var reveal = el("button", "btn btn-light btn-small reveal-btn", "👀 看中文");
       reveal.type = "button";
       reveal.onclick = function () { card.classList.add("revealed"); };
       card.appendChild(reveal);
@@ -206,9 +198,9 @@
       fb.setAttribute("role", "status");
       fb.setAttribute("aria-live", "polite");
       if (P) {
-        var no = el("button", "btn btn-light btn-notyet", "✗ 还不熟 / Not yet");
+        var no = el("button", "btn btn-light btn-notyet", "✗ 还不熟");
         no.type = "button";
-        var yes = el("button", "btn btn-gotit", "✓ 记住了 / Got it");
+        var yes = el("button", "btn btn-gotit", "✓ 记住了");
         yes.type = "button";
         // 点一次后两个按钮停用约 1.5 秒（防止连点刷记录）
         var pair = [no, yes];
@@ -232,6 +224,7 @@
       // 句子和单词共用同一张记录表（id 以 ph- 开头），读写的 try/catch 在 js/storage.js 里
       var before = P.getBox(p.id);
       P.markWord(p.id, known);
+      if (window.Sfx) { if (known) window.Sfx.correct(); else { window.Sfx.pop(); window.Sfx.buzz(10); } }
       // 经验值（数值在 js/storage.js 的 XP_RULES）；同一句每天只有第一次给经验值
       if (P.award) P.award(known ? "wordGot" : "wordNotYet", p.id);
       var after = P.getBox(p.id);
@@ -274,7 +267,7 @@
     for (var gi = 0; gi < GROUPS.length; gi++) if (phrasesOf(GROUPS[gi]).length) hasAny = true;
     if (!hasAny) {
       $("group-box").appendChild(el("div", "notice",
-        "没有找到句子内容（data/phrases.js 没有加载到，或者里面没有句子）。请确认这个文件存在。 / Phrase data not found."));
+        "没有找到句子内容（data/phrases.js 没有加载到，或者里面没有句子）。请确认这个文件存在。"));
     } else {
       $("switch-row").hidden = false;
       if (P) $("mastery-hint").hidden = false;

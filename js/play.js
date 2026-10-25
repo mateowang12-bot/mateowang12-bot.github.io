@@ -20,6 +20,9 @@
   function $(id) { return document.getElementById(id); }
   function speak(text, queue) { if (window.speakSpanish && text) window.speakSpanish(text, queue); }
   function nav() { return window.SiteNav || null; }
+  // 音效 + 触感（js/sfx.js）、吉祥物（js/mascot.js）：没有加载到也不影响闯关
+  function sfx(name) { try { if (window.Sfx && window.Sfx[name]) window.Sfx[name](); } catch (e) {} }
+  function mascot(mood, cls) { return window.Mascot ? window.Mascot.el(mood, cls) : null; }
   function mapUrl() { var n = nav(); return n ? n.href(n.homeFile) : "../index.html"; }
   function collectionUrl() { var n = nav(); return n ? n.href("pages/collection.html") : "collection.html"; }
 
@@ -323,7 +326,8 @@
 
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
-  // 底部：反馈 + 按钮。opts = { kind: ""|"correct"|"wrong", title, body: [节点], buttons: [{ text, cls, onClick, href, disabled, id }] }
+  // 底部：反馈 + 按钮。opts = { kind: ""|"correct"|"wrong", title, body: [节点], mascot: 表情, buttons: [{ text, cls, onClick, href, disabled, id }] }
+  // 答对 / 答错时是一整条绿色 / 红色的反馈条（从下面弹上来），左边是吉祥物（开心 / 鼓励的表情）
   var mainBtn = null;
   function setFoot(opts) {
     clear(foot);
@@ -332,6 +336,8 @@
     if (opts.title || (opts.body && opts.body.length)) {
       var fb = el("div", "fb pop-in");
       fb.setAttribute("role", "status");
+      var mm = opts.mascot ? mascot(opts.mascot, opts.kind === "wrong" ? "shake" : "hop") : null;
+      if (mm) { fb.className += " has-mascot"; fb.appendChild(mm); }
       if (opts.title) fb.appendChild(el("div", "fb-title", opts.title));
       if (opts.body && opts.body.length) {
         var b = el("div", "fb-body");
@@ -374,10 +380,33 @@
     fill.style.width = (100 * Math.min(S.step, tot) / tot).toFixed(1) + "%";
     $("p-bar").setAttribute("aria-valuemax", String(tot));
     $("p-bar").setAttribute("aria-valuenow", String(S.step));
-    $("p-bar").setAttribute("aria-label", "第 " + Math.min(S.step + 1, tot) + " 题 / 共 " + tot + " 题");
+    $("p-bar").setAttribute("aria-label", "第 " + Math.min(S.step + 1, tot) + " 题，共 " + tot + " 题");
     var h = $("p-hearts");
-    h.textContent = "❤️ " + S.hearts;
-    h.setAttribute("aria-label", "还剩 " + S.hearts + " 颗心 / " + S.hearts + " hearts");
+    clear(h);
+    h.appendChild(el("span", "hh", "❤️")).setAttribute("aria-hidden", "true");
+    h.appendChild(document.createTextNode(String(S.hearts)));
+    h.setAttribute("aria-label", "还剩 " + S.hearts + " 颗心");
+    drawCombo(false);
+  }
+  // 连胜：连续答对几次（答错就清零）。连续 2 次以上才显示 🔥 n
+  function drawCombo(bump) {
+    var c = $("p-combo");
+    if (!c) return;
+    var n = S.combo || 0;
+    c.hidden = n < 2;
+    c.textContent = "🔥" + n;
+    c.setAttribute("aria-label", "连续答对 " + n + " 次");
+    if (bump && n >= 2) { c.classList.remove("bump"); void c.offsetWidth; c.classList.add("bump"); }
+  }
+  function hit(ok) {
+    S.combo = ok ? (S.combo || 0) + 1 : 0;
+    drawCombo(ok);
+    if (ok) {
+      var bar = $("p-bar");
+      bar.classList.remove("shine");
+      void bar.offsetWidth;
+      bar.classList.add("shine");
+    }
   }
   function loseHeart() {
     S.hearts = Math.max(0, S.hearts - 1);
@@ -406,7 +435,7 @@
   // ---------- 开始 ----------
   function start(lv) {
     var rnd = lv.seed ? W.rng(lv.seed) : Math.random;
-    S = { level: lv, plan: plan(lv, rnd), qi: -1, step: 0, hearts: HEARTS, mistakes: 0, right: 0, wrong: [], phase: "intro", q: null, timer: null };
+    S = { level: lv, plan: plan(lv, rnd), qi: -1, step: 0, hearts: HEARTS, mistakes: 0, right: 0, wrong: [], phase: "intro", q: null, timer: null, combo: 0 };
     drawHead();
     document.title = (lv.titleZh || "闯关") + " · 我的西语学习站";
     if (S.plan.empty) return showError();
@@ -416,13 +445,14 @@
   function showError() {
     S.phase = "error";
     var s = screen("p-center");
-    s.appendChild(el("div", "p-emoji", "🧭"));
+    var m0 = mascot("think", "bob");
+    if (m0) s.appendChild(m0);
+    else s.appendChild(el("div", "p-emoji", "🧭"));
     s.appendChild(el("div", "p-head-title", "这一关的内容还没准备好"));
-    s.appendChild(el("p", "en", "This level isn't ready yet."));
     var ul = el("ul", "small-tip");
     for (var i = 0; i < S.plan.problems.length; i++) ul.appendChild(el("li", "", S.plan.problems[i]));
     s.appendChild(ul);
-    setFoot({ buttons: [{ text: "回到地图 / Map", href: mapUrl() }] });
+    setFoot({ buttons: [{ text: "回到地图", href: mapUrl() }] });
   }
 
   function showIntro() {
@@ -430,13 +460,19 @@
     S.phase = "intro";
     var s = screen("p-center");
     var reg = lv.region;
-    s.appendChild(el("div", "p-emoji", lv.isDaily ? "📅" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : (reg && reg.emoji) || "🗺️"));
-    if (reg) s.appendChild(el("div", "sheet-kicker", (reg.titleZh || "") + (reg.titleEn ? " · " + reg.titleEn : "")));
-    var t = el("div", "p-head-title", lv.titleZh || "");
-    if (lv.titleEn) t.appendChild(el("span", "en", lv.titleEn));
+    var badge = lv.isDaily ? "📅" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : (reg && reg.emoji) || "🗺️";
+    if (reg) s.appendChild(el("div", "sheet-kicker", reg.titleZh || ""));
+    var t = el("div", "p-head-title");
+    t.appendChild(el("span", "p-badge", badge)).setAttribute("aria-hidden", "true");
+    t.appendChild(document.createTextNode(" " + (lv.titleZh || "")));
     s.appendChild(t);
-    if (lv.introZh) s.appendChild(el("p", "", lv.introZh));
-    if (lv.introEn) s.appendChild(el("p", "en", lv.introEn));
+    // 吉祥物 + 说话气泡（关卡简介）
+    var say = lv.introZh || (lv.type === "boss" ? "大关！把这一站学的都用上，加油！" : "准备好了吗？我们出发吧！");
+    var hero = el("div", "p-intro-hero");
+    var m1 = mascot("hello", "bob");
+    if (m1) hero.appendChild(m1);
+    hero.appendChild(el("div", "speech", say));
+    s.appendChild(hero);
     var mi = el("div", "mode-icons");
     mi.style.justifyContent = "center";
     var shown = {};
@@ -457,7 +493,7 @@
       var d = p.getDaily(lv.day);
       if (d && d.done) s.appendChild(el("p", "sheet-best", "✓ 今天的奖励已经领过了，还可以再练。"));
     }
-    setFoot({ buttons: [{ text: "开始 / Start ▶", id: "start-btn", onClick: function () { next(); } }] });
+    setFoot({ buttons: [{ text: "开始 ▶", id: "start-btn", onClick: function () { next(); } }] });
   }
 
   function stars(n) {
@@ -491,28 +527,32 @@
     if (r.extra) body = body.concat(r.extra);
     if (r.ok) S.right++;
     var dead = S.hearts <= 0;
+    hit(r.ok);
+    sfx(r.ok ? "correct" : (dead ? "fail" : "wrong"));
     setFoot({
       kind: r.ok ? "correct" : "wrong",
-      title: r.title || (r.ok ? pickPraise() : "✘ 正确答案： / Correct answer:"),
+      title: r.title || (r.ok ? pickPraise() : pickOops()),
       body: body,
-      buttons: [{ text: dead ? "❤️ 用完了… / Out of hearts" : "继续 / Continue →", id: "continue-btn", onClick: function () { next(); } }]
+      mascot: r.ok ? "happy" : "cheer",
+      buttons: [{ text: dead ? "❤️ 用完了…" : "继续 →", id: "continue-btn", onClick: function () { next(); } }]
     });
     S.phase = "feedback";
     if (mainBtn) try { mainBtn.focus(); } catch (e) {}
   }
-  var PRAISE = ["✔ 太棒了！ / Great!", "✔ 答对了！ / Correct!", "✔ 很好！ / Nice!", "✔ ¡Muy bien!"];
+  var PRAISE = ["太棒了！", "答对了！", "真厉害！", "¡Muy bien!"];
   function pickPraise() { return PRAISE[Math.floor(Math.random() * PRAISE.length)]; }
+  // 答错：鼓励一下 + 正确答案（下面的 body 里显示）
+  function pickOops() { return "差一点！正确答案："; }
 
   // 底部“检查”按钮
   function checkFoot(onCheck) {
-    setFoot({ buttons: [{ text: "检查 / Check", id: "check-btn", disabled: true, onClick: onCheck }] });
+    setFoot({ buttons: [{ text: "检查", id: "check-btn", disabled: true, onClick: onCheck }] });
   }
   function enableCheck(on) { if (mainBtn && mainBtn.id === "check-btn") mainBtn.disabled = !on; }
 
-  function head(s, kind, zh, en) {
-    s.appendChild(el("div", "q-kind", W.MODE_INFO[kind].icon + " " + W.MODE_INFO[kind].zh + " · " + W.MODE_INFO[kind].en));
+  function head(s, kind, zh) {
+    s.appendChild(el("div", "q-kind", W.MODE_INFO[kind].icon + " " + W.MODE_INFO[kind].zh));
     var t = el("div", "q-title", zh);
-    if (en) t.appendChild(el("span", "en", en));
     s.appendChild(t);
   }
 
@@ -527,6 +567,13 @@
   }
 
   // 选项按钮（选一个，再点“检查”）
+  // 选项里最长的文字超过 5 个字：这一题的选项排成一列（两列时长句会被挤成一行两三个字）
+  var LONG_OPTION = 5;
+  function longest(list, textOf) {
+    var n = 0;
+    for (var i = 0; i < list.length; i++) n = Math.max(n, String(textOf(list[i]) || "").length);
+    return n;
+  }
   function optionList(s, items, render, onPick, col) {
     var wrap = el("div", "p-options" + (col ? " is-col" : ""));
     var btns = [];
@@ -561,11 +608,11 @@
   function qListen(q) {
     var s = screen();
     var t = q.target;
-    head(s, "listen", t.kind === "letter" ? "听一听，是哪个字母？" : "听一听，选出它的意思", t.kind === "letter" ? "Which letter do you hear?" : "What does it mean?");
+    head(s, "listen", t.kind === "letter" ? "听一听，是哪个字母？" : "听一听，选出它的意思");
     var play = el("button", "p-listen", "🔊");
     play.type = "button";
     play.id = "listen-btn";
-    play.setAttribute("aria-label", "再听一遍 / Play again");
+    play.setAttribute("aria-label", "再听一遍");
     play.onclick = function () { speak(t.speak); };
     s.appendChild(play);
     var picked = null;
@@ -573,7 +620,7 @@
       if (it.kind === "letter") { b.classList.add("letter-opt"); b.appendChild(el("span", "", it.letter)); return; }
       if (it.emoji) b.appendChild(el("span", "opt-emoji", it.emoji));
       b.appendChild(el("span", "", it.zh));
-    }, function (it) { picked = it; enableCheck(true); });
+    }, function (it) { picked = it; enableCheck(true); }, longest(q.options, function (o) { return o.kind === "letter" ? o.letter : o.zh; }) > LONG_OPTION);
     checkFoot(function () {
       if (!picked || S.phase !== "question") return;
       var ok = picked === t;
@@ -589,7 +636,7 @@
   // ---------- 2. 配对消消乐 ----------
   function qMatch(q) {
     var s = screen();
-    head(s, "match", "把西语和意思配成对", "Tap a Spanish word, then its meaning");
+    head(s, "match", "把西语和意思配成对");
     var board = el("div", "m-board");
     var left = el("div", "m-col"), right = el("div", "m-col");
     board.appendChild(left);
@@ -623,7 +670,10 @@
         b.classList.add("done");
         a.btn.disabled = true;
         b.disabled = true;
+        a.btn.classList.add("got");
+        b.classList.add("got");
         done++;
+        if (done < q.pairs.length) sfx("ding");
         if (done === q.pairs.length) finishMatch();
         return;
       }
@@ -639,17 +689,18 @@
         setTimeout(function () { x.classList.remove("miss"); }, 600);
       });
       // 每道配对题最多扣一颗心：这题第一次配错扣心（算一次错误，影响星星），之后再配错只闪红
-      if (missCount === 1 && loseHeart()) finishMatch(true);
+      if (missCount === 1 && loseHeart()) { finishMatch(true); return; }
+      sfx("wrong");
     }
     function finishMatch(dead) {
       for (var k = 0; k < q.pairs.length; k++) mark(q.pairs[k], !missed[q.pairs[k].id]);
       var cards = board.querySelectorAll(".m-card");
       for (var c = 0; c < cards.length; c++) cards[c].disabled = true;
       var ok = !missCount;
-      answered({ ok: ok, title: ok ? "✔ 全部配对！ / All matched!" : (dead ? "✘ 心用完了" : "配对完成，配错 " + missCount + " 次 / Done with " + missCount + " mistakes"),
+      answered({ ok: ok, title: ok ? "✔ 全部配对！" : (dead ? "✘ 心用完了" : "配对完成，配错 " + missCount + " 次"),
         extra: ok ? [] : [el("div", "small-tip", "这道题扣了一颗心（每道配对题最多扣一颗）。配错的词已经放进复习里。")] });
     }
-    setFoot({ title: "", buttons: [{ text: "配完全部 / Match all", id: "check-btn", disabled: true }] });
+    setFoot({ title: "", buttons: [{ text: "配完全部", id: "check-btn", disabled: true }] });
     U.fitAll(s);
   }
 
@@ -657,13 +708,12 @@
   function qOrder(q) {
     var s = screen();
     var t = q.target;
-    head(s, "order", "用西语怎么说？把词按顺序点进来", "Build the sentence");
+    head(s, "order", "用西语怎么说？把词按顺序点进来");
     s.appendChild(el("div", "order-meaning", t.zh));
-    if (t.en) s.appendChild(el("div", "en", t.en));
     var ans = el("div", "order-answer");
-    ans.setAttribute("aria-label", "答题区 / Your answer");
+    ans.setAttribute("aria-label", "答题区");
     var bankBox = el("div", "order-bank");
-    bankBox.setAttribute("aria-label", "可选的词 / Words");
+    bankBox.setAttribute("aria-label", "可选的词");
     s.appendChild(ans);
     s.appendChild(bankBox);
     var sh = q.tokens.slice();
@@ -714,10 +764,9 @@
   function qGuess(q) {
     var s = screen();
     var t = q.target;
-    head(s, "guess", "猜出这个词的西语", "Spell the Spanish word");
+    head(s, "guess", "猜出这个词的西语");
     var hint = el("div", "guess-hint", (t.emoji ? t.emoji + " " : "") + t.zh);
     s.appendChild(hint);
-    if (t.en) s.appendChild(el("div", "en", t.en));
     var wordBox = el("div", "guess-word");
     wordBox.setAttribute("aria-live", "polite");
     s.appendChild(wordBox);
@@ -725,7 +774,7 @@
     s.appendChild(left);
     var keys = el("div", "guess-keys");
     keys.setAttribute("role", "group");
-    keys.setAttribute("aria-label", "字母键盘 / Letters");
+    keys.setAttribute("aria-label", "字母键盘");
     s.appendChild(keys);
     var guessed = {}, wrongN = 0, over = false;
     var keyBtns = {};
@@ -778,13 +827,13 @@
         mark(t, win);
         if (!win) { loseHeart(); addWrong(t.es, label(t), t.speak); }
         drawWord();
-        answered({ ok: win, title: win ? null : "✘ 没猜出来，答案是： / The answer:", es: t.es, zh: label(t), speakText: t.speak });
+        answered({ ok: win, title: win ? null : "✘ 没猜出来，答案是：", es: t.es, zh: label(t), speakText: t.speak });
         return;
       }
       drawWord();
     }
     S.q.guess = guess; // 实体键盘用
-    setFoot({ buttons: [{ text: "猜出整个词 / Spell it", id: "check-btn", disabled: true }] });
+    setFoot({ buttons: [{ text: "猜出整个词", id: "check-btn", disabled: true }] });
     drawWord();
   }
 
@@ -792,7 +841,7 @@
   function qFill(q) {
     var s = screen();
     var ex = q.ex;
-    head(s, "fill", "选出空格里该填的词", "Fill in the blank");
+    head(s, "fill", "选出空格里该填的词");
     var pr = el("div", "fill-prompt");
     var parts = String(ex.prompt).split("___");
     var blank = el("span", "gram-blank", " ");
@@ -802,15 +851,15 @@
     }
     s.appendChild(pr);
     if (ex.promptZh) s.appendChild(el("div", "", ex.promptZh));
-    if (ex.promptEn) s.appendChild(el("div", "en", ex.promptEn));
     var picked = -1;
     var opts = q.order;
+    var fillCol = longest(ex.options, function (o) { return o; }) > 9; // 填空的选项是西语，字母比汉字窄：超过 9 个字母才排一列
     var btns = optionList(s, opts, function (b, oi) { b.appendChild(el("span", "", ex.options[oi])); }, function (oi) {
       picked = oi;
       blank.textContent = ex.options[oi];
       blank.className = "gram-blank filled";
       enableCheck(true);
-    });
+    }, fillCol);
     var full = function (oi) { return String(ex.prompt).replace("___", ex.options[oi]); };
     checkFoot(function () {
       if (picked < 0 || S.phase !== "question") return;
@@ -849,7 +898,7 @@
     setFoot({ buttons: [] }); // 对话进行中底部什么都没有（藏起来），把地方留给聊天记录和选项；规则写在“轮到你了”那一行
     function bubble(es, zh, who) {
       var row = el("div", "chat-row " + who);
-      row.appendChild(el("div", "chat-who", who === "me" ? "我 / Me" : (src.partner || "对方")));
+      row.appendChild(el("div", "chat-who", who === "me" ? "我" : (src.partner || "对方")));
       var b = el("div", "bubble");
       var line = el("div", "bubble-es", es);
       line.appendChild(sayBtn(es, "听"));
@@ -882,7 +931,7 @@
     function showTurn(ln) {
       S.dlgLine = ln; // 当前这一轮（自动测试用）
       clear(turn);
-      turn.appendChild(el("div", "chat-who", "轮到你了 / Your turn · 选错少一颗 ❤️"));
+      turn.appendChild(el("div", "chat-who", "轮到你了 · 选错少一颗 ❤️"));
       if (ln.hintZh) turn.appendChild(el("div", "dlg-hint", ln.hintZh));
       var wrap = el("div", "quiz-options");
       var missedHere = false;
@@ -897,6 +946,8 @@
           if (S.phase !== "dialogue") return;
           if (o.correct === true) {
             if (!missedHere) { S.right++; dlgRight++; }
+            hit(!missedHere);
+            sfx("correct");
             S.step++;
             drawHead();
             clear(turn);
@@ -910,14 +961,17 @@
           missedHere = true;
           b.classList.add("wrong");
           b.disabled = true;
-          if (o.zh && !/^\s*[（(][^）)]*[）)]\s*$/.test(o.zh)) txt.appendChild(el("span", "en dlg-opt-text", o.zh));
+          if (o.zh && !/^\s*[（(][^）)]*[）)]\s*$/.test(o.zh)) txt.appendChild(el("span", "muted dlg-opt-zh", o.zh));
           txt.appendChild(el("span", "dlg-why", "✘ " + (o.whyZh || "不太合适，再想想。")));
           addWrong(o.es, "✘ " + (o.whyZh || "不合适"), o.es);
-          if (loseHeart()) {
+          hit(false);
+          var deadNow = loseHeart();
+          sfx(deadNow ? "fail" : "wrong");
+          if (deadNow) {
             S.phase = "feedback";
             var bs = wrap.querySelectorAll("button");
             for (var i = 0; i < bs.length; i++) bs[i].disabled = true;
-            setFoot({ kind: "wrong", title: "✘ 心用完了 / Out of hearts", buttons: [{ text: "继续 / Continue →", id: "continue-btn", onClick: function () { next(); } }] });
+            setFoot({ kind: "wrong", title: "心用完了…", mascot: "cheer", buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { next(); } }] });
           }
           scrollChat(); // 展开了说明（底部也可能多了“继续”按钮）：聊天框变矮了，再滚一次
         };
@@ -934,7 +988,7 @@
       // （任务对话不在“情景对话”页的列表里，只是多一条记录，不影响那边的完成数）
       if (p && d.id) p.recordDialogue(d.id, dlgRight, d.meCount);
       S.phase = "feedback";
-      setFoot({ kind: "correct", title: "✔ 对话完成！ / Dialogue complete!", buttons: [{ text: "继续 / Continue →", id: "continue-btn", onClick: function () { next(); } }] });
+      setFoot({ kind: "correct", title: "对话完成！", mascot: "happy", buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { next(); } }] });
     }
     go(false); // 这是点击里：对方第一句同步朗读
   }
@@ -944,7 +998,7 @@
     S.phase = "speed";
     var pool = S.plan.speed;
     var s = screen();
-    head(s, "speed", "30 秒快答：看西语选意思", "Quick! Pick the meaning");
+    head(s, "speed", "30 秒快答：看西语选意思");
     var leftBox = el("div", "speed-left");
     s.appendChild(leftBox);
     var bar = el("div", "speed-bar");
@@ -984,7 +1038,7 @@
       prompt.className = "q-big fit-word" + (t.kind === "phrase" ? " is-phrase" : "");
       clear(optBox);
       var opts = shuffle([t].concat(d));
-      var wrap = el("div", "p-options");
+      var wrap = el("div", "p-options" + (longest(opts, function (o) { return o.zh; }) > LONG_OPTION ? " is-col" : ""));
       opts.forEach(function (o, n) {
         var b = el("button", "quiz-option");
         b.type = "button";
@@ -1000,13 +1054,17 @@
             flash.className = "speed-flash ok";
             flash.textContent = "✔ " + t.es + " = " + label(t);
             speak(t.speak);
+            hit(true);
+            sfx("correct");
           } else {
             bad++;
             mark(t, false);
             addWrong(t.es, label(t), t.speak);
             flash.className = "speed-flash bad";
             flash.textContent = "✘ " + t.es + " = " + label(t);
-            if (loseHeart()) return endSpeed(true);
+            hit(false);
+            if (loseHeart()) { sfx("fail"); return endSpeed(true); }
+            sfx("wrong");
           }
           nextPrompt();
         };
@@ -1023,8 +1081,8 @@
       S.phase = "feedback";
       var bs = optBox.querySelectorAll("button");
       for (var i = 0; i < bs.length; i++) bs[i].disabled = true;
-      setFoot({ kind: dead ? "wrong" : "correct", title: dead ? "✘ 心用完了 / Out of hearts" : "⏱️ 时间到！答对 " + got + " 题，答错 " + bad + " 题",
-        buttons: [{ text: "继续 / Continue →", id: "continue-btn", onClick: function () { next(); } }] });
+      setFoot({ kind: dead ? "wrong" : "correct", mascot: dead ? "cheer" : "happy", title: dead ? "心用完了…" : "⏱️ 时间到！答对 " + got + " 题，答错 " + bad + " 题",
+        buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { next(); } }] });
     }
     S.speedResume = function () { endAt = Date.now() + S.speedRemain; };
     nextPrompt();
@@ -1045,14 +1103,15 @@
     var lv = S.level, p = P();
     if (!lv.isDaily && p) p.recordLevel(lv.id, 0, accuracy());
     var s = screen("p-center");
-    s.appendChild(el("div", "p-emoji", "💔"));
+    var mf = mascot("cheer", "bob");
+    if (mf) s.appendChild(mf);
+    else s.appendChild(el("div", "p-emoji", "💔"));
     s.appendChild(el("div", "p-head-title", "心用完了，再试一次吧！"));
-    s.appendChild(el("p", "en", "Out of hearts — give it another try!"));
     s.appendChild(el("p", "", "没关系，答错的词已经放进复习里。这次不给星星，可以马上重来。"));
     reviewList(s);
     setFoot({ buttons: [
-      { text: "🔁 再试一次 / Try again", id: "retry-btn", onClick: function () { start(lv); next(); } },
-      { text: "回到地图 / Map", cls: "btn-light", href: mapUrl() }
+      { text: "🔁 再试一次", id: "retry-btn", onClick: function () { start(lv); next(); } },
+      { text: "回到地图", cls: "btn-light", href: mapUrl() }
     ] });
   }
 
@@ -1061,7 +1120,7 @@
     // 可以折叠的错题回顾：屏幕够高时默认展开，矮屏时先收起（点一下展开），结算页一屏放得下
     var box = el("details", "p-review");
     if ((window.innerHeight || 0) >= 800) box.open = true;
-    box.appendChild(el("summary", "", "📝 错题回顾（" + S.wrong.length + "）/ Review"));
+    box.appendChild(el("summary", "", "📝 错题回顾（" + S.wrong.length + "）"));
     var ul = el("ul", "");
     for (var i = 0; i < S.wrong.length; i++) {
       var li = el("li", "");
@@ -1092,9 +1151,16 @@
       }
     }
     var s = screen("p-center");
+    var hero = el("div", "p-result-hero");
+    var mp = mascot("party", "party is-big");
+    if (mp) hero.appendChild(mp);
+    s.appendChild(hero);
     s.appendChild(el("div", "p-head-title", lv.isDaily ? "每日挑战完成！🎉" : "过关！🎉"));
+    // 胜利小旋律（这是点“继续”的点击里），星星蹦出来时再“闪”一下
+    sfx("win");
+    S.sparkleTimer = setTimeout(function () { sfx("sparkle"); }, lv.isDaily ? 500 : 650);
     var stBox = el("div", "p-stars");
-    stBox.setAttribute("aria-label", st + " 颗星 / " + st + " stars");
+    stBox.setAttribute("aria-label", st + " 颗星");
     for (var i = 0; i < 3; i++) stBox.appendChild(el("span", i < st ? "on" : "", "⭐"));
     if (!lv.isDaily) s.appendChild(stBox);
     s.appendChild(el("div", "small-tip", "答错 " + S.mistakes + " 次 · 正确率 " + acc + "% · 剩下 ❤️ " + S.hearts));
@@ -1105,12 +1171,14 @@
     if (lv.isDaily && !dailyFirst) s.appendChild(el("p", "small-tip", "今天的奖励已经领过了（每天一次），明天再来！"));
     if (lv.type === "boss" && lv.region) {
       var reg = lv.region;
-      if (stampNew) s.appendChild(el("div", "p-stamp pop-in", "🎉 获得护照邮票：" + (reg.emoji ? reg.emoji + " " : "") + (reg.stampZh || reg.titleZh || "") + (reg.stampEn ? " / " + reg.stampEn : "")));
+      if (stampNew) s.appendChild(el("div", "p-stamp pop-in", "🎉 获得护照邮票：" + (reg.emoji ? reg.emoji + " " : "") + (reg.stampZh || reg.titleZh || "")));
       else s.appendChild(el("p", "small-tip", "这枚护照邮票你已经有了 ✓"));
     }
     var chests = p ? p.chestsAvailable() : 0;
     if (chests > 0) {
-      var a = el("a", "btn btn-light btn-small", "🎁 你有 " + chests + " 个宝箱可以打开 →");
+      var a = el("a", "btn btn-light btn-small");
+      a.appendChild(el("span", "p-chest", "🎁")).setAttribute("aria-hidden", "true");
+      a.appendChild(document.createTextNode(" 你有 " + chests + " 个宝箱可以打开 →"));
       a.id = "chest-link";
       a.href = collectionUrl();
       var pc = el("p", "");
@@ -1120,8 +1188,8 @@
     reviewList(s);
     var btns = [];
     var nx = lv.isDaily ? null : W.nextLevel(lv);
-    if (nx && W.isUnlocked(nx)) btns.push({ text: "下一关 / Next level →", id: "next-level-btn", href: "play.html#level=" + encodeURIComponent(nx.id) });
-    btns.push({ text: "回到地图 / Map", cls: btns.length ? "btn-light" : "", id: "map-btn", href: mapUrl() });
+    if (nx && W.isUnlocked(nx)) btns.push({ text: "下一关 →", id: "next-level-btn", href: "play.html#level=" + encodeURIComponent(nx.id) });
+    btns.push({ text: "回到地图", cls: btns.length ? "btn-light" : "", id: "map-btn", href: mapUrl() });
     setFoot({ buttons: btns });
   }
 
@@ -1136,19 +1204,22 @@
     var sh = el("div", "sheet");
     sh.setAttribute("role", "dialog");
     sh.setAttribute("aria-modal", "true");
-    sh.setAttribute("aria-label", "退出关卡 / Quit");
-    sh.appendChild(el("div", "sheet-title", "要退出这一关吗？"));
+    sh.setAttribute("aria-label", "退出关卡");
+    var shHead = el("div", "sheet-head");
+    var mx = mascot("cheer");
+    if (mx) shHead.appendChild(mx);
+    shHead.appendChild(el("div", "sheet-title", "要退出这一关吗？"));
+    sh.appendChild(shHead);
     sh.appendChild(el("p", "", "现在退出，这一关的进度不会保存（已经答过的词照常记进复习）。"));
-    sh.appendChild(el("p", "en", "If you quit now, this level's progress won't be saved."));
     var acts = el("div", "sheet-actions");
-    var stay = el("button", "btn", "继续闯关 / Keep going");
+    var stay = el("button", "btn", "继续闯关");
     stay.type = "button";
     stay.id = "exit-stay";
     stay.onclick = function () {
       if (back.parentNode) back.parentNode.removeChild(back);
       if (S.phase === "speed" && S.paused) { S.paused = false; if (S.speedResume) S.speedResume(); }
     };
-    var quit = el("a", "btn btn-light", "退出 / Quit");
+    var quit = el("a", "btn btn-light", "退出");
     quit.href = mapUrl();
     quit.id = "exit-quit";
     acts.appendChild(stay);
@@ -1186,25 +1257,28 @@
     main = $("p-main");
     foot = $("p-foot");
     if (S && S.timer) { clearInterval(S.timer); S.timer = null; }
+    if (S && S.sparkleTimer) { clearTimeout(S.sparkleTimer); S.sparkleTimer = null; }
     var ex = $("exit-sheet");
     if (ex && ex.parentNode) ex.parentNode.removeChild(ex);
     var lv = levelFromHash();
     if (!lv) {
       S = { level: null, plan: { questions: [], problems: [] }, step: 0, hearts: HEARTS, phase: "error" };
       var s = screen("p-center");
-      s.appendChild(el("div", "p-emoji", "🗺️"));
+      var mn = mascot("think", "bob");
+      if (mn) s.appendChild(mn);
       s.appendChild(el("div", "p-head-title", "没有找到这一关"));
-      s.appendChild(el("p", "en", "Level not found."));
-      setFoot({ buttons: [{ text: "回到地图 / Map", href: mapUrl() }] });
+      setFoot({ buttons: [{ text: "回到地图", href: mapUrl() }] });
       return;
     }
     if (!lv.isDaily && !W.isUnlocked(lv)) {
       S = { level: lv, plan: { questions: [], problems: [] }, step: 0, hearts: HEARTS, phase: "error" };
       var s2 = screen("p-center");
-      s2.appendChild(el("div", "p-emoji", "🔒"));
+      var ml = mascot("think", "bob");
+      if (ml) s2.appendChild(ml);
+      else s2.appendChild(el("div", "p-emoji", "🔒"));
       s2.appendChild(el("div", "p-head-title", "这一关还没解锁"));
       s2.appendChild(el("p", "", "先过前面的关卡（至少 1 颗星）就能解锁。"));
-      setFoot({ buttons: [{ text: "回到地图 / Map", href: mapUrl() }] });
+      setFoot({ buttons: [{ text: "回到地图", href: mapUrl() }] });
       return;
     }
     start(lv);

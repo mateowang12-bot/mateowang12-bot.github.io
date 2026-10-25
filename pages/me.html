@@ -12,14 +12,14 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>我的 <span class="en">Me</span></h1>
+    <h1>我的</h1>
 
     <!-- 头像 + 段位（阶段 11） -->
     <div class="me-hero" id="me-hero"></div>
@@ -27,58 +27,74 @@
     <!-- 统计卡片 -->
     <div class="stat-grid" id="stats"></div>
 
-    <h2>最近 7 天 <span class="en">Last 7 days (XP)</span></h2>
+    <h2>最近 7 天</h2>
     <div class="panel">
       <div class="week-chart" id="week-chart" role="img"></div>
       <p class="panel-note" id="week-note"></p>
     </div>
 
-    <h2>学习日历 <span class="en">Study calendar</span></h2>
+    <h2>学习日历</h2>
     <div class="panel">
       <div class="cal" id="cal" role="img"></div>
-      <p class="panel-note">绿色 = 那天学过；黄框 = 今天。 / Green = studied, yellow outline = today.</p>
+      <p class="panel-note">绿色 = 那天学过；黄框 = 今天。</p>
     </div>
 
-    <h2>成就徽章 <span class="en">Badges</span></h2>
+    <h2>成就徽章</h2>
     <div class="badge-grid" id="badges"></div>
 
-    <h2>设置 <span class="en">Settings</span></h2>
+    <h2>设置</h2>
     <div class="panel">
       <div class="setting">
-        <div class="setting-title" id="goal-title">每日目标 <span class="en">Daily goal</span></div>
+        <div class="setting-title" id="goal-title">每日目标</div>
         <div class="goal-options" id="goal-options" role="radiogroup" aria-labelledby="goal-title"></div>
-        <p class="panel-note">每天得到这么多经验值（XP）就算完成目标。 / Earn this much XP each day.</p>
+        <p class="panel-note">每天得到这么多经验值（XP）就算完成目标。</p>
       </div>
       <div class="setting">
-        <div class="setting-title">单词卡片 <span class="en">Word cards</span></div>
+        <div class="setting-title">声音和震动</div>
+        <div class="switch-row">
+          <label class="quiz-check" for="sound-on">
+            <input type="checkbox" id="sound-on">
+            <span class="quiz-check-text">🔔 声音</span>
+          </label>
+          <label class="quiz-check" for="vibrate-on">
+            <input type="checkbox" id="vibrate-on">
+            <span class="quiz-check-text">📳 震动</span>
+          </label>
+        </div>
+        <p class="panel-note">点选项、答对、答错、过关时的小音效和手机震动。西语发音不受影响（发音照常读）。iPhone 上的震动需要较新的 iOS，没有也没关系。</p>
+      </div>
+      <div class="setting">
+        <div class="setting-title">单词卡片</div>
         <div class="switch-row">
           <label class="quiz-check" for="autoplay">
             <input type="checkbox" id="autoplay">
-            <span class="quiz-check-text">🔊 自动发音 <span class="en">Auto-play</span></span>
+            <span class="quiz-check-text">🔊 自动发音</span>
           </label>
         </div>
         <p class="panel-note">换卡片、翻到背面时自动读出西语（和单词卡片页的开关是同一个）。</p>
       </div>
       <div class="setting">
-        <div class="setting-title">同步 <span class="en">Sync</span></div>
+        <div class="setting-title">同步</div>
         <div class="sync-status" id="sync-status" role="status"></div>
       </div>
       <div class="setting reset-row">
-        <div class="setting-title">学习记录 <span class="en">Progress</span></div>
+        <div class="setting-title">学习记录</div>
         <p class="panel-note">清除后从头开始（每日目标等设置会保留）。</p>
-        <button type="button" class="btn btn-light btn-small" id="reset-btn" aria-expanded="false" aria-controls="reset-confirm">清除学习记录 / Reset progress</button>
+        <button type="button" class="btn btn-light btn-small" id="reset-btn" aria-expanded="false" aria-controls="reset-confirm">清除学习记录</button>
         <div class="reset-confirm" id="reset-confirm" hidden>
-          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="en">已掌握的单词和句子、语法和情景对话的成绩、游戏最高分、连续学习天数、经验值，以及冒险关卡的星星、宝箱、头像、主题、护照邮票、每日挑战都会清空（头像回到 🧳），不能恢复。请在所有设备都联网时再清除（否则还没同步的设备可能把旧记录带回来）。 / This cannot be undone.</span></span>
+          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="muted">已掌握的单词和句子、语法和情景对话的成绩、游戏最高分、连续学习天数、经验值，以及冒险关卡的星星、宝箱、头像、主题、护照邮票、每日挑战都会清空（头像回到 🧳），不能恢复。请在所有设备都联网时再清除（否则还没同步的设备可能把旧记录带回来）。</span></span>
           <button type="button" class="btn btn-danger" id="reset-yes">确定清除</button>
           <button type="button" class="btn btn-light" id="reset-no">取消</button>
         </div>
-        <div class="en reset-msg" id="reset-msg" role="status"></div>
+        <div class="muted reset-msg" id="reset-msg" role="status"></div>
       </div>
     </div>
   </div>
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../data/words.js"></script>
   <script src="../data/grammar.js"></script>
@@ -139,13 +155,13 @@
     function renderStats(s) {
       var box = $("stats");
       box.innerHTML = "";
-      box.appendChild(statCard("⭐", P ? P.xpTotal() : 0, null, "总经验值 / Total XP", true));
-      box.appendChild(statCard("🔥", (P ? P.streak() : 0) + " 天", null, "连续学习 / Streak", true));
-      box.appendChild(statCard("📅", (P ? P.studyDays() : 0) + " 天", null, "一共学过 / Days studied"));
-      box.appendChild(statCard("📇", s.wordsMastered, s.wordsTotal, "已掌握单词 / Words"));
-      box.appendChild(statCard("💬", s.phrasesMastered, s.phrasesTotal, "已掌握句子 / Phrases"));
-      box.appendChild(statCard("📐", s.grammarDone, s.grammarTotal, "语法完成 / Grammar"));
-      box.appendChild(statCard("🎭", s.dialoguesDone, s.dialoguesTotal, "情景对话完成 / Dialogues"));
+      box.appendChild(statCard("⭐", P ? P.xpTotal() : 0, null, "总经验值", true));
+      box.appendChild(statCard("🔥", (P ? P.streak() : 0) + " 天", null, "连续学习", true));
+      box.appendChild(statCard("📅", (P ? P.studyDays() : 0) + " 天", null, "一共学过"));
+      box.appendChild(statCard("📇", s.wordsMastered, s.wordsTotal, "已掌握单词"));
+      box.appendChild(statCard("💬", s.phrasesMastered, s.phrasesTotal, "已掌握句子"));
+      box.appendChild(statCard("📐", s.grammarDone, s.grammarTotal, "语法完成"));
+      box.appendChild(statCard("🎭", s.dialoguesDone, s.dialoguesTotal, "情景对话完成"));
     }
 
     // ---------- 最近 7 天柱状图 ----------
@@ -170,7 +186,7 @@
         words.push((d.today ? "今天" : "星期" + WEEK[d.weekday]) + " " + d.xp);
       }
       box.setAttribute("aria-label", "最近 7 天的经验值：" + words.join("，"));
-      $("week-note").textContent = "7 天一共 " + sum + " XP，每日目标 " + goal + " XP。 / " + sum + " XP this week.";
+      $("week-note").textContent = "7 天一共 " + sum + " XP，每日目标 " + goal + " XP。";
     }
 
     // ---------- 学习日历：最近 5 周（周一开头） ----------
@@ -280,6 +296,29 @@
       renderAuto();
     };
 
+    // ---------- 设置：声音、震动（阶段 12；存在进度的 settings 里，跟着同步；js/sfx.js 读它们） ----------
+    function renderSfx() {
+      var s = P ? P.soundOn() : true, v = P ? P.vibrateOn() : true;
+      $("sound-on").checked = s;
+      $("sound-on").parentNode.classList.toggle("active", s);
+      $("vibrate-on").checked = v;
+      $("vibrate-on").parentNode.classList.toggle("active", v);
+      $("sound-on").disabled = !P;
+      $("vibrate-on").disabled = !P;
+    }
+    $("sound-on").onchange = function () {
+      if (!P) return;
+      P.setSound(this.checked);
+      renderSfx();
+      if (this.checked && window.Sfx) window.Sfx.correct(); // 打开时放一下，让人知道声音开了
+    };
+    $("vibrate-on").onchange = function () {
+      if (!P) return;
+      P.setVibrate(this.checked);
+      renderSfx();
+      if (this.checked && window.Sfx) window.Sfx.buzz(30);
+    };
+
     // ---------- 同步状态 ----------
     var SYNC_TEXT = {
       synced: "☁️ 进度已同步到你的 Claude 账号（换设备也能接着学）",
@@ -305,14 +344,14 @@
     };
     $("reset-no").onclick = function () {
       showResetConfirm(false);
-      resetMsg.textContent = "已取消，学习记录没有变。 / Cancelled.";
+      resetMsg.textContent = "已取消，学习记录没有变。";
       resetBtn.focus();
     };
     $("reset-yes").onclick = function () {
       showResetConfirm(false);
       if (P) P.reset();
       renderAll();
-      resetMsg.textContent = "学习记录已清除。 / Progress has been reset.";
+      resetMsg.textContent = "学习记录已清除。";
       resetBtn.focus();
     };
     if (!P) resetBtn.disabled = true;
@@ -327,19 +366,18 @@
       var av = W.avatar(prof.avatar);
       var a = el("a", "me-avatar", av.emoji);
       a.href = "collection.html";
-      a.setAttribute("aria-label", "我的头像：" + av.zh + "，点这里换 / Change avatar");
+      a.setAttribute("aria-label", "我的头像：" + av.zh + "，点这里换");
       box.appendChild(a);
       var rk = W.rank(P ? P.xpTotal() : 0);
       var info = el("div", "");
-      var nm = el("div", "rank-name", rk.cur.emoji + " " + rk.cur.zh + " ");
-      nm.appendChild(el("span", "en", rk.cur.en));
+      var nm = el("div", "rank-name", rk.cur.emoji + " " + rk.cur.zh);
       info.appendChild(nm);
       var bar = el("div", "pbar is-xp");
       bar.setAttribute("role", "progressbar");
       bar.setAttribute("aria-valuemin", "0");
       bar.setAttribute("aria-valuemax", "100");
       bar.setAttribute("aria-valuenow", String(Math.round(rk.ratio * 100)));
-      bar.setAttribute("aria-label", "到下一段位的进度 / Progress to next rank");
+      bar.setAttribute("aria-label", "到下一段位的进度");
       var fill = el("span");
       fill.style.width = (rk.ratio * 100).toFixed(1) + "%";
       bar.appendChild(fill);
@@ -359,6 +397,7 @@
       renderBadges(s);
       renderGoals();
       renderAuto();
+      renderSfx();
       renderSync();
     }
     renderAll();

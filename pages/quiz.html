@@ -12,30 +12,29 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>小测验 <span class="en">Quiz</span></h1>
+    <h1>小测验</h1>
 
     <!-- 开始界面（设置） -->
     <div id="setup-screen">
-      <p>选好范围和题型，点“开始测验”。每次 10 题。<br>
-        <span class="en">Choose lessons and question types, then start. 10 questions each time.</span></p>
+      <p>选好范围和题型，点“开始测验”。每次 10 题。</p>
 
-      <h2>选择范围 <span class="en">Lessons</span></h2>
+      <h2>选择范围</h2>
       <div class="quiz-check-list" id="lesson-checks"></div>
 
-      <h2>选择题型 <span class="en">Question types</span></h2>
+      <h2>选择题型</h2>
       <div class="quiz-check-list quiz-type-list" id="type-checks"></div>
       <div id="voice-hint"></div>
 
       <div id="setup-error"></div>
       <div class="card-nav">
-        <button type="button" class="btn quiz-big-btn" id="start-btn">开始测验 / Start ▶</button>
+        <button type="button" class="btn quiz-big-btn" id="start-btn">开始测验 ▶</button>
       </div>
     </div>
 
@@ -49,24 +48,23 @@
       <div class="quiz-options" id="q-options"></div>
       <div class="quiz-feedback" id="q-feedback" hidden></div>
       <div class="card-nav">
-        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一题 / Next →</button>
+        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一题 →</button>
       </div>
-      <p class="key-hint en">电脑键盘：数字键 1–4 选答案，回车键下一题 / Keyboard: 1–4 to answer, Enter for next</p>
+      <p class="key-hint muted">电脑键盘：数字键 1–4 选答案，回车键下一题</p>
     </div>
 
     <!-- 结束界面 -->
     <div id="result-screen" hidden>
       <div class="quiz-result">
-        <div class="quiz-result-label">你的得分 / Your score</div>
+        <div class="quiz-result-label">你的得分</div>
         <div class="quiz-result-score" id="r-score"></div>
         <div class="quiz-result-msg" id="r-msg"></div>
-        <div class="quiz-result-msg en" id="r-msg-en"></div>
       </div>
       <div id="r-wrong-box"></div>
       <div class="card-nav">
-        <button type="button" class="btn" id="again-btn">🔁 再来一次（同样设置）/ Again</button>
-        <button type="button" class="btn" id="wrong-btn">只练错题 / Practice mistakes</button>
-        <button type="button" class="btn btn-light" id="setup-btn">返回设置 / Settings</button>
+        <button type="button" class="btn" id="again-btn">🔁 再来一次（同样设置）</button>
+        <button type="button" class="btn" id="wrong-btn">只练错题</button>
+        <button type="button" class="btn btn-light" id="setup-btn">返回设置</button>
       </div>
     </div>
   </div>
@@ -74,6 +72,8 @@
   <!-- 学习内容和发音功能（普通 script，双击打开也能用） -->
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/words.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -92,7 +92,7 @@
     function sayButton(text, label) {
       var b = el("button", "say", label || text);
       b.type = "button";
-      b.title = "点击朗读 / Click to listen";
+      b.title = "点击朗读";
       b.onclick = function (ev) {
         ev.stopPropagation();
         if (window.speakSpanish) window.speakSpanish(text);
@@ -137,7 +137,6 @@
     }
 
     function meaningText(w) {
-      if (w.zh && w.en) return w.zh + " / " + w.en;
       return w.zh || w.en || "";
     }
 
@@ -165,7 +164,7 @@
       label.appendChild(box);
       var txt = el("span", "quiz-check-text");
       txt.appendChild(el("span", "lesson-title", labelZh));
-      if (labelEn) txt.appendChild(el("span", "en", labelEn));
+      if (labelEn) txt.appendChild(el("span", "muted lesson-sub", labelEn));
       label.appendChild(txt);
       return { label: label, box: box };
     }
@@ -181,18 +180,18 @@
           var ls = LESSONS[i] || {};
           var count = 0;
           for (var k = 0; k < ALL.length; k++) if (ALL[k].lesson === i) count++;
-          items.push({ key: i, zh: (i + 1) + ". " + (ls.titleZh || ""), en: (ls.titleEn || "") + " · " + count + " 个词", count: count });
+          items.push({ key: i, zh: (i + 1) + ". " + (ls.titleZh || ""), en: count + " 个词", count: count });
         }
-        pickerGroups.push({ zh: groups[g].zh, en: groups[g].en, items: items });
+        pickerGroups.push({ zh: groups[g].zh, en: "", items: items });
       }
       lessonPicker = window.WordsUtil.lessonPicker($("lesson-checks"), pickerGroups, {
-        allLabel: ["全部", "All lessons"],
+        allLabel: ["全部", ""],
         onChange: syncChecked
       });
 
       var tbox = $("type-checks");
       for (var t = 0; t < TYPES.length; t++) {
-        var tc = makeCheck((t + 1) + ". " + TYPES[t].zh, TYPES[t].en, true);
+        var tc = makeCheck((t + 1) + ". " + TYPES[t].zh, "", true);
         tc.id = TYPES[t].id;
         tc.box.onchange = syncChecked;
         typeChecks.push(tc);
@@ -232,8 +231,7 @@
       var ok = typeof window.hasSpanishVoice === "function" && window.hasSpanishVoice();
       if (!ok) {
         box.appendChild(el("div", "notice",
-          "提示：这台设备好像没有西班牙语语音，第 3 种题型“听发音选西语”可能听不清。仍然可以选。" +
-          " / No Spanish voice found — listening questions may be hard to hear."));
+          "提示：这台设备好像没有西班牙语语音，第 3 种题型“听发音选西语”可能听不清。仍然可以选。"));
       }
     }
 
@@ -255,11 +253,11 @@
     function startFromSetup() {
       var s = readSettings();
       if (!s.lessons.length) {
-        setupError("请至少选一课。 / Please choose at least one lesson.");
+        setupError("请至少选一课。");
         return;
       }
       if (!s.types.length) {
-        setupError("请至少选一种题型。 / Please choose at least one question type.");
+        setupError("请至少选一种题型。");
         return;
       }
       settings = s;
@@ -299,7 +297,7 @@
       wrongPicks = [];
       if (!questions.length) {
         showScreen("setup");
-        setupError("选中的范围里没有可以出题的单词。 / No words in the chosen lessons.");
+        setupError("选中的范围里没有可以出题的单词。");
         return;
       }
       showScreen("question");
@@ -320,7 +318,7 @@
 
     function updateStatus() {
       $("q-progress").textContent = "第 " + (qIndex + 1) + " / " + questions.length + " 题";
-      $("q-score").textContent = "得分 / Score: " + score;
+      $("q-score").textContent = "得分 " + score;
     }
 
     function showQuestion() {
@@ -332,15 +330,15 @@
       var box = $("q-box");
       box.innerHTML = "";
       if (q.type === "es2meaning") {
-        box.appendChild(el("div", "quiz-prompt-label", "这个西语词是什么意思？ / What does it mean?"));
+        box.appendChild(el("div", "quiz-prompt-label", "这个西语词是什么意思？"));
         box.appendChild(el("div", "quiz-prompt-es fit-word", w.es));
         window.WordsUtil.fitAll(box); // 长词不从中间断开，放不下就缩小字号
       } else if (q.type === "meaning2es") {
-        box.appendChild(el("div", "quiz-prompt-label", "西语怎么说？ / How do you say it in Spanish?"));
+        box.appendChild(el("div", "quiz-prompt-label", "西语怎么说？"));
         box.appendChild(el("div", "quiz-prompt-meaning", meaningText(w)));
       } else {
-        box.appendChild(el("div", "quiz-prompt-label", "听一听，选出你听到的词 / Listen and choose"));
-        var play = sayButton(w.es, "再听一次 / Listen");
+        box.appendChild(el("div", "quiz-prompt-label", "听一听，选出你听到的词"));
+        var play = sayButton(w.es, "再听一次");
         play.className += " quiz-play";
         box.appendChild(play);
         // 出题时自动读一遍。iPhone 只允许在“用户点击”里同步朗读：
@@ -392,6 +390,7 @@
         if (q.options[i] === q.item) btns[i].classList.add("correct");
         else if (i === idx) btns[i].classList.add("wrong");
       }
+      if (window.Sfx) { if (correct) window.Sfx.correct(); else window.Sfx.wrong(); } // 音效 + 触感（js/sfx.js）
 
       // 显示这个词的西语 / 中文 / 英文，可以点 🔊 听
       var w = q.item.word;
@@ -399,17 +398,16 @@
       fb.innerHTML = "";
       fb.className = "quiz-feedback " + (correct ? "is-correct" : "is-wrong");
       fb.appendChild(el("div", "quiz-feedback-title",
-        correct ? "✔ 答对了！ / Correct!" : "✘ 答错了，正确答案是：/ Not quite. The answer is:"));
+        correct ? "✔ 答对了！" : "✘ 答错了，正确答案是："));
       var line = el("div", "quiz-feedback-word");
       line.appendChild(sayButton(w.es));
       line.appendChild(el("span", "quiz-feedback-zh", w.zh || ""));
-      if (w.en) line.appendChild(el("span", "en", " / " + w.en));
       fb.appendChild(line);
       fb.hidden = false;
 
       updateStatus();
       var next = $("next-btn");
-      next.textContent = qIndex + 1 < questions.length ? "下一题 / Next →" : "看结果 / See result →";
+      next.textContent = qIndex + 1 < questions.length ? "下一题 →" : "看结果 →";
       next.hidden = false;
       next.focus();
 
@@ -445,10 +443,10 @@
 
     function showResult() {
       showScreen("result");
+      if (window.Sfx) window.Sfx.win();
       $("r-score").textContent = score + " / " + questions.length;
       var msg = encouragement(score, questions.length);
       $("r-msg").textContent = msg[0];
-      $("r-msg-en").textContent = msg[1];
       // 记下最近一次成绩（首页“小测验”卡片上显示）
       if (window.Progress && window.Progress.recordQuiz) window.Progress.recordQuiz(score, questions.length);
 
@@ -456,7 +454,6 @@
       box.innerHTML = "";
       if (wrongItems.length) {
         var h = el("h2", "", "错题 ");
-        h.appendChild(el("span", "en", "Mistakes (" + wrongItems.length + ")"));
         box.appendChild(h);
         var ul = el("ul", "word-list quiz-wrong-list");
         for (var i = 0; i < wrongItems.length; i++) {
@@ -464,19 +461,19 @@
           var li = el("li", "quiz-wrong-item");
           li.appendChild(sayButton(w.es));
           li.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
-          if (w.en) li.appendChild(el("span", "en", "/ " + w.en));
           // 你选的：看西语选意思 → 显示你选的意思；其他题型 → 显示你选的西语
           var pick = wrongPicks[i];
           if (pick && pick.chosen && pick.chosen.word) {
             var cw = pick.chosen.word;
             li.appendChild(el("div", "quiz-your-pick",
-              "你选的 / You chose：" + (pick.type === "es2meaning" ? meaningText(cw) : cw.es)));
+              "你选的：" + (pick.type === "es2meaning" ? meaningText(cw) : cw.es)));
           }
           ul.appendChild(li);
         }
         box.appendChild(ul);
       } else {
-        box.appendChild(el("p", "quiz-no-wrong", "这一轮没有错题 🎉 / No mistakes this round!"));
+        if (window.Mascot) box.appendChild(window.Mascot.empty("这一轮没有错题，太厉害了！", "party"));
+        else box.appendChild(el("p", "quiz-no-wrong", "这一轮没有错题 🎉"));
       }
       $("wrong-btn").hidden = !wrongItems.length;
     }
@@ -516,8 +513,7 @@
     if (!ALL.length) {
       $("setup-screen").innerHTML = "";
       $("setup-screen").appendChild(el("div", "notice",
-        "没有找到单词内容（data/words.js 没有加载到，或者里面没有单词）。请确认这个文件存在。" +
-        " / Word data not found."));
+        "没有找到单词内容（data/words.js 没有加载到，或者里面没有单词）。请确认这个文件存在。"));
     } else {
       buildSetup();
       // 语音列表可能是慢慢加载的：加载好后重新判断要不要显示提示

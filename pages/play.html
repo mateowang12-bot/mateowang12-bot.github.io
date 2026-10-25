@@ -12,16 +12,17 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body class="no-bottom-nav play-body">
   <!-- 关卡页：一屏一题（像 App）。顶部：✕ 退出（= 返回首页地图）、进度条、❤️；中间：题目；底部：反馈 + 大按钮 -->
   <div class="play-app">
     <header class="play-head">
-      <a class="play-close" id="p-close" href="../index.html" title="退出，返回首页 / Quit" aria-label="退出，返回首页 / Quit">✕</a>
+      <a class="play-close" id="p-close" href="../index.html" title="退出，返回首页" aria-label="退出，返回首页">✕</a>
       <div class="pbar" id="p-bar" role="progressbar" aria-valuemin="0"><span id="p-bar-fill"></span></div>
-      <div class="play-hearts" id="p-hearts" aria-live="polite">❤️ 5</div>
+      <div class="play-combo" id="p-combo" hidden>🔥2</div>
+      <div class="play-hearts" id="p-hearts" aria-live="polite"><span class="hh" aria-hidden="true">❤️</span>5</div>
     </header>
     <main class="play-main" id="p-main"></main>
     <footer class="play-foot" id="p-foot"></footer>
@@ -29,6 +30,8 @@
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../data/words.js"></script>
   <script src="../data/phrases.js"></script>

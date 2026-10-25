@@ -60,7 +60,7 @@
     onReady(function () {
       var el = document.getElementById("pwa-update");
       if (!el) return;
-      el.textContent = "网站已更新，下次打开生效 / Updated — reopen to use the new version";
+      el.textContent = "网站已更新，下次打开生效";
       el.hidden = false;
     });
   }

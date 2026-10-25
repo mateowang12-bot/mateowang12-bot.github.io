@@ -19,19 +19,19 @@
     { id: "match", icon: "🃏", zh: "翻牌配对", en: "Memory Match", url: "game-match.html", lowerIsBetter: true,
       desc: ["12 张牌里有 6 对“西语 ↔ 中文”。每次翻两张，配对成功就留下。步数越少越好。",
              "Find 6 Spanish–Chinese pairs. Fewer moves is better."],
-      best: function (b) { return "最少 " + b + " 步 / Best: " + b + " moves"; } },
+      best: function (b) { return "最少 " + b + " 步"; } },
     { id: "speed", icon: "⚡", zh: "60 秒快答", en: "60-Second Sprint", url: "game-speed.html", lowerIsBetter: false,
       desc: ["60 秒内看西语选中文。答对 +10 分，连对越多分越多（×2、×3）；答错扣 3 秒。",
              "Pick the meaning fast. Combos multiply points; mistakes cost 3 seconds."],
-      best: function (b) { return "最高 " + b + " 分 / Best: " + b; } },
+      best: function (b) { return "最高 " + b + " 分"; } },
     { id: "order", icon: "🧩", zh: "拼句子", en: "Build the Sentence", url: "game-order.html", lowerIsBetter: false,
       desc: ["看中文，把打乱的西语词按顺序点进答题区。每轮 5 句，看第一次就拼对几句。",
              "Tap the words in the right order. 5 sentences per round."],
-      best: function (b) { return "最好 " + b + " / 5 句 / Best: " + b + " of 5"; } },
+      best: function (b) { return "最好 " + b + " / 5 句"; } },
     { id: "guess", icon: "🔤", zh: "猜单词", en: "Guess the Word", url: "game-guess.html", lowerIsBetter: false,
       desc: ["看中文提示，一个一个字母猜出西语单词。每个词有 6 颗 ❤️，剩几颗就得几分；每轮 5 个词，满分 30。",
              "Guess the Spanish word letter by letter. 6 hearts per word, 5 words per round."],
-      best: function (b) { return "最高 " + b + " / 30 分 / Best: " + b + " of 30"; } }
+      best: function (b) { return "最高 " + b + " / 30 分"; } }
   ];
 
   function get(id) {
@@ -43,7 +43,7 @@
     var g = get(id);
     var P = window.Progress;
     var r = P && P.getGame ? P.getGame(id) : null;
-    if (!g || !r) return "还没玩过 / Not played yet";
+    if (!g || !r) return "还没玩过";
     return g.best(r.best) + " · 玩过 " + r.plays + " 次";
   }
 
@@ -99,19 +99,19 @@
         for (var n = 0; n < lg[g].indices.length; n++) {
           var i = lg[g].indices[n];
           var c = countIn(words, i);
-          its.push({ key: wKey(i), zh: (i + 1) + ". " + ((WL[i] && WL[i].titleZh) || ""), en: ((WL[i] && WL[i].titleEn) || "") + " · " + c + " 个词", count: c });
+          its.push({ key: wKey(i), zh: (i + 1) + ". " + ((WL[i] && WL[i].titleZh) || ""), en: c + " 个词", count: c });
         }
         // 只有一组时也写上“单词”，和下面的“日常句子”分开
-        groups.push({ zh: lg[g].zh ? "单词 · " + lg[g].zh : (opts.phrases ? "单词" : ""), en: lg[g].zh ? "Words · " + lg[g].en : (opts.phrases ? "Words" : ""), items: its });
+        groups.push({ zh: lg[g].zh ? "单词 · " + lg[g].zh : (opts.phrases ? "单词" : ""), en: "", items: its });
       }
     }
     if (opts.phrases === "option") {
-      groups.push({ zh: "日常句子", en: "Everyday phrases", items: [{ key: "p:all", zh: "日常句子（全部）", en: "All phrases · " + phrases.length + " 句", count: phrases.length }] });
+      groups.push({ zh: "日常句子", en: "", items: [{ key: "p:all", zh: "日常句子（全部）", en: phrases.length + " 句", count: phrases.length }] });
     } else if (opts.phrases === "groups") {
       var pits = [];
       for (var p = 0; p < PL.length; p++) {
         var pc = countIn(phrases, p);
-        pits.push({ key: pKey(p), zh: (p + 1) + ". " + ((PL[p] && PL[p].titleZh) || ""), en: ((PL[p] && PL[p].titleEn) || "") + " · " + pc + " 句", count: pc });
+        pits.push({ key: pKey(p), zh: (p + 1) + ". " + ((PL[p] && PL[p].titleZh) || ""), en: pc + " 句", count: pc });
       }
       groups.push({ zh: "", en: "", items: pits });
     }
@@ -132,7 +132,7 @@
         it.checked = saved ? saved.indexOf(it.key) !== -1 : it.key !== "p:all";
       }
     }
-    var picker = U.lessonPicker(box, groups, { allLabel: ["全部", "All"], onChange: opts.onChange });
+    var picker = U.lessonPicker(box, groups, { allLabel: ["全部", ""], onChange: opts.onChange });
 
     function keys() {
       return picker.selected();

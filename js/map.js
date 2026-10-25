@@ -1,6 +1,7 @@
 // ============================================
 // 冒险地图（map.js）—— 首页 index.html 用（阶段 11）
-// 要在 storage.js、world.js 之后引入。页面里要有 #map-top、#daily-box、#map。
+// 要在 storage.js、world.js 之后引入。页面里要有 #map-top、#map-hero、#daily-box、#map。
+// 阶段 12：顶部有吉祥物“橙橙”和说话气泡（js/mascot.js）；区域牌是彩色横幅（band-1 … band-6 轮流）；关卡圆钮里画白色星星（Boss 👑、对话 💬、锁 🔒）。
 //
 // 地图从上往下走：每个区域一块浅色背景带 + 标题牌（点开看故事），区域里的关卡是一条弯曲虚线上的圆形节点。
 //   普通关：数字；对话任务关：💬；Boss 关：👑（更大）；锁住：🔒；过了：黄色 + 下面的星星 ⭐⭐☆。
@@ -20,7 +21,7 @@
   }
   // ROW：两关之间的高度（节点 + 星星 + 最多两行标题，不会压到下一关）；TOP：第一个节点中心离区域牌的距离
   var ROW = 146, TOP = 50, SVGNS = "http://www.w3.org/2000/svg";
-  var TYPE_ZH = { normal: "关卡", task: "对话任务", boss: "Boss 挑战" };
+  var TYPE_ZH = { normal: "关卡", task: "对话任务", boss: "大关挑战" };
 
   function starsText(n) {
     var s = "";
@@ -38,7 +39,7 @@
     var a = el("a", "map-avatar", av.emoji);
     a.href = "pages/collection.html";
     a.id = "map-avatar";
-    a.setAttribute("aria-label", "我的头像：" + av.zh + "。点这里换头像 / Change avatar");
+    a.setAttribute("aria-label", "我的头像：" + av.zh + "。点这里换头像");
     box.appendChild(a);
     var chips = el("div", "map-chips");
     var streak = p ? p.streak() : 0;
@@ -54,12 +55,34 @@
       chips.appendChild(c);
       return c;
     }
-    chip(streak ? "is-streak" : "is-zero", "🔥 " + streak, "pages/me.html", "连续学习 " + streak + " 天 / Streak", "chip-streak");
-    chip(xp >= goal ? "is-streak" : "", "⭐ " + xp + "/" + goal + " XP", "pages/me.html", "今天 " + xp + " / " + goal + " 经验值 / Today's XP", "chip-xp");
-    chip("", rk.cur.emoji + " " + rk.cur.zh, "pages/me.html", "段位：" + rk.cur.zh + " / Rank: " + rk.cur.en, "chip-rank");
-    chip("", "⭐×" + stars, "pages/collection.html", "一共 " + stars + " 颗星 / Stars", "chip-stars");
-    if (chest > 0) chip("is-chest", "🎁 " + chest, "pages/collection.html", "有 " + chest + " 个宝箱可以打开 / Open chests", "chip-chest");
+    chip(streak ? "is-streak" : "is-zero", "🔥 " + streak, "pages/me.html", "连续学习 " + streak + " 天", "chip-streak");
+    chip(xp >= goal ? "is-streak" : "", "⭐ " + xp + "/" + goal + " XP", "pages/me.html", "今天 " + xp + " / " + goal + " 经验值", "chip-xp");
+    chip("", rk.cur.emoji + " " + rk.cur.zh, "pages/me.html", "段位：" + rk.cur.zh, "chip-rank");
+    chip("", "⭐×" + stars, "pages/collection.html", "一共 " + stars + " 颗星", "chip-stars");
+    if (chest > 0) chip("is-chest", "🎁 " + chest, "pages/collection.html", "有 " + chest + " 个宝箱可以打开", "chip-chest");
     box.appendChild(chips);
+  }
+
+  // ---------- 吉祥物 + 说话气泡 ----------
+  function heroText() {
+    var p = P();
+    if (!p) return "今天也来闯一关吧！";
+    var xp = p.xpToday(), goal = p.dailyGoal();
+    var cur0 = W.current();
+    if (p.starsTotal() === 0) return "¡Hola! 我是橙橙，陪你去西班牙旅行。先从第一关开始吧！";
+    if (xp >= goal) return "今天的目标完成啦，真棒！想再闯一关吗？";
+    if (p.chestsAvailable() > 0) return "你有宝箱还没打开哦！🎁";
+    if (cur0 && cur0.type === "boss" && W.starsOf(cur0) < 1) return "前面是大关，加油！";
+    return "今天也来闯一关吧！";
+  }
+  function renderHero() {
+    var box = $("map-hero");
+    if (!box) return;
+    box.innerHTML = "";
+    if (window.Mascot) box.appendChild(window.Mascot.el("hello", "bob"));
+    var sp = el("div", "speech", heroText());
+    sp.id = "map-speech";
+    box.appendChild(sp);
   }
 
   // ---------- 每日挑战入口 ----------
@@ -74,7 +97,7 @@
     a.id = "daily-link";
     a.appendChild(el("div", "daily-icon", done ? "✅" : "📅")).setAttribute("aria-hidden", "true");
     var t = el("div", "");
-    t.appendChild(el("div", "daily-title", "每日挑战 · Daily"));
+    t.appendChild(el("div", "daily-title", "每日挑战"));
     t.appendChild(el("div", "daily-sub", done ? "今天已完成 ✓ 还可以再练（奖励每天一次）" : "10 道混合题 · 通关 +30 XP、+3 ⭐"));
     a.appendChild(t);
     a.appendChild(el("div", "daily-go", done ? "再练 ›" : "开始 ›"));
@@ -108,7 +131,7 @@
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && sheetBack) closeSheet(); });
 
   function closeBtn(text) {
-    var b = el("button", "btn btn-light", text || "关闭 / Close");
+    var b = el("button", "btn btn-light", text || "关闭");
     b.type = "button";
     b.id = "sheet-close";
     b.onclick = closeSheet;
@@ -122,10 +145,8 @@
     openSheet(function (sh) {
       sh.appendChild(el("div", "sheet-kicker", (lv.region.emoji || "") + " " + (lv.region.titleZh || "") + " · 第 " + (lv.index + 1) + " 关 · " + TYPE_ZH[lv.type]));
       var t = el("div", "sheet-title", (lv.type === "boss" ? "👑 " : lv.type === "task" ? "💬 " : "") + (lv.titleZh || ""));
-      if (lv.titleEn) t.appendChild(el("span", "en", lv.titleEn));
       sh.appendChild(t);
       if (lv.introZh) sh.appendChild(el("p", "", lv.introZh));
-      if (lv.introEn) sh.appendChild(el("p", "en", lv.introEn));
       var mi = el("div", "mode-icons");
       for (var i = 0; i < lv.modes.length; i++) {
         var m = W.MODE_INFO[lv.modes[i]];
@@ -134,10 +155,10 @@
       sh.appendChild(mi);
       if (rec && rec.stars) sh.appendChild(el("p", "sheet-best", "最好成绩：" + starsText(rec.stars) + " · 正确率 " + rec.best + "% · 玩过 " + rec.plays + " 次"));
       else if (unlocked) sh.appendChild(el("p", "small-tip", "还没过关。❤️ × 5，答错一次少一颗。"));
-      if (!unlocked) sh.appendChild(el("p", "small-tip", "🔒 还没解锁：先过前一关（至少 1 颗星）。 / Locked — clear the previous level first."));
+      if (!unlocked) sh.appendChild(el("p", "small-tip", "🔒 还没解锁：先过前一关（至少 1 颗星）。"));
       var acts = el("div", "sheet-actions");
       if (unlocked) {
-        var go = el("a", "btn", (rec && rec.stars ? "再玩一次 / Play again ▶" : "开始 / Start ▶"));
+        var go = el("a", "btn", (rec && rec.stars ? "再玩一次 ▶" : "开始 ▶"));
         go.href = "pages/play.html#level=" + encodeURIComponent(lv.id);
         go.id = "level-start";
         acts.appendChild(go);
@@ -149,26 +170,24 @@
 
   function storySheet(reg) {
     openSheet(function (sh) {
-      sh.appendChild(el("div", "sheet-kicker", "第 " + (reg.index + 1) + " 站 · Stop " + (reg.index + 1)));
+      sh.appendChild(el("div", "sheet-kicker", "第 " + (reg.index + 1) + " 站"));
       var t = el("div", "sheet-title", (reg.emoji ? reg.emoji + " " : "") + (reg.titleZh || ""));
-      if (reg.titleEn) t.appendChild(el("span", "en", reg.titleEn));
       sh.appendChild(t);
       if (reg.storyZh) sh.appendChild(el("p", "", reg.storyZh));
-      if (reg.storyEn) sh.appendChild(el("p", "en", reg.storyEn));
       if (reg.npc && reg.npc.name) {
         var n = el("div", "npc");
         n.appendChild(el("div", "npc-emoji", reg.npc.emoji || "🙂"));
         var tx = el("div", "");
         tx.appendChild(el("div", "npc-name", reg.npc.name));
-        tx.appendChild(el("div", "", (reg.npc.roleZh || "") + (reg.npc.roleEn ? " / " + reg.npc.roleEn : "")));
+        tx.appendChild(el("div", "", reg.npc.roleZh || ""));
         n.appendChild(tx);
         sh.appendChild(n);
       }
       var p = P();
       var got = p ? p.stamps()[reg.id] : 0;
-      if (reg.stampZh) sh.appendChild(el("p", "small-tip", (got ? "✓ 已获得护照邮票：" : "打败本站 Boss 可以得到护照邮票：") + reg.stampZh + (reg.stampEn ? " / " + reg.stampEn : "")));
+      if (reg.stampZh) sh.appendChild(el("p", "small-tip", (got ? "✓ 已获得护照邮票：" : "打败本站大关可以得到护照邮票：") + reg.stampZh));
       var acts = el("div", "sheet-actions");
-      acts.appendChild(closeBtn("好的 / OK"));
+      acts.appendChild(closeBtn("好的"));
       sh.appendChild(acts);
     }, "故事：" + (reg.titleZh || ""));
   }
@@ -186,14 +205,15 @@
 
   function regionEl(reg) {
     var unlocked = W.regionUnlocked(reg);
-    var sec = el("section", "region" + (unlocked ? "" : " is-locked"));
+    var sec = el("section", "region band-" + (reg.index % 6 + 1) + (unlocked ? "" : " is-locked"));
     sec.id = "region-" + reg.id;
     sec.setAttribute("aria-label", "第 " + (reg.index + 1) + " 站：" + (reg.titleZh || ""));
     var sign = el("button", "region-sign");
     sign.type = "button";
     sign.appendChild(el("span", "region-emoji", reg.emoji || "📍")).setAttribute("aria-hidden", "true");
-    var t = el("span", "region-title", reg.titleZh || "");
-    if (reg.titleEn) t.appendChild(el("span", "en", reg.titleEn));
+    var t = el("span", "region-title");
+    t.appendChild(el("span", "region-kicker", "第 " + (reg.index + 1) + " 站"));
+    t.appendChild(document.createTextNode(reg.titleZh || ""));
     sign.appendChild(t);
     var rs = W.regionStars(reg);
     var meta = el("span", "region-meta", "⭐ " + rs.got + "/" + rs.max);
@@ -216,11 +236,15 @@
     var isCur = cur && cur.id === lv.id && unlocked && st < 1;
     var wrap = el("div", "node-wrap");
     wrap.setAttribute("data-level", lv.id);
-    var icon = !unlocked ? "🔒" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : String(lv.index + 1);
-    var b = el("button", "node" + (lv.type === "boss" ? " is-boss" : "") + (!unlocked ? " is-locked" : st ? " is-done" : "") + (isCur ? " is-current" : ""), icon);
+    // 圆钮里的图案：普通关是白色星星（SVG），Boss 👑、对话任务 💬、没解锁 🔒
+    var icon = !unlocked ? "🔒" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : "";
+    if (lv.type === "boss") wrap.classList.add("is-boss");
+    var b = el("button", "node" + (lv.type === "boss" ? " is-boss" : "") + (!unlocked ? " is-locked" : st ? " is-done" : "") + (isCur ? " is-current" : ""));
+    if (icon) b.appendChild(el("span", "node-icon", icon)).setAttribute("aria-hidden", "true");
+    else b.appendChild(starSvg());
     b.type = "button";
     b.id = "node-" + lv.id;
-    b.setAttribute("aria-label", (lv.titleZh || "") + "，" + TYPE_ZH[lv.type] + "，" + (!unlocked ? "还没解锁" : st ? st + " 颗星" : "还没过关"));
+    b.setAttribute("aria-label", "第 " + (lv.index + 1) + " 关：" + (lv.titleZh || "") + "，" + TYPE_ZH[lv.type] + "，" + (!unlocked ? "还没解锁" : st ? st + " 颗星" : "还没过关"));
     b.onclick = function () { levelSheet(lv); };
     if (isCur) b.appendChild(el("span", "node-bubble", "开始 ▶")).setAttribute("aria-hidden", "true");
     wrap.appendChild(b);
@@ -230,6 +254,19 @@
     wrap.appendChild(ss);
     wrap.appendChild(el("div", "node-label", lv.titleZh || ""));
     return wrap;
+  }
+
+  function starSvg() {
+    var s = document.createElementNS(SVGNS, "svg");
+    s.setAttribute("viewBox", "0 0 24 24");
+    s.setAttribute("aria-hidden", "true");
+    s.setAttribute("focusable", "false");
+    var pth = document.createElementNS(SVGNS, "path");
+    pth.setAttribute("class", "node-star");
+    pth.setAttribute("d", "M12 2.2l2.9 6.1 6.6.8-4.9 4.5 1.3 6.6L12 16.9l-5.9 3.3 1.3-6.6-4.9-4.5 6.6-.8z");
+    pth.setAttribute("stroke-linejoin", "round");
+    s.appendChild(pth);
+    return s;
   }
 
   // 节点位置：左右摆动的曲线（宽度变了就重新算）
@@ -242,7 +279,7 @@
       // 左右摆动幅度：节点块宽 140px，不能超出地图；宽屏时最大 200px
       var amp = Math.max(0, Math.min(200, (w - 150) / 2));
       var pts = [];
-      var old = path.querySelector("svg");
+      var old = path.querySelector("svg.trail-svg");
       if (old) path.removeChild(old);
       for (var i = 0; i < nodes.length; i++) {
         var x = w / 2 + amp * Math.sin(i * 1.15 + r * 0.7);
@@ -257,6 +294,7 @@
       }
       path.style.height = (TOP + (nodes.length - 1) * ROW + 116) + "px";
       var svg = document.createElementNS(SVGNS, "svg");
+      svg.setAttribute("class", "trail-svg");
       svg.setAttribute("aria-hidden", "true");
       svg.setAttribute("focusable", "false");
       for (var k = 1; k < pts.length; k++) {
@@ -278,12 +316,14 @@
     if (!n) return;
     var r = n.getBoundingClientRect();
     var y = window.pageYOffset + r.top - window.innerHeight / 2 + r.height / 2;
-    if (cur.order === 0) return; // 第一关就在页面上方，不用滚
+    // 第一关：已经完整在屏幕里（离底部导航栏还有地方）就不滚，顶部的吉祥物也能看到
+    if (cur.order === 0 && r.top >= 0 && r.bottom < window.innerHeight - 140) return;
     try { window.scrollTo(0, Math.max(0, y)); } catch (e) {}
   }
 
   function renderAll() {
     renderTop();
+    renderHero();
     renderDaily();
     render();
     var note = $("map-note");
@@ -296,7 +336,7 @@
     t = setTimeout(layout, 120);
   });
   window.addEventListener("progress-synced", renderAll);
-  window.addEventListener("progress-xp", renderTop);
+  window.addEventListener("progress-xp", function () { renderTop(); renderHero(); });
   window.addEventListener("profile-changed", renderTop);
   window.addEventListener("pageshow", function (ev) { if (ev.persisted) { renderAll(); scrollToCurrent(); } });
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { renderTop(); renderDaily(); } });

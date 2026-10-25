@@ -39,7 +39,7 @@
   function sayButton(text, label) {
     var b = el("button", "say", label || text);
     b.type = "button";
-    b.title = "点击朗读 / Click to listen";
+    b.title = "点击朗读";
     b.onclick = function (ev) {
       if (ev) ev.stopPropagation();
       if (window.speakSpanish) window.speakSpanish(text);
@@ -197,7 +197,7 @@
     label.appendChild(box);
     var txt = el("span", "quiz-check-text");
     txt.appendChild(el("span", "lesson-title", labelZh));
-    if (labelEn) txt.appendChild(el("span", "en", labelEn));
+    if (labelEn) txt.appendChild(el("span", "muted lesson-sub", labelEn)); // 第二行小字（阶段 12 起只写中文，例如“10 个词”）
     label.appendChild(txt);
     return { label: label, box: box };
   }
@@ -207,7 +207,7 @@
     box.innerHTML = "";
     var items = [];      // { key, c }
     var groupChecks = []; // { c, items: [...] }
-    var allLabel = opts.allLabel || ["全部", "All"];
+    var allLabel = opts.allLabel || ["全部", ""];
     var all = makeCheck(allLabel[0], allLabel[1], true, "quiz-check-all");
     box.appendChild(all.label);
 
@@ -219,10 +219,10 @@
       var gc = null;
       if (grp.zh) {
         if (usable >= 2) {
-          gc = makeCheck(grp.zh + " · 全选", grp.en ? grp.en + " · select all" : "", true, "quiz-check-group");
+          gc = makeCheck(grp.zh + " · 全选", "", true, "quiz-check-group");
           box.appendChild(gc.label);
         } else {
-          box.appendChild(el("div", "quiz-check-heading", grp.zh + (grp.en ? " / " + grp.en : "")));
+          box.appendChild(el("div", "quiz-check-heading", grp.zh));
         }
       }
       for (var i = 0; i < grp.items.length; i++) {
@@ -343,7 +343,7 @@
     var filled = Math.min(NEED, box);
     var b = el("span", "status-badge status-" + s + " mastery");
     b.setAttribute("data-box", String(box));
-    b.title = "掌握进度 " + filled + " / " + NEED + "（点 3 次“记住了”就算掌握） / Progress " + filled + "/" + NEED;
+    b.title = "掌握进度 " + filled + " / " + NEED + "（点 3 次“记住了”就算掌握）";
     var dots = el("span", "mdots");
     dots.setAttribute("aria-hidden", "true");
     for (var i = 0; i < NEED; i++) {
@@ -355,7 +355,7 @@
     b.appendChild(dots);
     // 给读屏软件的文字（看不见）
     b.appendChild(el("span", "sr-only", "掌握进度 " + filled + " / " + NEED + "，"));
-    var text = s === "mastered" ? "已掌握 ✓ / Mastered" : s === "learning" ? "学习中 / Learning" : (newText || "新词 / New");
+    var text = s === "mastered" ? "已掌握 ✓ " : s === "learning" ? "学习中" : (newText || "新词");
     b.appendChild(el("span", "mtext", text));
     return b;
   }
@@ -373,7 +373,7 @@
       var left = NEED - after;
       m = { kind: "up", zh: "✓ 记住 " + after + " 次，再记住 " + left + " 次就掌握了", en: left + " more to master" };
     }
-    m.text = m.zh + " / " + m.en;
+    m.text = m.zh;
     return m;
   }
   // 选课按钮上的“已掌握 x / y”，有学习中的再加一行“学习中 n”

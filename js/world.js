@@ -45,7 +45,8 @@
     { id: "castle", emoji: "🏰", zh: "城堡", en: "Castle" },
     { id: "sunflower", emoji: "🌻", zh: "向日葵", en: "Sunflower" },
     { id: "fish", emoji: "🐟", zh: "小鱼", en: "Fish" },
-    { id: "owl", emoji: "🦉", zh: "猫头鹰", en: "Owl" },
+    // 阶段 12：这个头像换成了小狐狸 🦊；id 仍然叫 "owl"（老存档里拥有 / 正在用的 "owl" 直接变成狐狸，不会变成空白头像）
+    { id: "owl", emoji: "🦊", zh: "小狐狸", en: "Fox" },
     { id: "orange", emoji: "🍊", zh: "橙子", en: "Orange" },
     { id: "trumpet", emoji: "🎺", zh: "小号", en: "Trumpet" },
     { id: "football", emoji: "⚽", zh: "足球", en: "Football" },

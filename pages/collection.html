@@ -12,48 +12,49 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>🎁 收藏 <span class="en">Collection</span></h1>
-    <p>闯关得到的星星每满 10 颗，就能打开一个宝箱，里面有新头像或新的界面颜色。打败每个区域的 Boss 还能在护照上盖一枚邮票。<br>
-      <span class="en">Every 10 stars opens a chest with a new avatar or theme. Beat each region's boss to collect a passport stamp.</span></p>
+    <h1>🎁 收藏</h1>
+    <p>闯关得到的星星每满 10 颗，就能打开一个宝箱，里面有新头像或新的界面颜色。打败每个区域的大关还能在护照上盖一枚邮票。</p>
 
     <!-- 预览主题时出现 -->
     <div class="preview-bar" id="preview-bar" hidden>
       <span id="preview-text"></span>
-      <button type="button" class="btn btn-small btn-light" id="preview-end">结束预览 / End preview</button>
+      <button type="button" class="btn btn-small btn-light" id="preview-end">结束预览</button>
     </div>
 
-    <h2>宝箱 <span class="en">Chests</span></h2>
+    <h2>宝箱</h2>
     <div class="chest-box" id="chest-box">
       <div class="chest-icon" id="chest-icon" aria-hidden="true">🎁</div>
       <div class="chest-count" id="chest-count"></div>
       <div class="pbar is-xp" aria-hidden="true"><span id="chest-bar"></span></div>
       <div class="small-tip" id="chest-next"></div>
-      <div class="card-nav"><button type="button" class="btn btn-big" id="chest-open">打开宝箱 / Open</button></div>
+      <div class="card-nav"><button type="button" class="btn btn-big" id="chest-open">打开宝箱</button></div>
       <div id="chest-reward" aria-live="polite"></div>
     </div>
 
-    <h2>头像 <span class="en">Avatars</span></h2>
+    <h2>头像</h2>
     <p class="panel-note" id="avatar-note"></p>
-    <div class="pick-grid" id="avatars" role="group" aria-label="头像 / Avatars"></div>
+    <div class="pick-grid" id="avatars" role="group" aria-label="头像"></div>
 
-    <h2>界面主题 <span class="en">Themes</span></h2>
+    <h2>界面主题</h2>
     <p class="panel-note">点已经拥有的主题马上换上；还没拥有的可以点一下“预览”。深色模式下也会跟着变。</p>
-    <div class="pick-grid skin-grid" id="skins" role="group" aria-label="界面主题 / Themes"></div>
+    <div class="pick-grid skin-grid" id="skins" role="group" aria-label="界面主题"></div>
 
-    <h2>护照邮票 <span class="en">Passport</span></h2>
+    <h2>护照邮票</h2>
     <p class="panel-note" id="stamp-note"></p>
     <div class="passport" id="passport"></div>
   </div>
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../data/words.js"></script>
   <script src="../data/phrases.js"></script>
@@ -86,7 +87,7 @@
       var inCycle = stars % per;
       $("chest-bar").style.width = (avail > 0 ? 100 : 100 * inCycle / per).toFixed(1) + "%";
       $("chest-next").textContent = "一共 ⭐ " + stars + " 颗星 · 已开 " + (P ? P.chestsOpened() : 0) + " 个 · " +
-        (avail > 0 ? "点下面的按钮打开" : "再得 " + (per - inCycle) + " 颗星就能开下一个") + " / Every " + per + " stars = 1 chest";
+        (avail > 0 ? "点下面的按钮打开" : "再得 " + (per - inCycle) + " 颗星就能开下一个") + "（每 " + per + " 颗星一个宝箱）";
       $("chest-open").disabled = avail < 1 || opening;
     }
     $("chest-open").onclick = function () {
@@ -97,10 +98,12 @@
       icon.classList.remove("shake");
       void icon.offsetWidth;
       icon.classList.add("shake");
+      if (window.Sfx) { window.Sfx.pop(); window.Sfx.buzz([15, 30, 15]); }
       var res = W.openChest();
       setTimeout(function () {
         opening = false;
         icon.classList.remove("shake");
+        if (res && window.Sfx) window.Sfx.sparkle(); // 开出来：闪亮的声音
         showReward(res);
         renderAll();
       }, reduce ? 0 : 750);
@@ -118,7 +121,6 @@
         var it = res.item;
         c.appendChild(el("div", "reward-emoji", it.emoji));
         c.appendChild(el("div", "chest-count", (res.kind === "avatar" ? "新头像：" : "新主题：") + it.zh));
-        c.appendChild(el("div", "en", it.en));
         var use = el("button", "btn", res.kind === "avatar" ? "马上用这个头像" : "马上换上这个主题");
         use.type = "button";
         use.id = "reward-use";
@@ -219,8 +221,7 @@
         var c = el("div", "stamp" + (has ? " got" : ""));
         c.appendChild(el("div", "stamp-emoji", r.emoji || "📍"));
         c.appendChild(el("div", "stamp-name", r.stampZh || r.titleZh || ""));
-        if (r.stampEn) c.appendChild(el("div", "en", r.stampEn));
-        c.appendChild(el("div", "small-tip", has ? "✓ 已获得" : "打败 Boss 获得"));
+        c.appendChild(el("div", "small-tip", has ? "✓ 已获得" : "打败大关获得"));
         c.setAttribute("aria-label", (r.stampZh || r.titleZh) + (has ? "：已获得" : "：还没获得"));
         box.appendChild(c);
       });

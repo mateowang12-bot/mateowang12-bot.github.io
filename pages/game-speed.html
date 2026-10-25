@@ -12,63 +12,64 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <div class="game-top-links">
       <a class="back-link" href="../index.html">‹ 返回首页</a>
-      <a class="back-link" href="games.html">🎮 游戏大厅 / Games</a>
+      <a class="back-link" href="games.html">🎮 游戏大厅</a>
     </div>
 
-    <h1>⚡ 60 秒快答 <span class="en">60-Second Sprint</span></h1>
+    <h1>⚡ 60 秒快答</h1>
 
     <div id="setup-screen">
       <p>看西语，选出中文意思，60 秒内答得越多越好。<br>
-        答对 +10 分；连续答对 3 题起每题 ×2（20 分），连续 6 题起 ×3（30 分）。答错扣 3 秒，连击重新算。<br>
-        <span class="en">Pick the meaning. +10 per answer; 3 in a row ×2, 6 in a row ×3. A mistake costs 3 seconds and resets the combo.</span></p>
+        答对 +10 分；连续答对 3 题起每题 ×2（20 分），连续 6 题起 ×3（30 分）。答错扣 3 秒，连击重新算。</p>
       <p class="game-best" id="best-line"></p>
-      <h2>选择范围 <span class="en">Questions from</span></h2>
+      <h2>选择范围</h2>
       <div class="quiz-check-list" id="scope-box"></div>
       <div id="setup-error"></div>
       <div class="card-nav">
-        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 / Start ▶</button>
+        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 ▶</button>
       </div>
     </div>
 
     <div id="play-screen" hidden>
       <div class="game-hud">
         <span>⏱ <span class="hud-strong" id="h-time"></span> 秒</span>
-        <span>得分 / Score：<span class="hud-strong" id="h-score">0</span></span>
+        <span>得分：<span class="hud-strong" id="h-score">0</span></span>
         <span class="speed-combo" id="h-combo"></span>
       </div>
       <div class="speed-bar"><div class="speed-bar-fill" id="h-bar"></div></div>
       <div class="quiz-question" id="q-box"></div>
       <div class="quiz-options" id="q-options"></div>
       <div class="speed-flash" id="q-flash" role="status"></div>
-      <p class="key-hint en">电脑键盘：数字键 1–4 选答案 / Keyboard: 1–4 to answer</p>
+      <p class="key-hint muted">电脑键盘：数字键 1–4 选答案</p>
     </div>
 
     <div id="result-screen" hidden>
       <div class="quiz-result">
-        <div class="quiz-result-label">时间到！你的得分 / Time's up! Your score</div>
+        <div class="quiz-result-label">时间到！你的得分</div>
         <div class="quiz-result-score" id="r-score"></div>
         <div class="quiz-result-msg" id="r-detail"></div>
         <div class="game-new-record" id="r-record" hidden></div>
-        <div class="quiz-result-msg en" id="r-best"></div>
+        <div class="quiz-result-msg muted" id="r-best"></div>
       </div>
       <div class="game-list-box" id="r-list"></div>
       <div class="card-nav">
-        <button type="button" class="btn" id="again-btn">🔁 再来一局 / Play again</button>
-        <button type="button" class="btn btn-light" id="setup-btn">换范围 / Change words</button>
-        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅 / Games</a>
+        <button type="button" class="btn" id="again-btn">🔁 再来一局</button>
+        <button type="button" class="btn btn-light" id="setup-btn">换范围</button>
+        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅</a>
       </div>
     </div>
   </div>
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/words.js"></script>
   <script src="../data/phrases.js"></script>
   <script src="../js/speak.js"></script>
@@ -112,7 +113,7 @@
 
     function start() {
       pool = scope.items();
-      if (!pool.length) { setupError("请至少选一项。 / Please choose at least one."); return; }
+      if (!pool.length) { setupError("请至少选一项。"); return; }
       setupError("");
       everything = scope.allWords.concat(scope.allPhrases);
       score = combo = maxCombo = right = answered = 0;
@@ -146,9 +147,9 @@
       q = { item: item, options: opts };
       var box = $("q-box");
       box.innerHTML = "";
-      box.appendChild(el("div", "quiz-prompt-label", "这是什么意思？ / What does it mean?"));
+      box.appendChild(el("div", "quiz-prompt-label", "这是什么意思？"));
       box.appendChild(el("div", "quiz-prompt-es fit-word" + (item.kind === "phrase" ? " is-phrase" : ""), item.word.es));
-      box.appendChild(U.sayButton(item.word.es, "听 / Listen"));
+      box.appendChild(U.sayButton(item.word.es, "听"));
       U.fitAll(box);
       var ob = $("q-options");
       ob.innerHTML = "";
@@ -192,6 +193,7 @@
         if (q.options[i] === q.item) btns[i].classList.add("correct");
         else if (i === idx) btns[i].classList.add("wrong");
       }
+      if (window.Sfx) { if (ok) window.Sfx.correct(); else window.Sfx.wrong(); }
       updateHud();
       updateTime();
       if (running) nextTimer = setTimeout(nextQuestion, ok ? FEEDBACK_MS : FEEDBACK_MS * 2);
@@ -217,17 +219,17 @@
       if (tick) { clearInterval(tick); tick = null; }
       if (nextTimer) { clearTimeout(nextTimer); nextTimer = null; }
       var res = K.record("speed", score, right > 0 && score > 0); // 挂机不答（一题没答对）不给经验值
+      if (window.Sfx) window.Sfx.win();
       $("r-score").textContent = score + " 分";
       $("r-detail").textContent = "答对 " + right + " / " + answered + " 题 · 最大连击 " + maxCombo;
       var rec = $("r-record");
       rec.hidden = !(res && res.isRecord && score > 0);
-      rec.textContent = res && res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 / New record!";
-      $("r-best").textContent = res ? "最高 " + res.best + " 分 · 玩过 " + res.plays + " 次 / Best: " + res.best : "";
+      rec.textContent = res && res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 ";
+      $("r-best").textContent = res ? "最高 " + res.best + " 分 · 玩过 " + res.plays + " 次" : "";
       var box = $("r-list");
       box.innerHTML = "";
       if (wrongList.length) {
         var h = el("h2", "", "答错的 ");
-        h.appendChild(el("span", "en", "Mistakes"));
         box.appendChild(h);
         var ul = el("ul", "word-list");
         var seen = {};
@@ -238,7 +240,6 @@
           var li = el("li", "quiz-wrong-item");
           li.appendChild(U.sayButton(w.es));
           li.appendChild(document.createTextNode(" — " + (w.zh || "") + " "));
-          if (w.en) li.appendChild(el("span", "en", "/ " + w.en));
           ul.appendChild(li);
         }
         box.appendChild(ul);
@@ -262,7 +263,7 @@
 
     if (!U.collectWords().length && !U.collectPhrases().length) {
       $("setup-screen").innerHTML = "";
-      $("setup-screen").appendChild(el("div", "notice", "没有找到单词内容（data/words.js 没有加载到）。 / Word data not found."));
+      $("setup-screen").appendChild(el("div", "notice", "没有找到单词内容（data/words.js 没有加载到）。"));
     } else {
       scope = K.scope($("scope-box"), "speed", { words: true, phrases: U.collectPhrases().length ? "option" : "", onChange: function () { setupError(""); } });
       showBest();

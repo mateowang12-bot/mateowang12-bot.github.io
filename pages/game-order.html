@@ -12,70 +12,69 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <div class="game-top-links">
       <a class="back-link" href="../index.html">‹ 返回首页</a>
-      <a class="back-link" href="games.html">🎮 游戏大厅 / Games</a>
+      <a class="back-link" href="games.html">🎮 游戏大厅</a>
     </div>
 
-    <h1>🧩 拼句子 <span class="en">Build the Sentence</span></h1>
+    <h1>🧩 拼句子</h1>
 
     <div id="setup-screen">
-      <p>看中文意思，把打乱的西语词按正确顺序点进答题区。点答题区里的词可以退回。每轮 5 句，看你第一次就拼对几句。<br>
-        <span class="en">Tap the Spanish words in the right order. Tap a word in the answer to send it back. 5 sentences per round.</span></p>
+      <p>看中文意思，把打乱的西语词按正确顺序点进答题区。点答题区里的词可以退回。每轮 5 句，看你第一次就拼对几句。</p>
       <p class="game-best" id="best-line"></p>
-      <h2>选择句子 <span class="en">Phrases from</span></h2>
+      <h2>选择句子</h2>
       <div class="quiz-check-list" id="scope-box"></div>
       <div id="setup-error"></div>
       <div class="card-nav">
-        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 / Start ▶</button>
+        <button type="button" class="btn quiz-big-btn" id="start-btn">开始 ▶</button>
       </div>
     </div>
 
     <div id="play-screen" hidden>
       <div class="game-hud">
         <span>第 <span class="hud-strong" id="h-num"></span> / <span id="h-total"></span> 句</span>
-        <span>一次拼对 / First try：<span class="hud-strong" id="h-good">0</span></span>
+        <span>一次拼对：<span class="hud-strong" id="h-good">0</span></span>
       </div>
       <div class="quiz-question">
-        <div class="quiz-prompt-label">用西语怎么说？ / Say it in Spanish:</div>
+        <div class="quiz-prompt-label">用西语怎么说？</div>
         <div class="order-meaning" id="q-zh"></div>
-        <div class="en" id="q-en"></div>
       </div>
-      <div class="order-answer" id="answer" aria-label="答题区 / Your answer"></div>
-      <div class="order-bank" id="bank" aria-label="可选的词 / Words"></div>
+      <div class="order-answer" id="answer" aria-label="答题区"></div>
+      <div class="order-bank" id="bank" aria-label="可选的词"></div>
       <div class="quiz-feedback" id="feedback" hidden></div>
       <div class="card-nav">
-        <button type="button" class="btn btn-light" id="clear-btn">↺ 清空重来 / Clear</button>
-        <button type="button" class="btn btn-light" id="show-btn">看答案 / Show answer</button>
-        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一句 / Next →</button>
+        <button type="button" class="btn btn-light" id="clear-btn">↺ 清空重来</button>
+        <button type="button" class="btn btn-light" id="show-btn">看答案</button>
+        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一句 →</button>
       </div>
-      <p class="key-hint en">电脑键盘：数字键 1–9 选下面第几个词，退格键退回最后一个词，回车下一句<br>
-        Keyboard: 1–9 pick a word, Backspace undo, Enter next</p>
+      <p class="key-hint muted">电脑键盘：数字键 1–9 选下面第几个词，退格键退回最后一个词，回车下一句</p>
     </div>
 
     <div id="result-screen" hidden>
       <div class="quiz-result">
-        <div class="quiz-result-label">这一轮完成！第一次就拼对 / First-try correct</div>
+        <div class="quiz-result-label">这一轮完成！第一次就拼对</div>
         <div class="quiz-result-score" id="r-score"></div>
         <div class="game-new-record" id="r-record" hidden></div>
-        <div class="quiz-result-msg en" id="r-best"></div>
+        <div class="quiz-result-msg muted" id="r-best"></div>
       </div>
       <div class="game-list-box" id="r-list"></div>
       <div class="card-nav">
-        <button type="button" class="btn" id="again-btn">🔁 再来一局 / Play again</button>
-        <button type="button" class="btn btn-light" id="setup-btn">换范围 / Change phrases</button>
-        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅 / Games</a>
+        <button type="button" class="btn" id="again-btn">🔁 再来一局</button>
+        <button type="button" class="btn btn-light" id="setup-btn">换范围</button>
+        <a class="btn btn-light btn-link" href="games.html">返回游戏大厅</a>
       </div>
     </div>
   </div>
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/phrases.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
@@ -147,11 +146,11 @@
 
     function start() {
       var items = scope.items();
-      if (!items.length) { setupError("请至少选一组句子。 / Please choose at least one group."); return; }
+      if (!items.length) { setupError("请至少选一组句子。"); return; }
       round = pickRound(items);
       // 每轮固定 5 句（最高分“x / 5”才可比）；不够就请用户多选几组
       if (round.length < ROUND) {
-        setupError("选的范围里只有 " + round.length + " 句合适的句子，每轮需要 " + ROUND + " 句，请多选几组。 / Please choose more groups.");
+        setupError("选的范围里只有 " + round.length + " 句合适的句子，每轮需要 " + ROUND + " 句，请多选几组。");
         return;
       }
       setupError("");
@@ -176,7 +175,6 @@
       $("h-num").textContent = String(pos + 1);
       $("h-good").textContent = String(good);
       $("q-zh").textContent = w.zh || "";
-      $("q-en").textContent = w.en || "";
       // 打乱；尽量不要和原来的顺序一样（重复的词互换位置也算“一样”）
       var sh = r.tokens.slice();
       for (var t = 0; t < 12; t++) {
@@ -199,12 +197,12 @@
       var ans = $("answer");
       ans.innerHTML = "";
       ans.className = "order-answer" + (solved ? " is-correct" : "");
-      if (!placed.length) ans.appendChild(el("span", "order-empty", "点下面的词，按顺序放到这里 / Tap words below"));
+      if (!placed.length) ans.appendChild(el("span", "order-empty", "点下面的词，按顺序放到这里"));
       for (var i = 0; i < placed.length; i++) {
         (function (k) {
           var b = el("button", "order-token", bank[placed[k]].text);
           b.type = "button";
-          b.title = "点一下退回 / Tap to send back";
+          b.title = "点一下退回";
           b.disabled = solved;
           b.onclick = function () { unplace(k); };
           ans.appendChild(b);
@@ -225,7 +223,7 @@
           bk.appendChild(b);
         })(j, n);
       }
-      if (!n) bk.appendChild(el("span", "order-empty", solved ? "✔" : "词都用完了 / All words used"));
+      if (!n) bk.appendChild(el("span", "order-empty", solved ? "✔" : "词都用完了"));
     }
 
     function place(idx) {
@@ -252,12 +250,12 @@
         done(true);
       } else {
         firstTry = false;
+        if (window.Sfx) window.Sfx.wrong();
         $("answer").className = "order-answer is-wrong";
         var fb = $("feedback");
         fb.className = "quiz-feedback is-wrong";
         fb.innerHTML = "";
         fb.appendChild(el("div", "quiz-feedback-title", "✘ 顺序不对，点答题区里的词把它退回，再试试。"));
-        fb.appendChild(el("div", "en", "Not quite. Tap words in your answer to send them back, then try again."));
         fb.hidden = false;
       }
     }
@@ -284,21 +282,21 @@
       results.push({ item: r.item, ok: ok });
       draw();
       if (window.speakSpanish) window.speakSpanish(w.es);
+      if (window.Sfx && byPlayer) window.Sfx.correct();
       var fb = $("feedback");
       fb.className = "quiz-feedback " + (byPlayer ? "is-correct" : "is-wrong");
       fb.innerHTML = "";
-      fb.appendChild(el("div", "quiz-feedback-title", byPlayer ? (ok ? "✔ 一次就拼对了！ / Perfect!" : "✔ 拼对了！ / Correct!") : "正确答案 / The answer:"));
+      fb.appendChild(el("div", "quiz-feedback-title", byPlayer ? (ok ? "✔ 一次就拼对了！" : "✔ 拼对了！") : "正确答案："));
       var line = el("div", "quiz-feedback-word");
       line.appendChild(U.sayButton(w.es));
       line.appendChild(el("span", "quiz-feedback-zh", w.zh || ""));
       fb.appendChild(line);
-      if (w.en) fb.appendChild(el("div", "en", w.en));
       fb.hidden = false;
       $("h-good").textContent = String(good);
       $("show-btn").hidden = true;
       $("clear-btn").hidden = true;
       var nb = $("next-btn");
-      nb.textContent = pos + 1 < round.length ? "下一句 / Next →" : "看结果 / See result →";
+      nb.textContent = pos + 1 < round.length ? "下一句 →" : "看结果 →";
       nb.hidden = false;
       nb.focus();
     }
@@ -315,15 +313,15 @@
 
     function finish() {
       var res = K.record("order", good, playerSolved > 0); // 自己拼对至少一句才给经验值（“看答案”的不算）
+      if (window.Sfx) window.Sfx.win();
       $("r-score").textContent = good + " / " + round.length + " 句";
       var rec = $("r-record");
       rec.hidden = !(res && res.isRecord && good > 0);
-      rec.textContent = res && res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 / New record!";
-      $("r-best").textContent = res ? "最好 " + res.best + " 句 · 玩过 " + res.plays + " 次 / Best: " + res.best : "";
+      rec.textContent = res && res.first ? "第一局的成绩就是你的纪录 🎉" : "新纪录！🎉 ";
+      $("r-best").textContent = res ? "最好 " + res.best + " 句 · 玩过 " + res.plays + " 次" : "";
       var box = $("r-list");
       box.innerHTML = "";
       var h = el("h2", "", "这一轮的句子 ");
-      h.appendChild(el("span", "en", "Sentences"));
       box.appendChild(h);
       var ul = el("ul", "word-list");
       for (var i = 0; i < results.length; i++) {
@@ -373,7 +371,7 @@
 
     if (!U.collectPhrases().length) {
       $("setup-screen").innerHTML = "";
-      $("setup-screen").appendChild(el("div", "notice", "没有找到句子内容（data/phrases.js 没有加载到）。 / Phrase data not found."));
+      $("setup-screen").appendChild(el("div", "notice", "没有找到句子内容（data/phrases.js 没有加载到）。"));
     } else {
       scope = K.scope($("scope-box"), "order", { phrases: "groups", onChange: function () { setupError(""); } });
       showBest();

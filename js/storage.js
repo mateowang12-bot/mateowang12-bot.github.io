@@ -63,7 +63,9 @@
 //   xp（阶段 10）：{ "YYYY-MM-DD": 当天经验值 }，同一天取较大值（两台设备不会重复相加），日期取并集，只留最近 400 天；
 //     resetAt 那天之前的丢掉；resetAt 当天只认“已经知道这次清除”的那一边（它的 resetAt 等于合并后的 resetAt），
 //     免得清除前上午的经验值又从另一台设备合并回来。
-//   settings（阶段 10）：{ dailyGoal: 10/20/50/100, updatedAt }，取 updatedAt 新的那边；清除学习记录时保留设置。
+//   settings（阶段 10）：{ dailyGoal: 10/20/50/100, sound: true/false, vibrate: true/false, updatedAt }，整组取 updatedAt 新的那边
+//     （时间一样：目标大的；再一样：sound 开的；再一样：vibrate 开的，结果和合并顺序无关）；清除学习记录时保留设置。
+//     sound / vibrate 是阶段 12 加的（音效、震动开关，默认都开，js/sfx.js 用）。
 //
 // ---------- 经验值（XP）和每日目标（阶段 10） ----------
 //   Progress.XP                         每种学习行为加多少经验值（常量都在下面的 XP_RULES，改数值只改那里）
@@ -74,6 +76,8 @@
 //   Progress.xpWeek()                   最近 7 天 → [{ day, xp, weekday(0=周日), today }]（从早到晚）
 //   Progress.xpByDay()                  { "YYYY-MM-DD": xp } 的副本
 //   Progress.dailyGoal() / setDailyGoal(n)  每日目标（10 / 20 / 50 / 100，默认 20；存在 settings 里，跟着同步）
+//   Progress.soundOn() / setSound(bool)      音效开关（阶段 12，默认开；存在 settings 里，跟着同步）
+//   Progress.vibrateOn() / setVibrate(bool)  震动开关（阶段 12，默认开；同上）
 //   Progress.studyDayKeys()             学过的日期列表（排好序）
 //
 // ---------- 冒险闯关（阶段 11；关卡数据和奖励清单在 js/world.js） ----------
@@ -138,7 +142,7 @@
   var DEFAULT_GOAL = 20;
 
   function defaultSettings() {
-    return { dailyGoal: DEFAULT_GOAL, updatedAt: 0 };
+    return { dailyGoal: DEFAULT_GOAL, sound: true, vibrate: true, updatedAt: 0 };
   }
 
   function emptyState() {
@@ -212,6 +216,8 @@
     if (!s || typeof s !== "object") return out;
     var g = Math.floor(num(s.dailyGoal, DEFAULT_GOAL));
     out.dailyGoal = GOALS.indexOf(g) !== -1 ? g : DEFAULT_GOAL;
+    out.sound = s.sound !== false;
+    out.vibrate = s.vibrate !== false;
     out.updatedAt = Math.max(0, num(s.updatedAt, 0));
     return out;
   }
@@ -810,10 +816,29 @@
     g = Math.floor(num(g, DEFAULT_GOAL));
     if (GOALS.indexOf(g) === -1) return dailyGoal();
     var st = load();
-    st.settings = { dailyGoal: g, updatedAt: Math.max(Date.now(), st.settings.updatedAt + 1) };
+    st.settings = { dailyGoal: g, sound: st.settings.sound, vibrate: st.settings.vibrate, updatedAt: Math.max(Date.now(), st.settings.updatedAt + 1) };
     save(st);
     return g;
   }
+  // 音效 / 震动开关（阶段 12）：和每日目标一样存在 settings 里（整组取较新的那边）
+  function soundOn() {
+    return load().settings.sound !== false;
+  }
+  function vibrateOn() {
+    return load().settings.vibrate !== false;
+  }
+  function setSwitch(name, on) {
+    var st = load();
+    var s = st.settings;
+    var next = { dailyGoal: s.dailyGoal, sound: s.sound !== false, vibrate: s.vibrate !== false, updatedAt: Math.max(Date.now(), s.updatedAt + 1) };
+    next[name] = !!on;
+    st.settings = next;
+    save(st);
+    try { window.dispatchEvent(new Event("settings-changed")); } catch (e) {}
+    return !!on;
+  }
+  function setSound(on) { return setSwitch("sound", on); }
+  function setVibrate(on) { return setSwitch("vibrate", on); }
 
   function alphabetInfo() {
     var st = load();
@@ -1148,8 +1173,9 @@
 
     // 设置：取较新的；时间一样取目标大的（结果和合并顺序无关）
     var sa = a.settings, sb = b.settings;
-    var sp = sa.updatedAt !== sb.updatedAt ? (sa.updatedAt > sb.updatedAt ? sa : sb) : (sa.dailyGoal >= sb.dailyGoal ? sa : sb);
-    out.settings = { dailyGoal: sp.dailyGoal, updatedAt: sp.updatedAt };
+    var rankS = function (x) { return x.dailyGoal * 4 + (x.sound ? 2 : 0) + (x.vibrate ? 1 : 0); };
+    var sp = sa.updatedAt !== sb.updatedAt ? (sa.updatedAt > sb.updatedAt ? sa : sb) : (rankS(sa) >= rankS(sb) ? sa : sb);
+    out.settings = { dailyGoal: sp.dailyGoal, sound: sp.sound, vibrate: sp.vibrate, updatedAt: sp.updatedAt };
     return out;
   }
   // 合并两组“成绩”记录（语法课 / 情景对话），结果写进 out；早于 R（resetAt）的丢掉
@@ -1436,7 +1462,7 @@
       var p = document.createElement("p");
       p.className = "progress-warn";
       p.setAttribute("role", "status");
-      p.textContent = "提示：浏览器不允许保存数据，学习进度只在本次打开时有效，关闭页面后不会保存。 / Progress can't be saved in this browser.";
+      p.textContent = "提示：浏览器不允许保存数据，学习进度只在本次打开时有效，关闭页面后不会保存。";
       var place = document.querySelector(".container") || document.body;
       if (place) place.insertBefore(p, place.firstChild);
     }
@@ -1517,6 +1543,10 @@
     xpWeek: xpWeek,
     xpByDay: xpByDay,
     dailyGoal: dailyGoal,
+    soundOn: soundOn,
+    setSound: setSound,
+    vibrateOn: vibrateOn,
+    setVibrate: setVibrate,
     setDailyGoal: setDailyGoal,
     unlockBadge: unlockBadge,
     badges: badges,

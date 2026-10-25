@@ -12,20 +12,19 @@
   <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="西语学习">
-  <meta name="theme-color" content="#f4f8f5" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1814" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
   <div class="container">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>练习 <span class="en">Practice</span></h1>
-    <p>冒险地图之外的自由练习：全部内容都在这里。建议顺序：字母 → 单词 → 日常句子 → 语法，每天用“复习”巩固；学累了玩一局小游戏。<br>
-      <span class="en">Free practice outside the adventure map. Suggested order: Alphabet → Words → Phrases → Grammar, and review every day.</span></p>
+    <h1>练习</h1>
+    <p>冒险地图之外的自由练习：全部内容都在这里。建议顺序：字母 → 单词 → 日常句子 → 语法，每天用“复习”巩固；学累了玩一局小游戏。</p>
 
     <!-- 继续学习：下一步学什么（js/modules.js 的 Modules.recommend；阶段 11 从首页移到这里） -->
     <section class="continue-card learn-top" id="continue-card" aria-labelledby="continue-title">
-      <div class="continue-label">继续学习 · CONTINUE</div>
+      <div class="continue-label">继续学习</div>
       <div class="continue-main">
         <div class="continue-icon" id="continue-icon" aria-hidden="true">📇</div>
         <div>
@@ -35,7 +34,7 @@
       </div>
       <p class="continue-desc" id="continue-desc"></p>
       <div class="continue-progress" id="continue-progress" hidden>
-        <div class="continue-progress-text"><span>已掌握 / Mastered</span><span id="continue-progress-num"></span></div>
+        <div class="continue-progress-text"><span>已掌握</span><span id="continue-progress-num"></span></div>
         <div class="pbar" role="progressbar" aria-valuemin="0" id="continue-pbar"><span id="continue-pbar-fill"></span></div>
       </div>
       <a class="btn btn-big btn-block" id="continue-btn" href="words.html">开始学习</a>
@@ -47,18 +46,18 @@
       <a class="today-card" id="today-review" href="review.html">
         <div class="today-icon" aria-hidden="true">🔁</div>
         <div class="today-num" id="today-due">0</div>
-        <div class="today-label">待复习 <span class="en">Due</span></div>
+        <div class="today-label">待复习</div>
       </a>
       <a class="today-card" href="me.html">
         <div class="today-icon" aria-hidden="true">⭐</div>
         <div class="today-num" id="today-xp">0 / 20</div>
         <div class="pbar is-xp" aria-hidden="true"><span id="today-xp-bar"></span></div>
-        <div class="today-label">今日目标 <span class="en">Goal</span></div>
+        <div class="today-label">今日目标</div>
       </a>
       <div class="today-card">
         <div class="today-icon" aria-hidden="true">📝</div>
         <div class="today-num" id="today-items">0</div>
-        <div class="today-label">今天学了 <span class="en">Today</span></div>
+        <div class="today-label">今天学了</div>
       </div>
     </div>
 
@@ -68,6 +67,8 @@
 
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/mascot.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../data/words.js"></script>
   <script src="../data/grammar.js"></script>
@@ -95,13 +96,11 @@
       c.appendChild(el("div", "module-icon", m.icon)).setAttribute("aria-hidden", "true");
       var body = el("div", "module-body");
       var t = el("div", "module-title", m.zh);
-      t.appendChild(el("span", "en", m.en));
       body.appendChild(t);
       var desc = null;
       try { desc = m.desc ? m.desc() : null; } catch (e) { desc = null; }
       if (desc) {
         var d = el("div", "module-desc", desc[0]);
-        d.appendChild(el("span", "en", " / " + desc[1]));
         body.appendChild(d);
       }
       var text = "";
@@ -109,7 +108,7 @@
         try { text = m.progress(); } catch (e2) { text = ""; }
       }
       if (text) body.appendChild(el("div", "module-progress", text));
-      if (!ok) body.appendChild(el("div", "module-status", m.lockedText || "即将开放 / Coming soon"));
+      if (!ok) body.appendChild(el("div", "module-status", m.lockedText || "即将开放"));
       c.appendChild(body);
       if (ok) c.appendChild(el("span", "chev", "›")).setAttribute("aria-hidden", "true");
       return c;
@@ -121,7 +120,6 @@
       for (var g = 0; g < M.GROUPS.length; g++) {
         var grp = M.GROUPS[g];
         var h = el("h2", "group-title", grp.zh);
-        h.appendChild(el("span", "en", grp.en));
         box.appendChild(h);
         var list = el("div", "module-list");
         for (var i = 0; i < grp.ids.length; i++) {
@@ -140,10 +138,8 @@
       $("continue-kicker").textContent = r.kicker || "";
       var t = $("continue-title");
       t.textContent = r.title || "";
-      if (r.titleEn) t.appendChild(el("span", "en", r.titleEn));
       var d = $("continue-desc");
       d.textContent = (r.desc && r.desc[0]) || "";
-      if (r.desc && r.desc[1]) d.appendChild(el("span", "en", r.desc[1]));
       var pr = $("continue-progress");
       if (r.progress && r.progress.total) {
         pr.hidden = false;
