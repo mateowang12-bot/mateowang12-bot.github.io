@@ -619,7 +619,9 @@
     var badge = lv.isDaily ? "📅" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : lv.type === "learn" ? "📖" : lv.type === "review" ? "🔁" : (reg && reg.emoji) || "🗺️";
     if (reg) s.appendChild(el("div", "sheet-kicker", reg.titleZh || ""));
     var t = el("div", "p-head-title");
-    t.appendChild(el("span", "p-badge", badge)).setAttribute("aria-hidden", "true");
+    var pb = el("span", "p-badge", (lv.isDaily || lv.type !== "normal" || !reg || !window.Icons) ? badge : "");
+    if (!pb.textContent && reg && window.Icons) pb.appendChild(window.Icons.el(window.Icons.region(reg.id)));
+    t.appendChild(pb).setAttribute("aria-hidden", "true");
     t.appendChild(document.createTextNode(" " + (lv.titleZh || "")));
     s.appendChild(t);
     // 吉祥物 + 说话气泡（关卡简介）
@@ -1353,7 +1355,7 @@
     var lv = S.level, p = P();
     if (!lv.isDaily && p) p.recordLevel(lv.id, 0, accuracy());
     var s = screen("p-center");
-    var mf = mascot("cheer", "bob");
+    var mf = mascot("sad", "bob"); // 心用完：难过 / 可惜
     if (mf) s.appendChild(mf);
     else s.appendChild(el("div", "p-emoji", "💔"));
     s.appendChild(el("div", "p-head-title", "心用完了，再试一次吧！"));
@@ -1383,6 +1385,7 @@
   }
 
   function finish() {
+    if (S.phase === "result") return; // 已经结算过了：不再结算一次（也不再放音效）
     S.phase = "result";
     var lv = S.level, p = P();
     var st = starsFor(S.mistakes);
@@ -1424,7 +1427,11 @@
     if (lv.isDaily && !dailyFirst) s.appendChild(el("p", "small-tip", "今天的奖励已经领过了（每天一次），明天再来！"));
     if (lv.type === "boss" && lv.region) {
       var reg = lv.region;
-      if (stampNew) s.appendChild(el("div", "p-stamp pop-in", "🎉 获得护照邮票：" + (reg.emoji ? reg.emoji + " " : "") + (reg.stampZh || reg.titleZh || "")));
+      if (stampNew) {
+        var stp = el("div", "p-stamp pop-in", "🎉 获得护照邮票：" + (reg.stampZh || reg.titleZh || ""));
+        if (window.Icons) stp.appendChild(window.Icons.el(window.Icons.region(reg.id), "ic-inline"));
+        s.appendChild(stp);
+      }
       else s.appendChild(el("p", "small-tip", "这枚护照邮票你已经有了 ✓"));
     }
     var chests = p ? p.chestsAvailable() : 0;
@@ -1533,6 +1540,8 @@
   }
 
   window.addEventListener("hashchange", init);
+  // 离开页面：清掉结算页还没放的“闪亮”音效
+  window.addEventListener("pagehide", function () { if (S && S.sparkleTimer) { clearTimeout(S.sparkleTimer); S.sparkleTimer = null; } });
   document.addEventListener("keydown", onKey);
   var close = $("p-close");
   if (close) close.addEventListener("click", askExit);

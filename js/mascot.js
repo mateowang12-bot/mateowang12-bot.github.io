@@ -1,77 +1,101 @@
 // ============================================
-// 吉祥物“橙橙”（mascot.js）—— window.Mascot（阶段 12）
-// 一颗戴草帽的橙子（西班牙瓦伦西亚的橙子 + 夏天的草帽），我们自己原创的，用 inline SVG 画，不用图片文件。
-// 颜色都是 css/style.css 里 :root 的 --m-… 变量（SVG 里只写 class，颜色由 CSS 给）。
+// 吉祥物“竹竹”（mascot.js）—— window.Mascot（阶段 14）
+// 一只来西班牙旅行的中国小熊猫：圆滚滚的黑白熊猫，围一条西班牙红黄配色的小围巾，右耳别着一片竹叶。我们自己原创的，用 inline SVG 画。
+// 颜色都是 css/style.css 里 :root 的 --p-… 变量（SVG 里只写 class）。深色模式下黑色部分有一圈浅色描边（--p-rim），看得清。
 //
-//   Mascot.el(mood, cls)   → 一个 <span class="mascot …">（里面是 SVG），装饰用（aria-hidden）
+//   Mascot.el(mood, cls)   → <span class="mascot …">（里面是 SVG），装饰用（aria-hidden）
 //   Mascot.svg(mood)       → SVG 字符串
+//   Mascot.faceSvg()       → 只有熊猫的头（头像“熊猫宝宝”用）
 //   mood：
-//     "hello"   挥手打招呼（地图顶部、关卡开始）
-//     "happy"   开心大笑（答对）
-//     "cheer"   握拳鼓励（答错：“没关系，再来！”）
-//     "party"   举双手庆祝 + 彩纸（过关结算）
-//     "think"   歪头想一想（空状态、找不到内容）
+//     "hello"  挥手打招呼（地图顶部、关卡开始）
+//     "happy"  开心大笑（答对）
+//     "cheer"  握拳鼓励（答错：“没关系，再来！”）
+//     "party"  举双手庆祝 + 彩纸（过关结算）
+//     "think"  托着下巴想一想（空状态、找不到内容）
+//     "sad"    难过 / 可惜，眼角一滴泪（心用完了）
 //   cls：额外的 class，例如 "is-small"（56px）、"is-tiny"（44px）、"is-big"（128px）、"bob"（轻轻上下浮动）、"hop"（跳一下）
-// 所有页面都引入（放在 nav.js、sfx.js 后面）。
+//   Mascot.row / empty：吉祥物 + 说话气泡、空状态
+//   另外：卡通小喇叭（朗读按钮的图案）也在这个文件里（见下面）。
+// 所有页面都引入（放在 nav.js、sfx.js、icons.js 后面）。
 // ============================================
 (function () {
   var NS = "http://www.w3.org/2000/svg";
 
-  // 身体、草帽、叶子（所有表情共用）
-  var BODY =
-    '<ellipse class="m-shadow" cx="60" cy="113" rx="30" ry="5"/>' +
-    '<circle class="m-body" cx="60" cy="70" r="40"/>' +
-    '<path class="m-shade" d="M96 78a40 40 0 0 1-70 22a44 44 0 0 0 70-22z"/>' +
-    '<ellipse class="m-gloss" cx="41" cy="58" rx="8" ry="5.5" transform="rotate(-30 41 58)"/>' +
-    '<circle class="m-shade" cx="80" cy="86" r="1.6"/><circle class="m-shade" cx="86" cy="76" r="1.4"/><circle class="m-shade" cx="74" cy="96" r="1.4"/>';
-  var HAT =
-    '<ellipse class="m-hat-shade" cx="60" cy="40" rx="47" ry="10"/>' +
-    '<ellipse class="m-hat" cx="60" cy="37" rx="47" ry="10"/>' +
-    '<path class="m-straw" d="M22 38q8 3 16 4M84 42q8-1 15-4M48 44q12 2 24 0"/>' +
-    '<path class="m-hat" d="M37 37q1-24 23-24t23 24q-23 7-46 0z"/>' +
-    '<path class="m-band" d="M37.6 31q22.4 7 44.8 0l.4 5.6q-22.8 7-45.6 0z"/>' +
-    '<path class="m-straw" d="M46 20q2 6 1 11M60 15v15M74 20q-2 6-1 11"/>' +
-    '<path class="m-leaf" d="M62 14q6-12 20-10q-5 11-20 10z"/>';
-  var CHEEKS = '<ellipse class="m-cheek" cx="38" cy="80" rx="6" ry="3.6"/><ellipse class="m-cheek" cx="82" cy="80" rx="6" ry="3.6"/>';
-  function eyes(dx) {
-    dx = dx || 0;
-    return '<ellipse class="m-ink" cx="' + (47 + dx) + '" cy="68" rx="5" ry="6.5"/><ellipse class="m-ink" cx="' + (73 + dx) + '" cy="68" rx="5" ry="6.5"/>' +
-      '<circle class="m-shine" cx="' + (48.6 + dx) + '" cy="65.4" r="1.9"/><circle class="m-shine" cx="' + (74.6 + dx) + '" cy="65.4" r="1.9"/>';
+  // 头：耳朵（黑）→ 白色大脸 → 黑眼圈 → 鼻子；竹叶发夹在右耳
+  function ears() {
+    return '<circle class="p-blk" cx="33" cy="25" r="11"/><circle class="p-blk" cx="87" cy="25" r="11"/>' +
+      '<circle class="p-inner" cx="33" cy="25" r="5"/><circle class="p-inner" cx="87" cy="25" r="5"/>';
   }
-  var HAPPY_EYES = '<path class="m-line" d="M41 69q6-8 12 0M67 69q6-8 12 0"/>';
-  var FACES = {
-    hello: eyes(0) + CHEEKS + '<path class="m-line" d="M51 82q9 8 18 0"/>' +
-      // 右手挥手、左手放下
-      '<path class="m-arm" d="M99 72q11-6 12-20"/><circle class="m-hand" cx="111" cy="49" r="6"/>' +
-      '<path class="m-arm" d="M21 78q-9 5-10 13"/><circle class="m-hand" cx="11" cy="93" r="5.5"/>',
-    happy: HAPPY_EYES + CHEEKS + '<path class="m-ink" d="M47 80q13 15 26 0z"/><path class="m-tongue" d="M53 85q7 5 14 0q-7-3-14 0z"/>' +
-      '<path class="m-arm" d="M99 70q12-4 14-17"/><circle class="m-hand" cx="113" cy="50" r="6"/>' +
-      '<path class="m-arm" d="M21 70q-12-4-14-17"/><circle class="m-hand" cx="7" cy="50" r="6"/>',
-    cheer: eyes(0) + CHEEKS + '<path class="m-line" d="M42 58l9 3M78 58l-9 3"/><path class="m-line" d="M52 83q8 5 16 0"/>' +
-      // 握拳加油
-      '<path class="m-arm" d="M99 76q12-3 12-17"/><circle class="m-hand" cx="111" cy="55" r="6.5"/>' +
-      '<path class="m-arm" d="M21 80q-9 4-10 12"/><circle class="m-hand" cx="11" cy="94" r="5.5"/>',
-    party: HAPPY_EYES + CHEEKS + '<path class="m-ink" d="M45 79q15 18 30 0z"/><path class="m-tongue" d="M52 86q8 5 16 0q-8-3-16 0z"/>' +
-      '<path class="m-arm" d="M99 64q10-10 8-24"/><circle class="m-hand" cx="107" cy="37" r="6"/>' +
-      '<path class="m-arm" d="M21 64q-10-10-8-24"/><circle class="m-hand" cx="13" cy="37" r="6"/>' +
-      '<rect class="m-c1" x="8" y="10" width="7" height="4" rx="1" transform="rotate(-25 11 12)"/>' +
-      '<rect class="m-c2" x="100" y="8" width="7" height="4" rx="1" transform="rotate(30 103 10)"/>' +
-      '<rect class="m-c3" x="24" y="2" width="6" height="4" rx="1" transform="rotate(15 27 4)"/>' +
-      '<circle class="m-c1" cx="96" cy="22" r="2.5"/><circle class="m-c3" cx="112" cy="24" r="2"/><circle class="m-c2" cx="6" cy="26" r="2.2"/>',
-    think: eyes(3) + CHEEKS + '<path class="m-line" d="M53 84q6-3 12 0"/>' +
-      '<path class="m-arm" d="M24 90q6 12 20 8"/><circle class="m-hand" cx="47" cy="96" r="6"/>' +
-      '<circle class="m-c2" cx="104" cy="24" r="3"/><circle class="m-c2" cx="111" cy="14" r="4.2"/>'
+  function leaf() {
+    return '<path class="p-leaf" d="M91 15c6-9 16-10 22-7-4 8-12 12-22 7z"/><path class="p-leaf-v" d="M93 14c6-3 12-5 18-6"/>' +
+      '<path class="p-leaf" d="M90 18c9-2 15 2 17 7-8 2-14 0-17-7z"/>';
+  }
+  function face() {
+    return '<ellipse class="p-wht" cx="60" cy="52" rx="35" ry="32"/>' +
+      '<ellipse class="p-blk" cx="45" cy="52" rx="9.5" ry="12" transform="rotate(28 45 52)"/>' +
+      '<ellipse class="p-blk" cx="75" cy="52" rx="9.5" ry="12" transform="rotate(-28 75 52)"/>' +
+      '<ellipse class="p-cheek" cx="35" cy="66" rx="6" ry="3.6"/><ellipse class="p-cheek" cx="85" cy="66" rx="6" ry="3.6"/>' +
+      '<ellipse class="p-nose" cx="60" cy="63" rx="5" ry="3.4"/>';
+  }
+  var EYES = {
+    open: '<circle class="p-eye" cx="46" cy="53" r="4.6"/><circle class="p-eye" cx="74" cy="53" r="4.6"/>' +
+      '<circle class="p-pupil" cx="47" cy="54" r="2.6"/><circle class="p-pupil" cx="73" cy="54" r="2.6"/>' +
+      '<circle class="p-shine" cx="48" cy="52.4" r="1"/><circle class="p-shine" cx="74" cy="52.4" r="1"/>',
+    happy: '<path class="p-eyeline" d="M41 55q5-6 10 0M69 55q5-6 10 0"/>',
+    side: '<circle class="p-eye" cx="47" cy="52" r="4.6"/><circle class="p-eye" cx="75" cy="52" r="4.6"/>' +
+      '<circle class="p-pupil" cx="49" cy="50.5" r="2.6"/><circle class="p-pupil" cx="77" cy="50.5" r="2.6"/>',
+    sad: '<path class="p-eyeline" d="M41 52q5 4 10 0M69 52q5 4 10 0"/><path class="p-tear" d="M79 58c-2 4-2 6 0 7 2-1 2-3 0-7z"/>'
   };
-
+  var MOUTH = {
+    smile: '<path class="p-line" d="M54 68q6 6 12 0"/>',
+    open: '<path class="p-mouth" d="M51 67q9 13 18 0z"/><path class="p-tongue" d="M55 71q5 4 10 0q-5-2-10 0z"/>',
+    small: '<path class="p-line" d="M56 69q4 2 8 0"/>',
+    frown: '<path class="p-line" d="M54 72q6-5 12 0"/>',
+    o: '<ellipse class="p-mouth" cx="60" cy="70" rx="3" ry="3.6"/>'
+  };
+  // 身体 + 围巾（红底黄条，西班牙的颜色）
+  function body() {
+    return '<ellipse class="p-shadow" cx="60" cy="115" rx="30" ry="4.5"/>' +
+      '<ellipse class="p-blk" cx="45" cy="108" rx="10" ry="7"/><ellipse class="p-blk" cx="75" cy="108" rx="10" ry="7"/>' +
+      '<ellipse class="p-wht" cx="60" cy="92" rx="27" ry="21"/>';
+  }
+  var SCARF = '<path class="p-scarf" d="M36 79q24 12 48 0l2 7q-26 13-52 0z"/><path class="p-scarf-s" d="M37 83q23 10 46 0"/>' +
+    '<path class="p-scarf" d="M72 85l9 15-8 2-7-15z"/>';
+  // 手臂（黑色），按姿势
+  var ARMS = {
+    hello: '<path class="p-blk" d="M37 92c-7 3-10 9-7 13 3 3 8 0 11-6z"/><path class="p-blk" d="M82 86c6-6 11-14 12-22 1-4 7-4 8 0 1 10-6 21-14 27z"/>',
+    happy: '<path class="p-blk" d="M37 88c-9-1-15-6-16-12-1-4 4-6 7-3 3 4 6 7 11 8z"/><path class="p-blk" d="M83 88c9-1 15-6 16-12 1-4-4-6-7-3-3 4-6 7-11 8z"/>',
+    cheer: '<path class="p-blk" d="M37 92c-7 3-10 9-7 13 3 3 8 0 11-6z"/><path class="p-blk" d="M82 90c5-5 8-12 8-19"/><circle class="p-blk" cx="91" cy="68" r="7.5"/><path class="p-blk" d="M80 92c4-6 6-12 7-20l7 1c-1 9-4 16-9 22z"/>',
+    party: '<path class="p-blk" d="M38 84c-6-6-10-15-10-23 0-4 6-5 7-1 1 8 4 15 9 20z"/><path class="p-blk" d="M82 84c6-6 10-15 10-23 0-4-6-5-7-1-1 8-4 15-9 20z"/>' +
+      '<rect class="p-c1" x="10" y="14" width="7" height="4" rx="1" transform="rotate(-25 13 16)"/><rect class="p-c2" x="102" y="38" width="7" height="4" rx="1" transform="rotate(30 105 40)"/>' +
+      '<circle class="p-c3" cx="16" cy="40" r="2.5"/><circle class="p-c1" cx="108" cy="58" r="2.2"/><rect class="p-c3" x="20" y="4" width="6" height="4" rx="1" transform="rotate(15 23 6)"/>',
+    think: '<path class="p-blk" d="M37 92c-7 3-10 9-7 13 3 3 8 0 11-6z"/><path class="p-blk" d="M80 96c-4-6-9-14-12-22 0-4 6-6 8-2 3 7 6 14 10 19z"/>' +
+      '<circle class="p-bubble" cx="103" cy="38" r="3.5"/><circle class="p-bubble" cx="110" cy="27" r="5"/>',
+    sad: '<path class="p-blk" d="M36 88c-6 5-8 12-5 15 3 2 7-2 9-8z"/><path class="p-blk" d="M84 88c6 5 8 12 5 15-3 2-7-2-9-8z"/>'
+  };
+  var MOODS = {
+    hello: { eyes: "open", mouth: "smile", arms: "hello" },
+    happy: { eyes: "happy", mouth: "open", arms: "happy" },
+    cheer: { eyes: "open", mouth: "smile", arms: "cheer", brows: true },
+    party: { eyes: "happy", mouth: "open", arms: "party" },
+    think: { eyes: "side", mouth: "small", arms: "think" },
+    sad: { eyes: "sad", mouth: "frown", arms: "sad" }
+  };
   function svg(mood) {
-    var face = FACES[mood] || FACES.hello;
-    return '<svg xmlns="' + NS + '" viewBox="0 0 120 120" focusable="false" aria-hidden="true">' + BODY + face + HAT + "</svg>";
+    var m = MOODS[mood] || MOODS.hello;
+    var s = body() + ears() + face() + EYES[m.eyes] + MOUTH[m.mouth] + SCARF + ARMS[m.arms] + leaf();
+    if (m.brows) s += '<path class="p-line" d="M39 39l9 3M81 39l-9 3"/>';
+    return '<svg xmlns="' + NS + '" viewBox="0 0 120 120" focusable="false" aria-hidden="true">' + s + "</svg>";
+  }
+  // 只有头（头像用）：画布裁到头部
+  function faceSvg() {
+    return '<svg xmlns="' + NS + '" viewBox="20 10 80 80" focusable="false" aria-hidden="true" class="panda-face">' + ears() + face() + EYES.open + MOUTH.smile + leaf() + "</svg>";
   }
   function el(mood, cls) {
     var s = document.createElement("span");
     s.className = "mascot" + (cls ? " " + cls : "");
     s.setAttribute("aria-hidden", "true");
-    s.setAttribute("data-mood", mood || "hello");
+    s.setAttribute("data-mood", MOODS[mood] ? mood : "hello");
     s.innerHTML = svg(mood);
     return s;
   }
@@ -169,6 +193,6 @@
     else document.addEventListener("DOMContentLoaded", startObs);
   } catch (e) {}
 
-  window.Mascot = { NAME: "橙橙", svg: svg, el: el, row: row, empty: empty, MOODS: ["hello", "happy", "cheer", "party", "think"],
+  window.Mascot = { NAME: "竹竹", svg: svg, faceSvg: faceSvg, el: el, row: row, empty: empty, MOODS: ["hello", "happy", "cheer", "party", "think", "sad"],
     speakerSvg: speakerSvg, decorate: decorate, watch: watch };
 })();

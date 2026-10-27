@@ -17,7 +17,8 @@
      --danger          红色：答错、心、清除
      --purple …        紫色：辅助色（Boss、徽章等点缀）
      --band-1 … --band-6  地图区域横幅的 6 种颜色（白字，对比度 ≥ 4.5），--band-N-soft 是区域的浅底
-     --m-…             吉祥物“橙橙”的颜色（js/mascot.js 的 SVG 用）
+     --p-… / --m-…     吉祥物“竹竹”（小熊猫）和小喇叭的颜色（js/mascot.js 的 SVG 用）
+     --ic-…            卡通图标的颜色（js/icons.js）；--sticker-… 单词配图贴纸的底色
      --bg / --card / --text / --muted / --border：略带绿色调的中性色
    字号阶梯（一直沿用）：--fs-xs 0.9 / --fs-sm 0.95 / --fs-base 1 / --fs-md 1.15 / --fs-lg 1.35 / --fs-xl 1.7 / --fs-2xl 2.2 / --fs-3xl 2.8（rem，1rem = 18px）
    按钮：粗圆角 + 底部 5px 立体边，按下时下沉（.btn）；次按钮白底（.btn-light）。所有可点的东西 ≥ 44px。
@@ -77,21 +78,42 @@
   --ground: rgba(20, 50, 20, 0.14);                    /* 地图关卡圆钮下面的“影子底座” */
   color-scheme: light;
 
-  /* 吉祥物“橙橙”（戴草帽的橙子）：深浅色都一样 */
-  --m-body: #ff9f1c;
-  --m-body-shade: #f07c0a;
-  --m-hat: #f6c453;
-  --m-hat-shade: #d99f2b;
-  --m-band: #e63946;
-  --m-leaf: #3fb950;
-  --m-ink: #3a2410;
-  --m-cheek: #ff7a7a;
+  /* 吉祥物“竹竹”（小熊猫）和卡通小喇叭共用的颜色 */
+  --p-white: #ffffff;
+  --p-black: #2b2b33;
+  --p-line: #2b2b33;        /* 白色部分的描边 */
+  --p-rim: #2b2b33;         /* 黑色部分的描边（深色模式变浅，黑色在深色背景上也看得清） */
+  --p-inner: #4a4a55;
+  --p-scarf: #e63946;
+  --p-scarf-stripe: #ffcd1f;
+  --p-leaf: #3fb950;
+  --p-tear: #59b8ff;
+  --m-ink: #2b2b33;
+  --m-cheek: #ff8fa3;
   --m-shine: #ffffff;
   --m-tongue: #ff6b6b;
   --m-shadow: rgba(0, 0, 0, 0.12);
   --m-confetti-1: #ffcd1f;
   --m-confetti-2: #2aa9ee;
   --m-confetti-3: #f9534f;
+  /* 卡通图标（js/icons.js）：粗描边 + 扁平填色 */
+  --ic-ink: #2b2b33;
+  --ic-red: #f25c5c;
+  --ic-yellow: #ffcd1f;
+  --ic-orange: #ff9a3c;
+  --ic-blue: #3aa0f0;
+  --ic-green: #5fcf1c;
+  --ic-teal: #2ec4b6;
+  --ic-purple: #a46ee8;
+  --ic-pink: #ff9cbc;
+  --ic-brown: #c08550;
+  --ic-brown2: #9a6538;
+  --ic-gray: #ccd2da;
+  --ic-white: #ffffff;
+  --ic-cream: #fff0d4;
+  --ic-dark: #3b3f4a;
+  --sticker-bg: #fff4cc;
+  --sticker-ring: #ffd76a;
 
   /* 不随深浅色变化的变量 */
   --radius-sm: 12px;
@@ -159,6 +181,11 @@
     --scrim: rgba(0, 0, 0, 0.6);
     --ground: rgba(0, 0, 0, 0.4);
     --m-shadow: rgba(0, 0, 0, 0.35);
+    --p-rim: #9aa3b5;
+    --p-line: #2b2b33;
+    --ic-ink: #1d1f26;
+    --sticker-bg: #3a3320;
+    --sticker-ring: #8a7430;
     color-scheme: dark;
   }
 }
@@ -209,6 +236,11 @@
   --scrim: rgba(0, 0, 0, 0.6);
   --ground: rgba(0, 0, 0, 0.4);
   --m-shadow: rgba(0, 0, 0, 0.35);
+  --p-rim: #9aa3b5;
+  --p-line: #2b2b33;
+  --ic-ink: #1d1f26;
+  --sticker-bg: #3a3320;
+  --sticker-ring: #8a7430;
   color-scheme: dark;
 }
 
@@ -596,9 +628,6 @@ a.btn.btn-block {
   box-shadow: 0 3px 0 var(--primary-soft-2);
   cursor: pointer;
   transition: transform 0.06s, box-shadow 0.06s;
-}
-.say::before {
-  content: "🔊 ";
 }
 .say:hover {
   border-color: var(--primary);
@@ -4209,7 +4238,7 @@ body.play-body {
 }
 
 /* =====================================================================
-   阶段 12：卡通风格（圆滚滚、颜色鲜亮、粗圆角、厚立体边、吉祥物“橙橙”）
+   阶段 12：卡通风格（圆滚滚、颜色鲜亮、粗圆角、厚立体边、吉祥物；阶段 14 吉祥物换成小熊猫“竹竹”）
    这一节放在最后，覆盖前面同名组件的样式。只借“风格”，不用任何其他产品的品牌素材。
    颜色一律用 :root 变量；动画在文件最末尾的 prefers-reduced-motion 里统一关掉。
    ===================================================================== */
@@ -4535,7 +4564,7 @@ a.all-link:hover {
   border-color: var(--select);
 }
 
-/* ---------- 吉祥物“橙橙”（js/mascot.js 画的 SVG） ---------- */
+/* ---------- 吉祥物“竹竹”（小熊猫，js/mascot.js 画的 SVG；颜色见下面的 .p-… 和 :root 的 --p-…） ---------- */
 .mascot {
   display: inline-block;
   flex: none;
@@ -4549,25 +4578,6 @@ a.all-link:hover {
   height: 100%;
   overflow: visible;
 }
-.mascot .m-body { fill: var(--m-body); }
-.mascot .m-shade { fill: var(--m-body-shade); }
-.mascot .m-hat { fill: var(--m-hat); }
-.mascot .m-hat-shade { fill: var(--m-hat-shade); }
-.mascot .m-band { fill: var(--m-band); }
-.mascot .m-leaf { fill: var(--m-leaf); }
-.mascot .m-ink { fill: var(--m-ink); }
-.mascot .m-line { fill: none; stroke: var(--m-ink); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-.mascot .m-arm { fill: none; stroke: var(--m-body-shade); stroke-width: 6; stroke-linecap: round; }
-.mascot .m-hand { fill: var(--m-body); stroke: var(--m-body-shade); stroke-width: 2; }
-.mascot .m-cheek { fill: var(--m-cheek); opacity: 0.75; }
-.mascot .m-shine { fill: var(--m-shine); }
-.mascot .m-gloss { fill: var(--m-shine); opacity: 0.45; }
-.mascot .m-tongue { fill: var(--m-tongue); }
-.mascot .m-shadow { fill: var(--m-shadow); }
-.mascot .m-straw { fill: none; stroke: var(--m-hat-shade); stroke-width: 1.6; stroke-linecap: round; opacity: 0.8; }
-.mascot .m-c1 { fill: var(--m-confetti-1); }
-.mascot .m-c2 { fill: var(--m-confetti-2); }
-.mascot .m-c3 { fill: var(--m-confetti-3); }
 .mascot.is-small { width: 56px; height: 56px; }
 .mascot.is-tiny { width: 44px; height: 44px; }
 .mascot.is-big { width: 128px; height: 128px; }
@@ -6013,4 +6023,284 @@ a.all-link:hover {
 .node.is-locked.is-review {
   background: var(--surface-2);
   box-shadow: 0 7px 0 var(--border-strong), inset 0 -5px 0 rgba(0, 0, 0, 0.05);
+}
+/* =====================================================================
+   阶段 14：小熊猫“竹竹”、卡通图标（js/icons.js）、单词配图贴纸
+   ===================================================================== */
+/* 小熊猫（.mascot 里，头像里的熊猫头也用同样的 class） */
+.p-wht { fill: var(--p-white); stroke: var(--p-line); stroke-width: 3; }
+.p-blk { fill: var(--p-black); stroke: var(--p-rim); stroke-width: 2.4; stroke-linejoin: round; }
+.p-inner { fill: var(--p-inner); }
+.p-eye { fill: var(--p-white); }
+.p-pupil { fill: var(--p-black); }
+.p-shine { fill: var(--p-white); }
+.p-eyeline { fill: none; stroke: var(--p-white); stroke-width: 3.2; stroke-linecap: round; }
+.p-nose { fill: var(--p-black); }
+.p-line { fill: none; stroke: var(--p-black); stroke-width: 3; stroke-linecap: round; }
+.p-mouth { fill: var(--p-black); }
+.p-tongue { fill: var(--m-tongue); }
+.p-cheek { fill: var(--m-cheek); opacity: 0.85; }
+.p-tear { fill: var(--p-tear); }
+.p-scarf { fill: var(--p-scarf); stroke: var(--p-line); stroke-width: 2.4; stroke-linejoin: round; }
+.p-scarf-s { fill: none; stroke: var(--p-scarf-stripe); stroke-width: 2.6; stroke-linecap: round; }
+.p-leaf { fill: var(--p-leaf); stroke: var(--p-line); stroke-width: 2; stroke-linejoin: round; }
+.p-leaf-v { fill: none; stroke: var(--p-line); stroke-width: 1.2; opacity: 0.6; }
+.p-shadow { fill: var(--m-shadow); }
+.p-bubble { fill: var(--p-white); stroke: var(--p-line); stroke-width: 2; }
+.p-c1 { fill: var(--m-confetti-1); }
+.p-c2 { fill: var(--m-confetti-2); }
+.p-c3 { fill: var(--m-confetti-3); }
+
+/* 卡通图标 */
+.ic {
+  display: inline-block;
+  width: 1.3em;
+  height: 1.3em;
+  vertical-align: -0.28em;
+  line-height: 0;
+  flex: none;
+}
+.ic svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ic .s { stroke: var(--ic-ink); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.ic .ln { fill: none; stroke: var(--ic-ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ic .ln2 { fill: none; stroke: var(--ic-ink); stroke-width: 4; stroke-linecap: round; }
+.ic .ckm { fill: none; stroke: var(--ic-white); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.ic .ring { fill: none; stroke: var(--ic-ink); stroke-width: 2; opacity: 0.5; }
+.ic .hl { fill: #ffffff; opacity: 0.5; }
+.ic .tx { fill: var(--ic-white); font: 900 11px/1 system-ui, sans-serif; text-anchor: middle; }
+.ic .r { fill: var(--ic-red); }
+.ic .y { fill: var(--ic-yellow); }
+.ic .o { fill: var(--ic-orange); }
+.ic .b { fill: var(--ic-blue); }
+.ic .g { fill: var(--ic-green); }
+.ic .t { fill: var(--ic-teal); }
+.ic .p { fill: var(--ic-purple); }
+.ic .pk { fill: var(--ic-pink); }
+.ic .pk2 { fill: var(--ic-pink); opacity: 0.7; }
+.ic .br { fill: var(--ic-brown); }
+.ic .br2 { fill: var(--ic-brown2); }
+.ic .gy { fill: var(--ic-gray); }
+.ic .w { fill: var(--ic-white); }
+.ic .cr { fill: var(--ic-cream); }
+.ic .k { fill: var(--ic-ink); }
+.ic .k2 { fill: var(--ic-dark); }
+.ic.ic-inline { margin: 0 0.06em; }
+/* 头像、NPC 头像：圆形底 */
+.ic-avatar,
+.ic-npc {
+  width: 100%;
+  height: 100%;
+}
+.ic-avatar svg,
+.ic-npc svg {
+  overflow: visible;
+}
+
+/* 单词配图贴纸：圆形彩色底 + emoji */
+.sticker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 50%;
+  background: var(--sticker-bg);
+  box-shadow: inset 0 0 0 2px var(--sticker-ring), 0 2px 0 var(--sticker-ring);
+  line-height: 1;
+  vertical-align: middle;
+  font-size: 0.85em;
+  margin: 0 0.15em;
+  flex: none;
+}
+.opt-emoji .sticker,
+.learn-emoji .sticker {
+  font-size: 0.75em;
+}
+.learn-emoji .sticker {
+  width: 1.6em;
+  height: 1.6em;
+}
+
+/* 用图标的地方：尺寸 */
+.bn-icon .ic { width: 30px; height: 30px; }
+.node .ic { width: 34px; height: 34px; }
+.node.is-boss .ic { width: 42px; height: 42px; }
+.node.is-locked .ic { width: 28px; height: 28px; }
+.region-emoji .ic { width: 38px; height: 38px; }
+.module-icon .ic,
+.game-icon .ic,
+.continue-icon .ic,
+.daily-icon .ic { width: 70%; height: 70%; }
+.badge-icon .ic,
+.stat-icon .ic,
+.today-icon .ic { width: 1.4em; height: 1.4em; }
+.chest-icon .ic { width: 1.2em; height: 1.2em; }
+.npc-emoji .ic { width: 52px; height: 52px; }
+.p-badge .ic { width: 1.2em; height: 1.2em; }
+.map-avatar .ic-avatar,
+.me-avatar .ic-avatar { width: 84%; height: 84%; }
+.pick-emoji .ic { width: 1.25em; height: 1.25em; }
+.stamp-emoji .ic { width: 1.2em; height: 1.2em; }
+.play-hearts .hh .ic { width: 1.25em; height: 1.25em; }
+.p-stars span .ic { width: 1em; height: 1em; vertical-align: -0.12em; }
+.p-slow .ic { width: 70%; height: 70%; }
+/* ---------- 阶段 14：地图地形背景（js/terrain.js） ---------- */
+:root {
+  --t-g-airport: #dcefff; --t-g-hotel: #e7ecf5; --t-g-cafe: #f6ecd9; --t-g-park: #d9eecb; --t-g-home: #f4e5d4;
+  --t-g-shop: #fbecdc; --t-g-train: #f6e1bb; --t-g-pharmacy: #e0e7da; --t-g-farm: #edf0cb; --t-g-party: #cfeef6;
+  --tc-cloud: #ffffff; --tc-plane: #c3d3e6; --tc-runway: #c7d0da; --tc-line: #ffffff; --tc-wall: #f3f4f8; --tc-wall2: #e1e5ee;
+  --tc-window: #bcd3ea; --tc-roof: #eaa58b; --tc-door: #caa27c; --tc-metal: #b5bdc9; --tc-light: #ffe9a0; --tc-awning1: #f4aaa2;
+  --tc-awning2: #ffe3a0; --tc-stone: #e6d5b8; --tc-trunk: #c9a27a; --tc-leaf: #a9d98b; --tc-leaf2: #93cb79; --tc-water: #b4dff2;
+  --tc-wave: #ffffff; --tc-cactus: #a5ce84; --tc-rock: #e6c69b; --tc-rail: #b9a08a; --tc-sleeper: #cfb99d; --tc-snow: #ffffff;
+  --tc-blade: #ffffff; --tc-olive: #b8ca8e; --tc-field1: #eae09f; --tc-field2: #d6e6a6; --tc-palm: #9dd389; --tc-wave2: #a4dbf0;
+  --tc-sand: #f3deae; --tc-shell: #f6b9b1; --tc-fruit1: #ffb4a2; --tc-fruit2: #ffe18c; --tc-star: #ffe9a0; --tc-moon: #fff2c2;
+  --t-layer-opacity: 0.9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t-g-airport: #13233a; --t-g-hotel: #191e2a; --t-g-cafe: #29231a; --t-g-park: #14261a; --t-g-home: #281e18;
+    --t-g-shop: #2a2018; --t-g-train: #2c2316; --t-g-pharmacy: #1b241f; --t-g-farm: #22251a; --t-g-party: #0f2839;
+    --t-layer-opacity: 0.38;
+  }
+}
+:root[data-theme="dark"] {
+  --t-g-airport: #13233a; --t-g-hotel: #191e2a; --t-g-cafe: #29231a; --t-g-park: #14261a; --t-g-home: #281e18;
+  --t-g-shop: #2a2018; --t-g-train: #2c2316; --t-g-pharmacy: #1b241f; --t-g-farm: #22251a; --t-g-party: #0f2839;
+  --t-layer-opacity: 0.38;
+}
+.tc-cloud { fill: var(--tc-cloud); } .tc-plane { fill: var(--tc-plane); } .tc-runway { fill: var(--tc-runway); }
+.tc-line { fill: none; stroke: var(--tc-line); stroke-width: 3; stroke-linecap: round; }
+.tc-wall { fill: var(--tc-wall); } .tc-wall2 { fill: var(--tc-wall2); } .tc-window { fill: var(--tc-window); } .tc-roof { fill: var(--tc-roof); }
+.tc-door { fill: var(--tc-door); } .tc-metal { fill: var(--tc-metal); } .tc-light { fill: var(--tc-light); } .tc-awning1 { fill: var(--tc-awning1); }
+.tc-awning2 { fill: var(--tc-awning2); stroke: var(--tc-awning2); stroke-width: 3; } .tc-stone { fill: var(--tc-stone); } .tc-trunk { fill: var(--tc-trunk); }
+.tc-leaf { fill: var(--tc-leaf); } .tc-leaf2 { fill: var(--tc-leaf2); } .tc-water { fill: var(--tc-water); }
+.tc-wave { fill: none; stroke: var(--tc-wave); stroke-width: 3; stroke-linecap: round; } .tc-cactus { fill: var(--tc-cactus); } .tc-rock { fill: var(--tc-rock); }
+.tc-rail { fill: none; stroke: var(--tc-rail); stroke-width: 4; } .tc-sleeper { fill: none; stroke: var(--tc-sleeper); stroke-width: 4; stroke-linecap: round; }
+.tc-snow { fill: var(--tc-snow); } .tc-blade { fill: var(--tc-blade); } .tc-olive { fill: var(--tc-olive); } .tc-field1 { fill: var(--tc-field1); } .tc-field2 { fill: var(--tc-field2); }
+.tc-palm { fill: var(--tc-palm); } .tc-wave2 { fill: var(--tc-wave2); } .tc-sand { fill: var(--tc-sand); } .tc-shell { fill: var(--tc-shell); }
+.tc-fruit1 { fill: var(--tc-fruit1); } .tc-fruit2 { fill: var(--tc-fruit2); } .tc-star { fill: var(--tc-star); } .tc-moon { fill: var(--tc-moon); }
+
+/* 区域：地形底色（上一段 → 这一段渐变），区域之间连成一片，不再是一块块分开的浅色底 */
+.region.has-terrain {
+  --t-cur: var(--t-g-airport);
+  background: linear-gradient(to bottom, var(--t-prev, var(--t-cur)) 0, var(--t-cur) 240px, var(--t-cur) 100%);
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  padding-bottom: 24px;
+  overflow: hidden;
+}
+.map > .region.has-terrain:first-child { border-radius: 26px 26px 0 0; }
+.map > .region.has-terrain:last-child { border-radius: 0 0 26px 26px; }
+.region.terrain-airport { --t-cur: var(--t-g-airport); }
+.region.terrain-hotel { --t-cur: var(--t-g-hotel); }
+.region.terrain-cafe { --t-cur: var(--t-g-cafe); }
+.region.terrain-park { --t-cur: var(--t-g-park); }
+.region.terrain-home { --t-cur: var(--t-g-home); }
+.region.terrain-shop { --t-cur: var(--t-g-shop); }
+.region.terrain-train { --t-cur: var(--t-g-train); }
+.region.terrain-pharmacy { --t-cur: var(--t-g-pharmacy); }
+.region.terrain-farm { --t-cur: var(--t-g-farm); }
+.region.terrain-party { --t-cur: var(--t-g-party); }
+.region-sign { position: relative; z-index: 2; }
+.terrain-layer,
+.terrain-anim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+  opacity: var(--t-layer-opacity);
+}
+.terrain-anim { will-change: transform; }
+.t-night { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .t-night { display: inline; }
+  :root:not([data-theme="light"]) .t-plane { display: none; }
+}
+:root[data-theme="dark"] .t-night { display: inline; }
+:root[data-theme="dark"] .t-plane { display: none; }
+.node-wrap { z-index: 1; }
+/* 一点点动画：云飘、浪动、风车转（系统设置了“减少动态效果”就不动） */
+.anim-cloud { animation: t-drift 14s ease-in-out infinite alternate; }
+.anim-wave { animation: t-bob 3.2s ease-in-out infinite; }
+.anim-blades { animation: t-spin 9s linear infinite; }
+@keyframes t-drift { from { transform: translateX(-10px); } to { transform: translateX(18px); } }
+@keyframes t-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes t-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .anim-cloud, .anim-wave, .anim-blades { animation: none !important; }
+}
+/* ---------- 地形（第二版）：更饱和的底色、成片的景物、连续的地形带 ---------- */
+:root {
+  --t-g-airport: #cfe8ff; --t-g-hotel: #dfe5f0; --t-g-cafe: #f5e3c3; --t-g-park: #c9e8b4; --t-g-home: #f2dcc4;
+  --t-g-shop: #fbe2c8; --t-g-train: #f5d79f; --t-g-pharmacy: #d5e3cc; --t-g-farm: #e8eeb6; --t-g-party: #bfe9f3;
+  --tc-sun: #ffd25a; --tc-sunray: #ffd25a; --tc-birdline: #6b7a8c; --tc-petal: #ff9fb8; --tc-cap: #f0675b;
+  --tc-leaf3: #6fbf55; --tc-trunk2: #a8784c; --tc-rock2: #c9b9a2; --tc-rock3: #b7c6ad; --tc-mesa: #e3a774; --tc-mesa2: #c98656;
+  --tc-fur: #d9915a; --tc-eye: #2b2b33; --tc-waterline: #ffffff; --tc-hay: #f1cf6b; --tc-hayline: #d7a93f; --tc-fence: #c49a6c;
+  --tc-boat: #f0675b; --tc-sail: #ffffff; --tc-sail2: #ffe08a; --tc-shellline: #e0928a; --tc-starfish: #ff9e6b; --tc-sand2: #f4c76b;
+  --tc-sea: #6cc7ea; --tc-sea2: #3fa9dc; --tc-waveline: #ffffff; --tc-dune: #f0c278; --tc-dune2: #f6d69a; --tc-meadow: #a9da8b;
+  --tc-furrow: #c9b66a; --tc-hill: #b3cfa1; --tc-stoneline: #d9c39c; --tc-road: #c7ccd6; --tc-runline: #ffffff; --tc-cactus2: #86bd63;
+  --tc-sand: #f4dca7; --tc-leaf: #9fd282; --tc-leaf2: #84c56a; --tc-cactus: #8fc56c; --tc-stone: #e9d7b6; --tc-rock: #cfd9c6;
+  --t-layer-opacity: 1;
+  --t-back-opacity: 0.62;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t-g-airport: #10213a; --t-g-hotel: #171c29; --t-g-cafe: #2a2217; --t-g-park: #11261a; --t-g-home: #291d16;
+    --t-g-shop: #2b1f15; --t-g-train: #2e2414; --t-g-pharmacy: #18231c; --t-g-farm: #222616; --t-g-party: #0b2638;
+    --t-layer-opacity: 0.5;
+  }
+}
+:root[data-theme="dark"] {
+  --t-g-airport: #10213a; --t-g-hotel: #171c29; --t-g-cafe: #2a2217; --t-g-park: #11261a; --t-g-home: #291d16;
+  --t-g-shop: #2b1f15; --t-g-train: #2e2414; --t-g-pharmacy: #18231c; --t-g-farm: #222616; --t-g-party: #0b2638;
+  --t-layer-opacity: 0.5;
+}
+.tc-sun { fill: var(--tc-sun); } .tc-sunray { fill: none; stroke: var(--tc-sunray); stroke-width: 5; stroke-linecap: round; }
+.tc-birdline { fill: none; stroke: var(--tc-birdline); stroke-width: 4; stroke-linecap: round; }
+.tc-petal { fill: var(--tc-petal); } .tc-cap { fill: var(--tc-cap); } .tc-leaf3 { fill: var(--tc-leaf3); } .tc-trunk2 { fill: var(--tc-trunk2); }
+.tc-rock2 { fill: var(--tc-rock2); } .tc-rock3 { fill: var(--tc-rock3); } .tc-mesa { fill: var(--tc-mesa); } .tc-mesa2 { fill: none; stroke: var(--tc-mesa2); stroke-width: 3; }
+.tc-fur { fill: var(--tc-fur); } .tc-eye { fill: var(--tc-eye); } .tc-waterline { fill: none; stroke: var(--tc-waterline); stroke-width: 3; stroke-linecap: round; }
+.tc-hay { fill: var(--tc-hay); } .tc-hayline { fill: none; stroke: var(--tc-hayline); stroke-width: 3; }
+.tc-fence { fill: none; stroke: var(--tc-fence); stroke-width: 5; stroke-linecap: round; }
+.tc-boat { fill: var(--tc-boat); } .tc-sail { fill: var(--tc-sail); } .tc-sail2 { fill: var(--tc-sail2); }
+.tc-shellline { fill: none; stroke: var(--tc-shellline); stroke-width: 3; } .tc-starfish { fill: var(--tc-starfish); } .tc-sand2 { fill: var(--tc-sand2); }
+.tc-sea { fill: var(--tc-sea); } .tc-sea2 { fill: var(--tc-sea2); }
+.tc-waveline { fill: none; stroke: var(--tc-waveline); stroke-width: 3; stroke-linecap: round; opacity: 0.85; }
+.tc-dune { fill: var(--tc-dune); } .tc-dune2 { fill: var(--tc-dune2); } .tc-meadow { fill: var(--tc-meadow); }
+.tc-furrow { fill: none; stroke: var(--tc-furrow); stroke-width: 3; stroke-linecap: round; } .tc-hill { fill: var(--tc-hill); }
+.tc-stoneline { fill: none; stroke: var(--tc-stoneline); stroke-width: 2; } .tc-road { fill: var(--tc-road); }
+.tc-runline { fill: var(--tc-runline); } .tc-cactus2 { fill: var(--tc-cactus2); }
+.terrain-layer .t-back { opacity: var(--t-back-opacity); }
+.t-day { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .t-day { display: none; }
+}
+:root[data-theme="dark"] .t-day { display: none; }/* 结算页的星星：外层 span 控制“拿到 / 没拿到”（灰色半透明），里面的 SVG 图标本身不再被变灰 */
+.p-stars > span > .ic {
+  filter: none;
+  opacity: 1;
+  animation: none;
+}
+.p-stars > span:not(.on) .ic .y {
+  fill: var(--ic-gray);
+}
+/* 地图节点下面、关卡卡片里的空星（☆ 也换成灰色描边的空星图标） */
+.node-stars .ic-star-empty,
+.sheet-best .ic-star-empty {
+  opacity: 0.9;
+}@media (max-height: 600px) {
+  .fill-prompt {
+    font-size: 1.12rem;
+    line-height: 1.4;
+    margin: 0;
+  }
+  .play-foot .fb-body {
+    max-height: 124px;
+  }
 }

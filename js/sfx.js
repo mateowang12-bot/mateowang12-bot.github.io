@@ -97,11 +97,30 @@
       return false;
     }
   }
+  // “安全带”：只记真正的用户操作（isTrusted）。5 秒内没真正操作过，绝不出声（防止任何意外的自动发声）
+  var lastInput = 0;
+  ["pointerdown", "keydown", "touchend"].forEach(function (t) {
+    try { window.addEventListener(t, function (ev) { if (ev && ev.isTrusted) lastInput = Date.now(); }, { capture: true, passive: true }); } catch (e) {}
+  });
   function canPlay() {
     if (!soundOn()) return null;
     try { if (document.visibilityState === "hidden") return null; } catch (e) {}
+    if (Date.now() - lastInput > 5000) return null;
     var c = ensure();
     return c && c.state !== "closed" ? c : null;
+  }
+  // 不出声的时候让声音引擎休息：最后一个声音放完 1.5 秒后 suspend（下次 ensure() 会 resume）
+  var idleTimer = null;
+  function scheduleIdle(seconds) {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      idleTimer = null;
+      try { if (ctx && ctx.state === "running" && ctx.suspend) { var p = ctx.suspend(); if (p && p.then) p.then(null, function () {}); } } catch (e) {}
+    }, Math.max(0, seconds) * 1000 + 1500);
+  }
+  function suspendNow() {
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    try { if (ctx && ctx.state === "running" && ctx.suspend) { var p = ctx.suspend(); if (p && p.then) p.then(null, function () {}); } } catch (e) {}
   }
   // 一个音：freq 起始频率，to 结束频率（可选，滑音），dur 秒，type 波形，vol 音量，at 延迟（秒）
   function tone(c, o) {
@@ -131,8 +150,20 @@
   function play(list) {
     var c = canPlay();
     if (!c) return;
+    var go = function () {
+      var end = 0;
+      try {
+        for (var i = 0; i < list.length; i++) { tone(c, list[i]); end = Math.max(end, (list[i].at || 0) + list[i].dur); }
+      } catch (e) {}
+      scheduleIdle(end + 0.05);
+    };
+    if (c.state === "running") { go(); return; }
+    // 引擎不在运行：先 resume；300 毫秒内跑起来了才放，否则这次就不放（不留到以后补播）
+    var t0 = Date.now();
     try {
-      for (var i = 0; i < list.length; i++) tone(c, list[i]);
+      var p = c.resume ? c.resume() : null;
+      if (p && p.then) p.then(function () { if (c === ctx && c.state === "running" && Date.now() - t0 <= 300) go(); }, function () {});
+      else if (c.state === "running") go();
     } catch (e) {}
   }
 
@@ -309,12 +340,24 @@
     if (!t || !t.closest) return;
     var b = t.closest(OPTION_SEL);
     if (!b || b.disabled || b.getAttribute("aria-disabled") === "true") return;
+    if (!ev.isTrusted && Date.now() - lastInput > 1000) return; // 不是真正的点击（程序触发的）：不“啵”也不震
     buzz(10);
     if (!soundOn()) return;
     ensure();
     cancelPop();
     pendingPop = setTimeout(function () { pendingPop = null; S.pop(); }, 0);
   }, true);
+
+  // 页面切到后台：停掉没放的“啵”，引擎休息；离开页面：关掉引擎（回来时会重新创建）
+  try {
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") { cancelPop(); suspendNow(); } });
+    window.addEventListener("pagehide", function () {
+      cancelPop();
+      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+      try { if (ctx && ctx.close) { var p = ctx.close(); if (p && p.then) p.then(null, function () {}); } } catch (e) {}
+      ctx = null; master = null; unlocked = false;
+    });
+  } catch (e) {}
 
   window.Sfx = S;
 })();

@@ -39,23 +39,23 @@
 
   // ---------- 奖励清单（想改只改这里） ----------
   var AVATARS = [
-    { id: "suitcase", emoji: "🧳", zh: "旅行箱", en: "Suitcase" },
-    { id: "bull", emoji: "🐂", zh: "公牛", en: "Bull" },
+    { id: "suitcase", emoji: "🧳", zh: "熊猫宝宝", en: "Suitcase" },
+    { id: "bull", emoji: "🐂", zh: "小牛", en: "Bull" },
     { id: "parrot", emoji: "🦜", zh: "鹦鹉", en: "Parrot" },
     { id: "cat", emoji: "🐱", zh: "小猫", en: "Cat" },
-    { id: "dancer", emoji: "💃", zh: "弗拉门戈", en: "Flamenco" },
-    { id: "guitar", emoji: "🎸", zh: "吉他", en: "Guitar" },
-    { id: "sun", emoji: "🌞", zh: "太阳", en: "Sun" },
-    { id: "paella", emoji: "🥘", zh: "海鲜饭", en: "Paella" },
-    { id: "castle", emoji: "🏰", zh: "城堡", en: "Castle" },
-    { id: "sunflower", emoji: "🌻", zh: "向日葵", en: "Sunflower" },
-    { id: "fish", emoji: "🐟", zh: "小鱼", en: "Fish" },
+    { id: "dancer", emoji: "💃", zh: "火烈鸟", en: "Flamenco" },
+    { id: "guitar", emoji: "🎸", zh: "小狗", en: "Guitar" },
+    { id: "sun", emoji: "🌞", zh: "小狮子", en: "Sun" },
+    { id: "paella", emoji: "🥘", zh: "小猪", en: "Paella" },
+    { id: "castle", emoji: "🏰", zh: "小兔", en: "Castle" },
+    { id: "sunflower", emoji: "🌻", zh: "小鸡", en: "Sunflower" },
+    { id: "fish", emoji: "🐟", zh: "小企鹅", en: "Fish" },
     // 阶段 12：这个头像换成了小狐狸 🦊；id 仍然叫 "owl"（老存档里拥有 / 正在用的 "owl" 直接变成狐狸，不会变成空白头像）
     { id: "owl", emoji: "🦊", zh: "小狐狸", en: "Fox" },
-    { id: "orange", emoji: "🍊", zh: "橙子", en: "Orange" },
-    { id: "trumpet", emoji: "🎺", zh: "小号", en: "Trumpet" },
-    { id: "football", emoji: "⚽", zh: "足球", en: "Football" },
-    { id: "cactus", emoji: "🌵", zh: "仙人掌", en: "Cactus" }
+    { id: "orange", emoji: "🍊", zh: "小老虎", en: "Orange" },
+    { id: "trumpet", emoji: "🎺", zh: "小象", en: "Trumpet" },
+    { id: "football", emoji: "⚽", zh: "小猴", en: "Football" },
+    { id: "cactus", emoji: "🌵", zh: "小青蛙", en: "Cactus" }
   ];
   // 主题的颜色在 css/style.css 的 html[data-skin="…"]（浅色、深色各一套）
   var SKINS = [

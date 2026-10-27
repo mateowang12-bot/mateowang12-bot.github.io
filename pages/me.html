@@ -110,6 +110,7 @@
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
   <script src="../js/sfx.js"></script>
+  <script src="../js/icons.js"></script>
   <script src="../js/mascot.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../data/words.js"></script>
@@ -428,7 +429,8 @@
       if (!W) return;
       var prof = P ? P.profile() : { avatar: "suitcase" };
       var av = W.avatar(prof.avatar);
-      var a = el("a", "me-avatar", av.emoji);
+      var a = el("a", "me-avatar");
+      if (window.Icons) a.appendChild(window.Icons.avatar(prof.avatar)); else a.textContent = av.emoji;
       a.href = "collection.html";
       a.setAttribute("aria-label", "我的头像：" + av.zh + "，点这里换");
       box.appendChild(a);

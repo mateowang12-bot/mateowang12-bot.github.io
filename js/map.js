@@ -1,7 +1,7 @@
 // ============================================
 // 冒险地图（map.js）—— 首页 index.html 用（阶段 11）
 // 要在 storage.js、world.js 之后引入。页面里要有 #map-top、#map-hero、#daily-box、#map。
-// 阶段 12：顶部有吉祥物“橙橙”和说话气泡（js/mascot.js）；区域牌是彩色横幅（band-1 … band-6 轮流）；关卡圆钮里画白色星星（Boss 👑、对话 💬、锁 🔒）。
+// 阶段 12：顶部有吉祥物（阶段 14 起是小熊猫“竹竹”）和说话气泡（js/mascot.js）；区域牌是彩色横幅（band-1 … band-6 轮流）；关卡圆钮里画白色星星（Boss 👑、对话 💬、锁 🔒）。
 //
 // 地图从上往下走：每个区域一块浅色背景带 + 标题牌（点开看故事），区域里的关卡是一条弯曲虚线上的圆形节点。
 //   普通关：数字；对话任务关：💬；Boss 关：👑（更大）；锁住：🔒；过了：黄色 + 下面的星星 ⭐⭐☆。
@@ -36,7 +36,8 @@
     box.innerHTML = "";
     var prof = p ? p.profile() : { avatar: "suitcase" };
     var av = W.avatar(prof.avatar);
-    var a = el("a", "map-avatar", av.emoji);
+    var a = el("a", "map-avatar");
+    if (window.Icons) a.appendChild(window.Icons.avatar(prof.avatar)); else a.textContent = av.emoji;
     a.href = "pages/collection.html";
     a.id = "map-avatar";
     a.setAttribute("aria-label", "我的头像：" + av.zh + "。点这里换头像");
@@ -69,7 +70,7 @@
     if (!p) return "今天也来闯一关吧！";
     var xp = p.xpToday(), goal = p.dailyGoal();
     var cur0 = W.current();
-    if (p.starsTotal() === 0) return "¡Hola! 我是橙橙，陪你去西班牙旅行。先从第一关开始吧！";
+    if (p.starsTotal() === 0) return "¡Hola! 我是竹竹，一只来西班牙旅行的小熊猫。我们先从第一关开始吧！";
     if (xp >= goal) return "今天的目标完成啦，真棒！想再闯一关吗？";
     if (p.chestsAvailable() > 0) return "你有宝箱还没打开哦！🎁";
     if (cur0 && cur0.type === "boss" && W.starsOf(cur0) < 1) return "前面是大关，加油！";
@@ -143,7 +144,7 @@
     var unlocked = W.isUnlocked(lv);
     var rec = p ? p.getLevel(lv.id) : null;
     openSheet(function (sh) {
-      sh.appendChild(el("div", "sheet-kicker", (lv.region.emoji || "") + " " + (lv.region.titleZh || "") + " · 第 " + (lv.index + 1) + " 关 · " + TYPE_ZH[lv.type]));
+      sh.appendChild(el("div", "sheet-kicker", (lv.region.titleZh || "") + " · 第 " + (lv.index + 1) + " 关 · " + TYPE_ZH[lv.type]));
       var t = el("div", "sheet-title", (lv.type === "boss" ? "👑 " : lv.type === "task" ? "💬 " : lv.type === "learn" ? "📖 " : lv.type === "review" ? "🔁 " : "") + (lv.titleZh || ""));
       sh.appendChild(t);
       if (lv.introZh) sh.appendChild(el("p", "", lv.introZh));
@@ -175,12 +176,15 @@
   function storySheet(reg) {
     openSheet(function (sh) {
       sh.appendChild(el("div", "sheet-kicker", "第 " + (reg.index + 1) + " 站"));
-      var t = el("div", "sheet-title", (reg.emoji ? reg.emoji + " " : "") + (reg.titleZh || ""));
+      var t = el("div", "sheet-title", reg.titleZh || "");
+      if (window.Icons) t.insertBefore(window.Icons.el(window.Icons.region(reg.id), "ic-title"), t.firstChild);
       sh.appendChild(t);
       if (reg.storyZh) sh.appendChild(el("p", "", reg.storyZh));
       if (reg.npc && reg.npc.name) {
         var n = el("div", "npc");
-        n.appendChild(el("div", "npc-emoji", reg.npc.emoji || "🙂"));
+        var ne = el("div", "npc-emoji");
+        if (window.Icons) ne.appendChild(window.Icons.npc(reg.id)); else ne.textContent = reg.npc.emoji || "";
+        n.appendChild(ne);
         var tx = el("div", "");
         tx.appendChild(el("div", "npc-name", reg.npc.name));
         tx.appendChild(el("div", "", reg.npc.roleZh || ""));
@@ -203,7 +207,13 @@
     box.innerHTML = "";
     var regs = W.regions();
     cur = W.current();
-    for (var r = 0; r < regs.length; r++) box.appendChild(regionEl(regs[r]));
+    if (window.Terrain) window.Terrain.ensureSprite();
+    for (var r = 0; r < regs.length; r++) {
+      var sec = regionEl(regs[r]);
+      // 地形背景（js/terrain.js）：底色从上一个区域的地形渐变过来
+      if (window.Terrain) window.Terrain.prepareRegion(sec, regs[r].id, r, r ? regs[r - 1].id : null, r - 1);
+      box.appendChild(sec);
+    }
     layout();
   }
 
@@ -214,7 +224,10 @@
     sec.setAttribute("aria-label", "第 " + (reg.index + 1) + " 站：" + (reg.titleZh || ""));
     var sign = el("button", "region-sign");
     sign.type = "button";
-    sign.appendChild(el("span", "region-emoji", reg.emoji || "📍")).setAttribute("aria-hidden", "true");
+    var re = el("span", "region-emoji");
+    re.setAttribute("aria-hidden", "true");
+    if (window.Icons) re.appendChild(window.Icons.el(window.Icons.region(reg.id))); else re.textContent = reg.emoji || "";
+    sign.appendChild(re);
     var t = el("span", "region-title");
     t.appendChild(el("span", "region-kicker", "第 " + (reg.index + 1) + " 站"));
     t.appendChild(document.createTextNode(reg.titleZh || ""));
@@ -287,7 +300,27 @@
   }
 
   // 节点位置：左右摆动的曲线（宽度变了就重新算）
+  // 地形景物不在第一次画地图时一起画（免得打开首页变慢）：地图先出来，然后每一帧画一个区域，离屏幕近的先画
+  var terrainJobs = [], terrainTimer = null;
+  function runTerrain() {
+    if (terrainTimer) clearTimeout(terrainTimer);
+    var vh = window.innerHeight || 700;
+    terrainJobs.sort(function (a, b) {
+      var ra = a.path.getBoundingClientRect(), rb = b.path.getBoundingClientRect();
+      var da = ra.bottom < 0 ? -ra.bottom : ra.top > vh ? ra.top - vh : 0;
+      var db = rb.bottom < 0 ? -rb.bottom : rb.top > vh ? rb.top - vh : 0;
+      return da - db;
+    });
+    var step = function () {
+      var j = terrainJobs.shift();
+      if (!j) { terrainTimer = null; return; }
+      try { window.Terrain.decorate(j.path, j.id, j.index, j.w, j.h, j.pts); } catch (e) {}
+      terrainTimer = setTimeout(step, 16);
+    };
+    terrainTimer = setTimeout(step, 30);
+  }
   function layout() {
+    terrainJobs = [];
     var paths = document.querySelectorAll(".region-path");
     for (var r = 0; r < paths.length; r++) {
       var path = paths[r];
@@ -324,7 +357,14 @@
         svg.appendChild(pe);
       }
       path.insertBefore(svg, path.firstChild);
+      // 地形景物：放在路径后面、节点的另一侧
+      if (window.Terrain) {
+        var rid = path.getAttribute("data-region");
+        var rg = W.getRegion(rid);
+        terrainJobs.push({ path: path, id: rid, index: rg ? rg.index : r, w: w, h: TOP + (nodes.length - 1) * ROW + 116, pts: pts });
+      }
     }
+    if (terrainJobs.length) runTerrain();
   }
 
   function scrollToCurrent() {

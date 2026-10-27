@@ -40,7 +40,7 @@
     { id: "home", icon: "🗺️", zh: "冒险", en: "Adventure", url: homeFile },
     { id: "learn", icon: "📚", zh: "练习", en: "Practice", url: "pages/learn.html" },
     { id: "collection", icon: "🎁", zh: "收藏", en: "Collection", url: "pages/collection.html" },
-    { id: "me", icon: "👤", zh: "我的", en: "Me", url: "pages/me.html" }
+    { id: "me", icon: "🐼", zh: "我的", en: "Me", url: "pages/me.html" }
   ];
 
   // ---------- 界面主题（阶段 11）：尽早设置 html 的 data-skin，免得先闪一下绿色 ----------
@@ -138,7 +138,7 @@
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   }
 
-  var party = null, partyTimer = null;
+  var party = null, partyTimer = null, celebratedDay = null;
   function celebrate(info) {
     if (!document.body) return;
     if (party && party.parentNode) party.parentNode.removeChild(party);
@@ -171,7 +171,9 @@
     showXp(info.gained);
     if (info.today >= info.goal) {
       var d = today();
-      if (getItem(CELEBRATE_KEY) !== d) {
+      // celebratedDay：内存里也记一下（localStorage 写不进去时，例如某些沙盒，也不会每加一次 XP 就再庆祝一次）
+      if (getItem(CELEBRATE_KEY) !== d && celebratedDay !== d) {
+        celebratedDay = d;
         setItem(CELEBRATE_KEY, d);
         celebrate(info);
       }

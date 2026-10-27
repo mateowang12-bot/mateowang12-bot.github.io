@@ -54,6 +54,7 @@
   <script src="../js/claude-bridge.js"></script>
   <script src="../js/nav.js"></script>
   <script src="../js/sfx.js"></script>
+  <script src="../js/icons.js"></script>
   <script src="../js/mascot.js"></script>
   <script src="../data/alphabet.js"></script>
   <script src="../data/words.js"></script>
@@ -119,7 +120,9 @@
         c.appendChild(el("div", "small-tip", "头像和主题都已经集齐了，这次给经验值！"));
       } else {
         var it = res.item;
-        c.appendChild(el("div", "reward-emoji", it.emoji));
+        var re = el("div", "reward-emoji", res.kind === "avatar" && window.Icons ? "" : it.emoji);
+        if (res.kind === "avatar" && window.Icons) re.appendChild(window.Icons.avatar(it.id));
+        c.appendChild(re);
         c.appendChild(el("div", "chest-count", (res.kind === "avatar" ? "新头像：" : "新主题：") + it.zh));
         var use = el("button", "btn", res.kind === "avatar" ? "马上用这个头像" : "马上换上这个主题");
         use.type = "button";
@@ -152,7 +155,9 @@
         b.type = "button";
         b.id = "avatar-" + a.id;
         b.setAttribute("aria-pressed", own && a.id === cur ? "true" : "false");
-        b.appendChild(el("span", "pick-emoji", a.emoji));
+        var pe = el("span", "pick-emoji");
+        if (window.Icons) pe.appendChild(window.Icons.avatar(a.id)); else pe.textContent = a.emoji;
+        b.appendChild(pe);
         b.appendChild(el("span", "pick-name", own ? a.zh : "🔒 " + a.zh));
         b.setAttribute("aria-label", a.zh + (own ? (a.id === cur ? "（正在用）" : "") : "（还没拥有，开宝箱可能得到）"));
         if (own) b.onclick = function () { P.setProfile({ avatar: a.id }); renderAll(); $("avatar-" + a.id).focus(); };
@@ -219,7 +224,9 @@
         var has = !!got[r.id];
         if (has) n++;
         var c = el("div", "stamp" + (has ? " got" : ""));
-        c.appendChild(el("div", "stamp-emoji", r.emoji || "📍"));
+        var se = el("div", "stamp-emoji");
+        if (window.Icons) se.appendChild(window.Icons.el(window.Icons.region(r.id))); else se.textContent = r.emoji || "";
+        c.appendChild(se);
         c.appendChild(el("div", "stamp-name", r.stampZh || r.titleZh || ""));
         c.appendChild(el("div", "small-tip", has ? "✓ 已获得" : "打败大关获得"));
         c.setAttribute("aria-label", (r.stampZh || r.titleZh) + (has ? "：已获得" : "：还没获得"));
