@@ -18,7 +18,8 @@
   var MIX_MODES = ["listen", "match", "order", "guess", "fill"];
   function P() { return window.Progress || null; }
   function $(id) { return document.getElementById(id); }
-  function speak(text, queue) { if (window.speakSpanish && text) window.speakSpanish(text, queue); }
+  // 朗读：语速用“我的”页的设置；opts.rate 可以临时指定（🐢 慢速再听用 "slower"）
+  function speak(text, queue, opts) { if (window.speakSpanish && text) window.speakSpanish(text, queue, null, opts); }
   function nav() { return window.SiteNav || null; }
   // 音效 + 触感（js/sfx.js）、吉祥物（js/mascot.js）：没有加载到也不影响闯关
   function sfx(name) { try { if (window.Sfx && window.Sfx[name]) window.Sfx[name](); } catch (e) {} }
@@ -64,7 +65,6 @@
     if (!/^[a-záéíóúüñ]+$/i.test(s)) return null;
     return s.length >= 3 ? s : null;
   }
-  var GUESS_MAX_WRONG = 3;
 
   // ---------- 内容 → 题目用的条目 ----------
   // item = { kind: "word"|"phrase"|"letter"|"sentence", id, es, zh, en, emoji, speak, wrap（给 WordsUtil.pickDistractors 用）, markId }
@@ -83,7 +83,8 @@
   }
   function letterItem(a) {
     var L = String(a.letter);
-    return { kind: "letter", id: "letter-" + L, es: L + " " + (a.lower || L.toLowerCase()), zh: L, en: "", emoji: "", speak: a.speak || a.name || L, letter: L, markLetter: L };
+    // src：保留原始数据（背单词关的字母卡片要显示字母名、读法说明、例词）
+    return { kind: "letter", id: "letter-" + L, es: L + " " + (a.lower || L.toLowerCase()), zh: L, en: "", emoji: "", speak: a.speak || a.name || L, letter: L, markLetter: L, src: a };
   }
   function label(it) {
     if (it.kind === "letter") return it.letter;
@@ -221,6 +222,13 @@
     rnd = rnd || Math.random;
     var res = W.resolve(lv);
     var pools = buildPools(res);
+    // 背单词关：没有考题，只有卡片 + 3 道不扣心的小练习
+    if (lv.type === "learn") {
+      var lp = learnPlan(lv, pools);
+      var probs = [];
+      for (var mi = 0; mi < res.missing.length; mi++) probs.push("找不到内容 " + res.missing[mi]);
+      return { questions: [], dialogue: null, speed: null, pools: pools, problems: probs, learn: lp, empty: !lp.cards.length };
+    }
     var modes = [];
     for (var i = 0; i < lv.modes.length; i++) {
       var m = lv.modes[i];
@@ -372,6 +380,7 @@
 
   // ---------- 顶部：进度条、心 ----------
   function totalSteps() {
+    if (S.plan.learn) return S.plan.learn.cards.length + S.plan.learn.checks.length;
     return S.plan.questions.length + (S.plan.dialogue ? S.plan.dialogue.meCount : 0) + (S.plan.speed ? 1 : 0);
   }
   function drawHead() {
@@ -432,10 +441,157 @@
   }
   function sayBtn(text, labelText) { return U.sayButton(text, labelText); }
 
+  // =====================================================================
+  // 背单词关（type "learn"，阶段 12）：“学”，不是“考”
+  //   一张一张的大卡片：大 emoji、西语、中文、例句（有的话）；显示时自动读一遍（在“开始 / 下一个”的点击里同步朗读）；
+  //   🔊 再听、🐢 慢速、“下一个”。最后 3 道很简单的“听一听，选意思”小确认：答错不扣心，只告诉你正确答案。
+  //   没有心，不会失败；不给星星，学完一次地图上标 ✅“学过了”；XP 每天第一次学完给一点（Progress.awardLearn）。
+  //   字母卡片：大字母 + 字母名 + 读法说明 + 例词（可以点读）；没有 emoji 的单词：圆牌里放去掉冠词后的第一个字母；句子：💬。
+  //   看过的词只记成“见过”（Progress.touchWord：放进复习，但不会直接算掌握）。
+  // =====================================================================
+  var LEARN_CHECKS = 3;
+  function learnPlan(lv, pools) {
+    var cards = pools.words.concat(pools.phrases, pools.letters).slice(0, 8);
+    var checks = [];
+    var pool = cards.filter(function (c) { return c.kind !== "letter"; });
+    if (pool.length >= 3) {
+      var order = shuffle(pool);
+      for (var i = 0; i < Math.min(LEARN_CHECKS, order.length); i++) {
+        var t = order[i];
+        // 干扰项只从这一关刚学的词里挑（很简单），不和正确答案撞车
+        var others = shuffle(pool.filter(function (x) { return x !== t && x.zh !== t.zh && !U.conflicts(x.src, t.src); })).slice(0, 2);
+        if (others.length < 2) continue;
+        checks.push({ target: t, options: shuffle([t].concat(others)) });
+      }
+    }
+    return { cards: cards, checks: checks };
+  }
+  function startLearn() {
+    S.phase = "learn";
+    S.cardIdx = -1;
+    nextCard();
+  }
+  function nextCard() {
+    var L = S.plan.learn;
+    S.cardIdx++;
+    if (S.cardIdx >= L.cards.length) return startLearnCheck(0);
+    S.phase = "learn";
+    var c = L.cards[S.cardIdx];
+    S.card = c;
+    var s = screen("p-learn");
+    s.appendChild(el("div", "q-kind", "📖 背单词 · 第 " + (S.cardIdx + 1) + " / " + L.cards.length + " 个"));
+    var card = el("div", "learn-card pop-in");
+    // 有 emoji 就放大 emoji；没有（字母、句子、部分单词）就放一个彩色圆牌，里面是大字母（字母关）或西语的第一个字母
+    var emo = c.emoji || (c.kind === "phrase" || c.kind === "sentence" ? "💬" : "");
+    if (emo) card.appendChild(el("div", "learn-emoji", emo)).setAttribute("aria-hidden", "true");
+    else if (c.kind !== "letter") {
+      // 去掉冠词（el / la / los / las / un / una）再取第一个字母
+      var bare = String(c.es).replace(/^[¿¡\s]+/, "").replace(/^(el|la|los|las|un|una)\s+/i, "");
+      card.appendChild(el("div", "learn-badge kind-" + c.kind, (bare.charAt(0) || "?").toUpperCase())).setAttribute("aria-hidden", "true");
+    }
+    card.appendChild(el("div", "learn-es fit-word" + (c.kind === "phrase" ? " is-phrase" : ""), c.kind === "letter" ? c.es : c.es));
+    if (c.kind !== "letter") card.appendChild(el("div", "learn-zh", c.zh));
+    if (c.kind === "letter" && c.src) {
+      // 字母：字母名（例如 eñe）+ 读法说明
+      if (c.src.name) card.appendChild(el("div", "learn-zh", "读作 “" + c.src.name + "”"));
+      if (c.src.soundZh) card.appendChild(el("div", "learn-sound", c.src.soundZh));
+    }
+    var ex = c.src && c.src.example;
+    if (ex && ex.es) {
+      var exBox = el("div", "learn-ex");
+      exBox.appendChild(el("div", "learn-ex-label", c.kind === "letter" ? "例词" : "例句"));
+      exBox.appendChild(sayBtn(ex.es, ex.es));
+      if (ex.zh) exBox.appendChild(el("div", "learn-ex-zh", ex.zh));
+      card.appendChild(exBox);
+    }
+    s.appendChild(card);
+    var row = el("div", "p-listen-row learn-row");
+    var play = el("button", "p-listen");
+    play.type = "button";
+    play.id = "listen-btn";
+    play.setAttribute("aria-label", "再听一遍");
+    play.onclick = function () { speak(c.speak); };
+    row.appendChild(play);
+    var slow = el("button", "p-slow", "🐢");
+    slow.type = "button";
+    slow.id = "slow-btn";
+    slow.title = "慢速再听";
+    slow.setAttribute("aria-label", "慢速再听");
+    slow.onclick = function () { speak(c.speak, false, { rate: "slower" }); };
+    row.appendChild(slow);
+    s.appendChild(row);
+    if (window.Mascot && window.Mascot.decorate) window.Mascot.decorate(s);
+    // 记成“见过”（不算掌握）
+    var p = P();
+    if (p && c.markId && p.touchWord) p.touchWord(c.markId);
+    if (p && c.markLetter) p.markAlphabetSeen(c.markLetter);
+    S.step = S.cardIdx + 1;
+    drawHead();
+    U.fitAll(s);
+    var last = S.cardIdx === L.cards.length - 1;
+    setFoot({ buttons: [{ text: last ? (L.checks.length ? "学完了，做个小练习 →" : "学完了 →") : "下一个 →", id: "next-card-btn", onClick: function () { nextCard(); } }] });
+    speak(c.speak); // 在“开始 / 下一个”的点击里：同步朗读
+    if (window.Mascot && window.Mascot.watch) window.Mascot.watch(play);
+  }
+  function startLearnCheck(i) {
+    var L = S.plan.learn;
+    if (i >= L.checks.length) return finish();
+    S.phase = "question";
+    var q = L.checks[i];
+    S.q = { mode: "learncheck", target: q.target, options: q.options };
+    var s = screen();
+    s.appendChild(el("div", "q-kind", "📖 小练习 · 答错不扣心"));
+    s.appendChild(el("div", "q-title", "听一听，选出它的意思"));
+    var row = el("div", "p-listen-row");
+    var play = el("button", "p-listen");
+    play.type = "button";
+    play.id = "listen-btn";
+    play.setAttribute("aria-label", "再听一遍");
+    play.onclick = function () { speak(q.target.speak); };
+    row.appendChild(play);
+    var slow2 = el("button", "p-slow", "🐢");
+    slow2.type = "button";
+    slow2.id = "slow-btn";
+    slow2.title = "慢速再听";
+    slow2.setAttribute("aria-label", "慢速再听");
+    slow2.onclick = function () { speak(q.target.speak, false, { rate: "slower" }); };
+    row.appendChild(slow2);
+    s.appendChild(row);
+    if (window.Mascot && window.Mascot.decorate) window.Mascot.decorate(row);
+    var picked = null;
+    var btns = optionList(s, q.options, function (b, it) {
+      if (it.emoji) b.appendChild(el("span", "opt-emoji", it.emoji));
+      b.appendChild(el("span", "", it.zh));
+    }, function (it) { picked = it; enableCheck(true); }, longest(q.options, function (o) { return o.zh; }) > LONG_OPTION);
+    checkFoot(function () {
+      if (!picked || S.phase !== "question") return;
+      var ok = picked === q.target;
+      speak(q.target.speak);
+      lockOptions(btns, function (k) { return q.options[k] === q.target ? true : q.options[k] === picked ? false : null; });
+      if (ok) S.right++;
+      S.step++;
+      drawHead();
+      hit(ok);
+      sfx(ok ? "correct" : "wrong");
+      var line = el("div", "");
+      line.appendChild(sayBtn(q.target.speak, q.target.es));
+      line.appendChild(el("span", "quiz-feedback-zh", label(q.target)));
+      setFoot({ kind: ok ? "correct" : "wrong", mascot: ok ? "happy" : "cheer", title: ok ? pickPraise() : "没关系，记住它：",
+        body: [line], buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { startLearnCheck(i + 1); } }] });
+      S.phase = "feedback";
+      S.learnNext = i + 1;
+      if (mainBtn) try { mainBtn.focus(); } catch (e) {}
+    });
+    speak(q.target.speak);
+    if (window.Mascot && window.Mascot.watch) window.Mascot.watch(play);
+  }
+
   // ---------- 开始 ----------
   function start(lv) {
     var rnd = lv.seed ? W.rng(lv.seed) : Math.random;
     S = { level: lv, plan: plan(lv, rnd), qi: -1, step: 0, hearts: HEARTS, mistakes: 0, right: 0, wrong: [], phase: "intro", q: null, timer: null, combo: 0 };
+    var hearts = $("p-hearts");
+    if (hearts) hearts.hidden = lv.type === "learn"; // 背单词关没有心
     drawHead();
     document.title = (lv.titleZh || "闯关") + " · 我的西语学习站";
     if (S.plan.empty) return showError();
@@ -460,7 +616,7 @@
     S.phase = "intro";
     var s = screen("p-center");
     var reg = lv.region;
-    var badge = lv.isDaily ? "📅" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : (reg && reg.emoji) || "🗺️";
+    var badge = lv.isDaily ? "📅" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : lv.type === "learn" ? "📖" : lv.type === "review" ? "🔁" : (reg && reg.emoji) || "🗺️";
     if (reg) s.appendChild(el("div", "sheet-kicker", reg.titleZh || ""));
     var t = el("div", "p-head-title");
     t.appendChild(el("span", "p-badge", badge)).setAttribute("aria-hidden", "true");
@@ -481,11 +637,13 @@
       shown[m] = 1;
       mi.appendChild(el("span", "mode-icon", W.MODE_INFO[m].icon + " " + W.MODE_INFO[m].zh));
     };
+    if (S.plan.learn) mi.appendChild(el("span", "mode-icon", "📖 背单词 " + S.plan.learn.cards.length + " 个"));
     for (var i = 0; i < S.plan.questions.length; i++) add(S.plan.questions[i].mode);
     if (S.plan.dialogue) add("dialogue");
     if (S.plan.speed) add("speed");
     s.appendChild(mi);
-    s.appendChild(el("p", "small-tip", "❤️ × " + HEARTS + "：答错一次少一颗心，心用完就要重来。错 0–1 次得 ⭐⭐⭐。"));
+    s.appendChild(el("p", "small-tip", S.plan.learn ? "先看、先听，没有心，不会失败。" + (S.plan.learn.checks.length ? "学完做 " + S.plan.learn.checks.length + " 道小练习（答错不扣心）。" : "") + "背单词关不算星星，学完会标上 ✅。" :
+      "❤️ × " + HEARTS + "：答错一次少一颗心，心用完就要重来。错 0–1 次得 ⭐⭐⭐。"));
     var p = P();
     var rec = !lv.isDaily && p ? p.getLevel(lv.id) : null;
     if (rec && rec.stars) s.appendChild(el("p", "sheet-best", "最好成绩：" + stars(rec.stars) + "（正确率 " + rec.best + "%）"));
@@ -504,6 +662,7 @@
 
   // 下一步（在点击处理函数里调用：新题需要朗读时同步朗读）
   function next() {
+    if (S.plan.learn) return S.phase === "intro" ? startLearn() : finish();
     if (S.hearts <= 0) return showFail();
     S.qi++;
     if (S.qi < S.plan.questions.length) return showQuestion(S.plan.questions[S.qi]);
@@ -575,7 +734,9 @@
     return n;
   }
   function optionList(s, items, render, onPick, col) {
+    if (items.length === 3) col = true; // 3 个选项：排成一列（不要剩一个单独的大卡）
     var wrap = el("div", "p-options" + (col ? " is-col" : ""));
+    wrap.style.setProperty("--rows", String(col ? items.length : Math.ceil(items.length / 2))); // CSS 用它给选项区封顶高度
     var btns = [];
     for (var i = 0; i < items.length; i++) {
       (function (it, n) {
@@ -609,12 +770,23 @@
     var s = screen();
     var t = q.target;
     head(s, "listen", t.kind === "letter" ? "听一听，是哪个字母？" : "听一听，选出它的意思");
-    var play = el("button", "p-listen", "🔊");
+    // 大播放按钮（卡通小喇叭，图案由 js/mascot.js 装上）+ 旁边的 🐢“慢速再听”（用“很慢”档再读一遍）
+    var row = el("div", "p-listen-row");
+    var play = el("button", "p-listen");
     play.type = "button";
     play.id = "listen-btn";
     play.setAttribute("aria-label", "再听一遍");
     play.onclick = function () { speak(t.speak); };
-    s.appendChild(play);
+    row.appendChild(play);
+    var slow = el("button", "p-slow", "🐢");
+    slow.type = "button";
+    slow.id = "slow-btn";
+    slow.title = "慢速再听";
+    slow.setAttribute("aria-label", "慢速再听");
+    slow.onclick = function () { speak(t.speak, false, { rate: "slower" }); };
+    row.appendChild(slow);
+    s.appendChild(row);
+    if (window.Mascot && window.Mascot.decorate) window.Mascot.decorate(row);
     var picked = null;
     var btns = optionList(s, q.options, function (b, it) {
       if (it.kind === "letter") { b.classList.add("letter-opt"); b.appendChild(el("span", "", it.letter)); return; }
@@ -631,6 +803,7 @@
       answered({ ok: ok, es: t.kind === "letter" ? t.letter : t.es, zh: t.kind === "letter" ? "" : label(t), speakText: t.speak });
     });
     speak(t.speak); // 这是“开始 / 继续”的点击里：同步朗读
+    if (window.Mascot && window.Mascot.watch) window.Mascot.watch(play); // 自动朗读时大喇叭也动起来
   }
 
   // ---------- 2. 配对消消乐 ----------
@@ -760,82 +933,157 @@
     draw();
   }
 
-  // ---------- 4. 猜单词 ----------
+  // ---------- 4. 猜单词（阶段 12：用手机自带的键盘输入整个单词） ----------
+  // 屏幕上是一个大输入框（不再是字母键盘），上面一排字母格 _ _ _ _ 显示单词有几个字母，打一个字母就填进一格。
+  // 比较答案：不分大小写、去掉首尾空格；重音符号和 ñ 不打也算对（答对条上提醒正确写法）；题目本来带冠词的，冠词打不打都行。
+  // 💡 提示：显示首字母；用了提示，这一关最多 2 星。按“检查”或键盘回车提交；答错扣一颗心，显示正确答案。
+  // iPhone：在“开始 / 继续”的点击里同步渲染并 focus()，键盘才会弹出来；弹出后用 visualViewport 让题目、输入框、“检查”都在可见区域。
+  var ARTICLES = /^(el|la|los|las|un|una|unos|unas)\s+/i;
+  function plainOf(s) {
+    // 小写、去掉首尾空格、多个空格变一个；去掉重音（ñ 也当 n）
+    var t = String(s || "").toLowerCase().trim().replace(/\s+/g, " ");
+    try { t = t.normalize("NFD").replace(/[̀-ͯ]/g, ""); } catch (e) {
+      t = t.replace(/[áàâä]/g, "a").replace(/[éèêë]/g, "e").replace(/[íìîï]/g, "i").replace(/[óòôö]/g, "o").replace(/[úùûü]/g, "u").replace(/ñ/g, "n");
+    }
+    return t.replace(/[¿?¡!.,]/g, "");
+  }
+  function exactOf(s) { return String(s || "").toLowerCase().trim().replace(/\s+/g, " ").replace(/[¿?¡!.,]/g, ""); }
+  // → { ok, exact }：ok = 算对（宽松），exact = 连重音 / ñ 都打对了
+  function judgeGuess(input, answer, full) {
+    var tries = [answer];
+    if (full && full !== answer) tries.push(full);
+    var inPlain = plainOf(input).replace(ARTICLES, ""), inExact = exactOf(input).replace(ARTICLES, "");
+    for (var i = 0; i < tries.length; i++) {
+      var t = tries[i];
+      if (plainOf(t).replace(ARTICLES, "") === inPlain) return { ok: true, exact: exactOf(t).replace(ARTICLES, "") === inExact };
+    }
+    return { ok: false, exact: false };
+  }
+  // 正确写法里有重音 / ñ 的字母（提醒用）
+  function accentNote(word) {
+    var m = String(word).match(/[áéíóúüñÁÉÍÓÚÜÑ]/g);
+    if (!m) return "";
+    var seen = {}, parts = [];
+    for (var i = 0; i < m.length; i++) {
+      var ch = m[i].toLowerCase();
+      if (seen[ch]) continue;
+      seen[ch] = 1;
+      parts.push(ch === "ñ" ? "ñ 上有小波浪" : ch === "ü" ? "ü 上有两点" : ch + " 上有重音");
+    }
+    return "正确写法是 " + word + "，注意 " + parts.join("、") + "。";
+  }
   function qGuess(q) {
-    var s = screen();
+    var s = screen("p-guess");
     var t = q.target;
-    head(s, "guess", "猜出这个词的西语");
-    var hint = el("div", "guess-hint", (t.emoji ? t.emoji + " " : "") + t.zh);
-    s.appendChild(hint);
+    head(s, "guess", "用西语拼出这个词");
+    s.appendChild(el("div", "guess-hint", (t.emoji ? t.emoji + " " : "") + t.zh));
     var wordBox = el("div", "guess-word");
-    wordBox.setAttribute("aria-live", "polite");
+    wordBox.setAttribute("aria-hidden", "true");
     s.appendChild(wordBox);
-    var left = el("div", "guess-left");
-    s.appendChild(left);
-    var keys = el("div", "guess-keys");
-    keys.setAttribute("role", "group");
-    keys.setAttribute("aria-label", "字母键盘");
-    s.appendChild(keys);
-    var guessed = {}, wrongN = 0, over = false;
-    var keyBtns = {};
-    LETTERS.forEach(function (Lt) {
-      var b = el("button", "guess-key", Lt);
-      b.type = "button";
-      b.setAttribute("aria-label", "字母 " + Lt);
-      b.onclick = function () { guess(Lt); };
-      keyBtns[Lt] = b;
-      keys.appendChild(b);
-    });
-    function drawWord() {
+    var input = el("input", "text-input guess-input");
+    input.type = "text";
+    input.id = "guess-input";
+    input.setAttribute("autocapitalize", "off");
+    input.setAttribute("autocorrect", "off");
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("spellcheck", "false");
+    input.setAttribute("lang", "es");
+    input.setAttribute("inputmode", "text");
+    input.setAttribute("enterkeyhint", "done");
+    input.setAttribute("aria-label", "输入西语单词（" + q.answer.length + " 个字母）");
+    input.placeholder = "在这里打字";
+    var row = el("div", "guess-input-row");
+    row.appendChild(input);
+    var hintBtn = el("button", "btn btn-light guess-hint-btn", "💡 提示");
+    hintBtn.type = "button";
+    hintBtn.id = "hint-btn";
+    hintBtn.title = "显示首字母（这一关最多 2 星）";
+    row.appendChild(hintBtn);
+    s.appendChild(row);
+    s.appendChild(el("div", "small-tip guess-tip", "iPhone：长按字母可以打出 á é í ó ú ñ"));
+    var hinted = false, over = false;
+    function drawSlots() {
       clear(wordBox);
-      var a = q.answer, n = a.length, shown = "";
+      var a = q.answer, n = a.length;
+      var typed = plainOf(input.value).replace(ARTICLES, "").replace(/\s/g, "");
+      var raw = String(input.value || "").trim().replace(ARTICLES, "").replace(/\s/g, "");
       wordBox.style.setProperty("--n", String(n));
       var per = wordBox.clientWidth ? (wordBox.clientWidth - (n - 1) * 4) / n : 0;
       var fontPx = per ? Math.min(28, per * 0.95) : 0;
       for (var i = 0; i < n; i++) {
-        var ch = a.charAt(i);
-        var open = guessed[base(ch)] || over;
-        var sp = el("span", "guess-slot" + (over && !guessed[base(ch)] ? " missed" : ""), open ? ch : "");
+        var ch = over ? a.charAt(i) : (raw.charAt(i) || (hinted && i === 0 ? a.charAt(0) : ""));
+        var sp = el("span", "guess-slot" + (over && typed.charAt(i) !== plainOf(a.charAt(i)) ? " missed" : "") + (!over && hinted && i === 0 && !raw.charAt(0) ? " hinted" : ""), ch);
         if (fontPx) sp.style.fontSize = fontPx.toFixed(1) + "px";
         wordBox.appendChild(sp);
-        shown += open ? ch : "_";
       }
-      wordBox.setAttribute("aria-label", shown.split("").join(" "));
-      // 矮屏时 CSS 藏掉括号里的说明（.gl-more），只留“猜错 1 / 3”
-      left.textContent = "猜错 " + wrongN + " / " + GUESS_MAX_WRONG;
-      left.appendChild(el("span", "gl-more", "（错第 " + (GUESS_MAX_WRONG + 1) + " 个就算答错）"));
     }
-    function solved() {
-      for (var i = 0; i < q.answer.length; i++) if (!guessed[base(q.answer.charAt(i))]) return false;
-      return true;
-    }
-    function guess(Lt) {
-      if (over || S.phase !== "question") return;
-      var k = base(Lt);
-      if (LETTERS.indexOf(k) === -1 || guessed[k]) return;
-      guessed[k] = true;
-      var hit = false;
-      for (var i = 0; i < q.answer.length; i++) if (base(q.answer.charAt(i)) === k) hit = true;
-      keyBtns[k].disabled = true;
-      keyBtns[k].className = "guess-key " + (hit ? "hit" : "miss");
-      if (!hit) wrongN++;
-      var win = solved();
-      if (win || wrongN > GUESS_MAX_WRONG) {
-        over = true;
-        for (var kk in keyBtns) if (Object.prototype.hasOwnProperty.call(keyBtns, kk)) keyBtns[kk].disabled = true;
-        speak(t.speak);
-        mark(t, win);
-        if (!win) { loseHeart(); addWrong(t.es, label(t), t.speak); }
-        drawWord();
-        answered({ ok: win, title: win ? null : "✘ 没猜出来，答案是：", es: t.es, zh: label(t), speakText: t.speak });
-        return;
+    input.addEventListener("input", function () {
+      drawSlots();
+      enableCheck(!over && !!input.value.trim());
+    });
+    input.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        ev.stopPropagation(); // 不再让全局的回车处理再点一次
+        if (mainBtn && mainBtn.id === "check-btn" && !mainBtn.disabled) mainBtn.click();
       }
-      drawWord();
-    }
-    S.q.guess = guess; // 实体键盘用
-    setFoot({ buttons: [{ text: "猜出整个词", id: "check-btn", disabled: true }] });
-    drawWord();
+    });
+    hintBtn.onclick = function () {
+      if (over || hinted) return;
+      hinted = true;
+      S.hintUsed = true;
+      hintBtn.disabled = true;
+      hintBtn.textContent = "💡 首字母：" + q.answer.charAt(0);
+      drawSlots();
+      try { input.focus(); } catch (e) {}
+    };
+    checkFoot(function () {
+      if (over || S.phase !== "question" || !input.value.trim()) return;
+      over = true;
+      var j = judgeGuess(input.value, q.answer, t.es);
+      speak(t.speak); // 点“检查”的点击里：同步朗读
+      input.readOnly = true;
+      hintBtn.disabled = true;
+      try { input.blur(); } catch (e) {}
+      mark(t, j.ok);
+      if (!j.ok) { loseHeart(); addWrong(t.es, label(t), t.speak); }
+      drawSlots();
+      var extra = [];
+      if (j.ok && !j.exact) {
+        var note = accentNote(q.answer);
+        if (note) extra.push(el("div", "accent-note", "✍️ " + note));
+      }
+      answered({ ok: j.ok, title: j.ok ? null : "✘ 不对哦，正确答案是：", es: t.es, zh: label(t), speakText: t.speak, extra: extra });
+    });
+    S.q.input = input; // 自动测试用
+    drawSlots();
+    // 在“开始 / 继续”的点击里同步 focus：iPhone 才会弹出键盘（做不到也没关系，用户点输入框就行）
+    try { input.focus({ preventScroll: true }); } catch (e) { try { input.focus(); } catch (e2) {} }
   }
+
+  // ---------- 键盘弹出时（iPhone / 安卓）：整页高度跟着可见区域走，题目、输入框、“检查”都在键盘上面 ----------
+  var vvBound = false;
+  function applyViewport(h, top) {
+    var root = document.documentElement;
+    if (!h) { root.style.removeProperty("--vvh"); root.style.removeProperty("--vvt"); root.classList.remove("kb-open"); root.classList.remove("vv-set"); return; }
+    root.style.setProperty("--vvh", Math.round(h) + "px");
+    root.style.setProperty("--vvt", Math.round(top || 0) + "px");
+    root.classList.add("vv-set");
+    root.classList.toggle("kb-open", h < (window.innerHeight || h) * 0.8);
+  }
+  function bindViewport() {
+    if (vvBound || !window.visualViewport) return;
+    vvBound = true;
+    var vv = window.visualViewport;
+    var upd = function () {
+      var full = Math.abs(vv.height - window.innerHeight) < 2 && vv.offsetTop < 1;
+      applyViewport(full ? 0 : vv.height, vv.offsetTop);
+      if (!full) try { window.scrollTo(0, 0); } catch (e) {}
+    };
+    vv.addEventListener("resize", upd);
+    vv.addEventListener("scroll", upd);
+  }
+  bindViewport();
 
   // ---------- 5. 填空 ----------
   function qFill(q) {
@@ -1038,7 +1286,9 @@
       prompt.className = "q-big fit-word" + (t.kind === "phrase" ? " is-phrase" : "");
       clear(optBox);
       var opts = shuffle([t].concat(d));
-      var wrap = el("div", "p-options" + (longest(opts, function (o) { return o.zh; }) > LONG_OPTION ? " is-col" : ""));
+      var spCol = longest(opts, function (o) { return o.zh; }) > LONG_OPTION || opts.length === 3;
+      var wrap = el("div", "p-options" + (spCol ? " is-col" : ""));
+      wrap.style.setProperty("--rows", String(spCol ? opts.length : Math.ceil(opts.length / 2)));
       opts.forEach(function (o, n) {
         var b = el("button", "quiz-option");
         b.type = "button";
@@ -1136,6 +1386,7 @@
     S.phase = "result";
     var lv = S.level, p = P();
     var st = starsFor(S.mistakes);
+    if (S.hintUsed) st = Math.min(st, 2); // 猜单词用了“提示”：最多 2 星
     var acc = accuracy();
     var gained = 0, extraStars = 0, stampNew = false, dailyFirst = false;
     if (p) {
@@ -1144,8 +1395,9 @@
         dailyFirst = dr.first;
         if (dr.first) { gained += dr.xp ? dr.xp.gained : 0; extraStars = p.DAILY_STARS; }
       } else {
-        p.recordLevel(lv.id, st, acc);
-        var xr = p.awardLevel(lv.id, st);
+        // 背单词关：不给星星（记一次“学过了”），XP 每天第一次学完给一点（Progress.awardLearn）
+        p.recordLevel(lv.id, lv.type === "learn" ? 0 : st, acc);
+        var xr = lv.type === "learn" ? (p.awardLearn ? p.awardLearn(lv.id) : null) : p.awardLevel(lv.id, st);
         gained += xr ? xr.gained : 0;
         if (lv.type === "boss" && lv.region) stampNew = p.addStamp(lv.region.id);
       }
@@ -1155,15 +1407,16 @@
     var mp = mascot("party", "party is-big");
     if (mp) hero.appendChild(mp);
     s.appendChild(hero);
-    s.appendChild(el("div", "p-head-title", lv.isDaily ? "每日挑战完成！🎉" : "过关！🎉"));
+    s.appendChild(el("div", "p-head-title", lv.isDaily ? "每日挑战完成！🎉" : lv.type === "learn" ? "学过了 ✅" : "过关！🎉"));
     // 胜利小旋律（这是点“继续”的点击里），星星蹦出来时再“闪”一下
     sfx("win");
     S.sparkleTimer = setTimeout(function () { sfx("sparkle"); }, lv.isDaily ? 500 : 650);
     var stBox = el("div", "p-stars");
     stBox.setAttribute("aria-label", st + " 颗星");
     for (var i = 0; i < 3; i++) stBox.appendChild(el("span", i < st ? "on" : "", "⭐"));
-    if (!lv.isDaily) s.appendChild(stBox);
-    s.appendChild(el("div", "small-tip", "答错 " + S.mistakes + " 次 · 正确率 " + acc + "% · 剩下 ❤️ " + S.hearts));
+    if (!lv.isDaily && lv.type !== "learn") s.appendChild(stBox);
+    if (lv.type === "learn") s.appendChild(el("p", "", "这 " + S.plan.learn.cards.length + " 个词已经放进复习里了，接下来去闯关用一用吧！"));
+    if (lv.type !== "learn") s.appendChild(el("div", "small-tip", "答错 " + S.mistakes + " 次 · 正确率 " + acc + "% · 剩下 ❤️ " + S.hearts));
     var gain = el("div", "p-gain");
     if (gained) gain.appendChild(el("span", "", "+" + gained + " XP"));
     if (extraStars) gain.appendChild(el("span", "", "+" + extraStars + " ⭐"));
@@ -1194,7 +1447,7 @@
   }
 
   // ---------- 中途退出：页面内确认（不用 confirm 弹窗） ----------
-  function busy() { return S && (S.phase === "question" || S.phase === "feedback" || S.phase === "dialogue" || S.phase === "speed"); }
+  function busy() { return S && (S.phase === "question" || S.phase === "feedback" || S.phase === "dialogue" || S.phase === "speed" || S.phase === "learn"); }
   function askExit(ev) {
     if (!busy()) return; // 还没开始 / 已经结束：直接回地图
     if (ev) ev.preventDefault();
@@ -1238,11 +1491,6 @@
     var k = ev.key || "";
     if (k === "Enter") {
       if (mainBtn && !mainBtn.disabled && document.activeElement !== mainBtn) { ev.preventDefault(); mainBtn.click(); }
-      return;
-    }
-    if (S.phase === "question" && S.q && S.q.mode === "guess" && S.q.guess && k.length === 1 && LETTERS.indexOf(base(k)) !== -1) {
-      ev.preventDefault();
-      S.q.guess(k);
       return;
     }
     if (/^[1-9]$/.test(k) && (S.phase === "question" || S.phase === "speed")) {
@@ -1310,6 +1558,8 @@
     state: function () { return S; },
     tokenize: tokenize,
     answerOf: answerOf,
-    starsFor: starsFor
+    starsFor: starsFor,
+    judgeGuess: judgeGuess,
+    viewport: applyViewport // 测试用：模拟键盘弹出后的可见高度（0 = 恢复）
   };
 })();

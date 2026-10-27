@@ -433,6 +433,7 @@ window.WORD_LESSONS = [
         es: "el hermano",
         zh: "兄弟（哥哥/弟弟）",
         en: "brother",
+        emoji: "👬",
         note: "h 不发音。复数 los hermanos 也可以指“兄弟姐妹”。",
         example: { es: "Es mi hermano.", zh: "这是我的哥哥（弟弟）。", en: "This is my brother." }
       },
@@ -441,6 +442,7 @@ window.WORD_LESSONS = [
         es: "la hermana",
         zh: "姐妹（姐姐/妹妹）",
         en: "sister",
+        emoji: "👭",
         note: "h 不发音。",
         example: { es: "Mi hermano y mi hermana.", zh: "我的兄弟和姐妹。", en: "My brother and my sister." }
       },
@@ -529,6 +531,7 @@ window.WORD_LESSONS = [
         es: "la fruta",
         zh: "水果",
         en: "fruit",
+        emoji: "🍇",
         note: "",
         example: { es: "Fruta y agua, por favor.", zh: "请给我水果和水。", en: "Fruit and water, please." }
       },
@@ -835,6 +838,7 @@ window.WORD_LESSONS = [
         es: "el tiempo",
         zh: "天气；时间",
         en: "weather / time",
+        emoji: "⛅",
         note: "问天气：¿Qué tiempo hace? 回答常用 hace…（hace 来自 hacer“做”）。",
         example: { es: "¿Qué tiempo hace?", zh: "天气怎么样？", en: "What's the weather like?" }
       },
@@ -985,6 +989,7 @@ window.WORD_LESSONS = [
         es: "la calle",
         zh: "街道；马路",
         en: "street",
+        emoji: "🛣️",
         note: "ll 读音近似 y：CA-ye。",
         example: { es: "Es mi calle.", zh: "这是我住的那条街。", en: "This is my street." }
       },
@@ -1143,6 +1148,7 @@ window.WORD_LESSONS = [
         es: "caro",
         zh: "贵；贵的",
         en: "expensive",
+        emoji: "💰",
         note: "阴性：cara。",
         example: { es: "El hotel es caro.", zh: "这家酒店很贵。", en: "The hotel is expensive." }
       },
@@ -1151,6 +1157,7 @@ window.WORD_LESSONS = [
         es: "barato",
         zh: "便宜；便宜的",
         en: "cheap",
+        emoji: "🏷️",
         note: "阴性：barata。",
         example: { es: "La fruta es barata.", zh: "水果很便宜。", en: "The fruit is cheap." }
       },
@@ -1278,6 +1285,7 @@ window.WORD_LESSONS = [
         es: "la ropa",
         zh: "衣服（总称）",
         en: "clothes",
+        emoji: "👚",
         note: "单数就表示“所有衣服”，一般不用复数。",
         example: { es: "La ropa es cara.", zh: "衣服很贵。", en: "The clothes are expensive." }
       },

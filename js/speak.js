@@ -3,6 +3,10 @@
 // 用法：speakSpanish("hola")  —— 朗读一段西班牙语（必须在点击处理函数里同步调用，iPhone 才肯出声）
 //       speakSpanish("hola", true) —— 不打断上一句，排在后面读
 //       speakSpanish("hola", false, function () {...}) —— 这一句读完（或读不出来）时调用回调，只调一次
+//       speakSpanish("hola", false, null, { rate: "slower" }) —— 第 4 个参数可选：这一句用指定语速（关卡里的 🐢“慢速再听”）
+//       语速：默认用“我的”页的设置（Progress.speechRate()：slower 很慢 / slow 慢（默认）/ normal 正常），
+//       具体数值只在下面的 RATE 表里改，别的地方不要写死语速。
+//       speakSpanish.rateValue(档) —— 某一档对应的 rate 数值（测试 / 示范用）
 //       hasSpanishVoice()     —— 设备上有没有西语语音（true / false）
 //       isIOSDevice()         —— 是不是 iPhone / iPad
 // ============================================
@@ -118,7 +122,26 @@
   //   用途：让画面切换和声音对上（例如单词页“记住了”：读完当前词再换卡片）。
   //   不传 onEnd 时和以前完全一样，其他页面只传 1–2 个参数照常工作。
   //   注意：有的设备可能永远不发 end / error，调用方要自己加兜底计时器。
-  function speakSpanish(text, queue, onEnd) {
+  // 语速表（阶段 12：初学者要能听清每个音节；iPhone 同样的数值听起来比电脑快，所以 iPhone 更小一点）
+  var RATE = IS_IOS ? { slower: 0.45, slow: 0.6, normal: 0.85 } : { slower: 0.5, slow: 0.65, normal: 0.8 };
+  var PROGRESS_KEY = "es-study-progress-v1";
+  function currentRate() {
+    try {
+      var P = window.Progress;
+      if (P && P.speechRate) return P.speechRate();
+      var t = window.localStorage ? window.localStorage.getItem(PROGRESS_KEY) : null;
+      var st = t ? JSON.parse(t) : null;
+      var r = st && st.settings && st.settings.speechRate;
+      return RATE[r] ? r : "slow";
+    } catch (e) {
+      return "slow";
+    }
+  }
+  function rateValue(name) {
+    return RATE[name] || RATE[currentRate()] || RATE.slow;
+  }
+
+  function speakSpanish(text, queue, onEnd, opts) {
     var done = false;
     // 只调一次；回调里抛错也不影响页面
     function finish() {
@@ -151,7 +174,7 @@
         u.voice = spanishVoice;
         if (langOf(spanishVoice) !== "es-es" && spanishVoice.lang) u.lang = spanishVoice.lang;
       }
-      u.rate = IS_IOS ? 0.85 : 0.8; // 稍慢一点，方便初学者听清（iPhone 的语速刻度略不同）
+      u.rate = rateValue(opts && opts.rate); // 语速：设置里的档（或这一次指定的档），数值见上面的 RATE 表
       alive.push(u);
       var release = function () {
         for (var i = alive.length - 1; i >= 0; i--) if (alive[i] === u) alive.splice(i, 1);
@@ -205,6 +228,8 @@
   }
 
   // 暴露给页面使用
+  speakSpanish.rateValue = rateValue;
+  speakSpanish.currentRate = currentRate;
   window.speakSpanish = speakSpanish;
   window.hasSpanishVoice = hasSpanishVoice;
   window.isIOSDevice = function () { return IS_IOS; };

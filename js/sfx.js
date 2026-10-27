@@ -15,7 +15,7 @@
 //   能用 navigator.vibrate 就用（安卓等）：点选项 10ms，答错 [30,40,30]，过关短震；
 //   iPhone Safari 没有 vibrate：试 iOS 18+ 的办法——临时放一个看不见的 <label><input type="checkbox" switch></label>，
 //   在点击处理里同步 label.click()，系统切换开关时会轻轻震一下。做不到就静默跳过（不报错、不影响点击本身）。
-//   这个小开关 display:none、不能聚焦、读屏软件看不到、点完马上删掉，不占页面位置。
+//   这个小开关透明、1px、固定定位（写法 2，见下面 iosTick 的说明）、不能聚焦、读屏软件看不到、点完马上删掉，不占页面位置。
 //
 // 自动“啵”：点到选项类的按钮（.quiz-option / .m-card / .match-card / .order-token / .guess-key）时，
 //   本文件在捕获阶段先同步震一下，再在 0 毫秒后放“啵”；如果同一次点击里页面又调用了答对 / 答错等音效，“啵”就取消，只放那一个。
@@ -145,29 +145,78 @@
       return false;
     }
   })();
-  function iosTick() {
-    // iOS 18+：切换一个 switch 开关会有系统触感。临时创建 → 点一下 → 删掉。
-    try {
-      var host = document.body || document.documentElement;
-      if (!host) return;
-      var label = document.createElement("label");
-      label.className = "sfx-haptic";
-      label.setAttribute("aria-hidden", "true");
+  // iOS 18+：切换一个 <input type="checkbox" switch> 开关时，系统会轻轻震一下。必须在用户点击（click / touchend）的
+  // 处理函数里“同步”执行（不能放进 setTimeout / Promise / requestAnimationFrame / 朗读回调之后）。
+  // 【临时】三种写法（“我的”页的“震动测试”区可以分别试，等用户告诉我们哪种在真 iPhone 上会震，再只留那一种）：
+  //   1：label 设 display:none，临时加到 document.head，点一下再删掉；
+  //   2：label 用 position:fixed + 透明度 0 + 1px 大小（不设 display:none），临时加到 body，点一下再删掉 ← 现在正式用这一种；
+  //   3：页面打开时就放好一个常驻的隐藏开关，点击时调用它的 label.click()。
+  // 小开关都不能被键盘 / 读屏聚焦（tabIndex -1、aria-hidden），它自己的点击事件不往页面上传（stopPropagation）。
+  var HAPTIC_METHOD = 2;
+  function makeSwitch(method) {
+    var label = document.createElement("label");
+    label.className = "sfx-haptic";
+    label.setAttribute("aria-hidden", "true");
+    var input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("switch", "");
+    input.tabIndex = -1;
+    input.setAttribute("aria-hidden", "true");
+    label.appendChild(input);
+    if (method === 1) {
       label.style.display = "none";
-      var input = document.createElement("input");
-      input.type = "checkbox";
-      input.setAttribute("switch", "");
-      input.tabIndex = -1;
-      label.appendChild(input);
-      var stop = function (e) { e.stopPropagation(); };
-      label.addEventListener("click", stop);
-      input.addEventListener("click", stop);
-      input.addEventListener("change", stop);
+    } else {
+      var st = label.style;
+      st.position = "fixed"; st.left = "0"; st.bottom = "0"; st.width = "1px"; st.height = "1px";
+      st.overflow = "hidden"; st.opacity = "0"; st.pointerEvents = "none"; st.zIndex = "-1";
+    }
+    var stop = function (e) { e.stopPropagation(); };
+    label.addEventListener("click", stop);
+    input.addEventListener("click", stop);
+    input.addEventListener("change", stop);
+    return label;
+  }
+  var resident = null;
+  function residentSwitch() {
+    if (resident && resident.parentNode) return resident;
+    if (!document.body) return null;
+    resident = makeSwitch(3);
+    resident.className = "sfx-haptic-resident";
+    document.body.appendChild(resident);
+    return resident;
+  }
+  // 正在往输入框里打字时不切换开关（否则 iPhone 的键盘可能闪一下）
+  function typing() {
+    var a = document.activeElement;
+    if (!a) return false;
+    if (a.isContentEditable) return true;
+    var tg = (a.tagName || "").toLowerCase();
+    if (tg === "textarea") return true;
+    return tg === "input" && !/^(checkbox|radio|button|submit|range|color|file)$/i.test(a.type || "");
+  }
+  function iosTick(method) {
+    method = method || HAPTIC_METHOD;
+    if (typing()) return;
+    try {
+      if (method === 3) {
+        var r = residentSwitch();
+        var prev3 = document.activeElement;
+        if (r) r.click();
+        if (prev3 && prev3 !== document.activeElement && prev3.focus) try { prev3.focus({ preventScroll: true }); } catch (e3) {}
+        return;
+      }
+      var host = method === 1 ? document.head : document.body;
+      if (!host) return;
+      var label = makeSwitch(method);
+      var prev = document.activeElement;
       host.appendChild(label);
       label.click();
       host.removeChild(label);
+      // 点 label 时浏览器可能把焦点移到小开关上：马上还给原来的元素（开关已经删掉了）
+      if (prev && prev !== document.activeElement && prev.focus) try { prev.focus({ preventScroll: true }); } catch (e2) {}
     } catch (e) {}
   }
+  // 方法 3 的常驻开关：只在“我的”页的震动测试区用，由那个页面打开时调用 Sfx.prepareResident() 放好（别的页面不放）
   function buzz(pattern) {
     if (!vibrateOn()) return;
     // 用户还没真正点过页面（例如程序自己触发的点击）：浏览器不让震，直接跳过（免得控制台报错）
@@ -240,6 +289,10 @@
       buzz(15);
     },
     buzz: buzz,
+    // “我的”页震动测试区（临时）：用指定的写法（1 / 2 / 3）震一下（不管有没有 vibrate）
+    hapticTest: function (method) { iosTick(method); },
+    hapticMethod: function () { return HAPTIC_METHOD; },
+    prepareResident: function () { if (IOS) residentSwitch(); }, // 只在 iPhone / iPad 上放（别的设备点“方法 3”时才临时放）
     soundOn: soundOn,
     vibrateOn: vibrateOn,
     unlock: unlock,

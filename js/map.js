@@ -21,7 +21,7 @@
   }
   // ROW：两关之间的高度（节点 + 星星 + 最多两行标题，不会压到下一关）；TOP：第一个节点中心离区域牌的距离
   var ROW = 146, TOP = 50, SVGNS = "http://www.w3.org/2000/svg";
-  var TYPE_ZH = { normal: "关卡", task: "对话任务", boss: "大关挑战" };
+  var TYPE_ZH = { normal: "关卡", task: "对话任务", boss: "大关挑战", learn: "背单词", review: "复习关" };
 
   function starsText(n) {
     var s = "";
@@ -144,7 +144,7 @@
     var rec = p ? p.getLevel(lv.id) : null;
     openSheet(function (sh) {
       sh.appendChild(el("div", "sheet-kicker", (lv.region.emoji || "") + " " + (lv.region.titleZh || "") + " · 第 " + (lv.index + 1) + " 关 · " + TYPE_ZH[lv.type]));
-      var t = el("div", "sheet-title", (lv.type === "boss" ? "👑 " : lv.type === "task" ? "💬 " : "") + (lv.titleZh || ""));
+      var t = el("div", "sheet-title", (lv.type === "boss" ? "👑 " : lv.type === "task" ? "💬 " : lv.type === "learn" ? "📖 " : lv.type === "review" ? "🔁 " : "") + (lv.titleZh || ""));
       sh.appendChild(t);
       if (lv.introZh) sh.appendChild(el("p", "", lv.introZh));
       var mi = el("div", "mode-icons");
@@ -153,12 +153,16 @@
         if (m) mi.appendChild(el("span", "mode-icon", m.icon + " " + m.zh));
       }
       sh.appendChild(mi);
-      if (rec && rec.stars) sh.appendChild(el("p", "sheet-best", "最好成绩：" + starsText(rec.stars) + " · 正确率 " + rec.best + "% · 玩过 " + rec.plays + " 次"));
+      if (lv.type === "learn") sh.appendChild(el("p", "small-tip", "📖 背单词关：先看一遍、听一遍这一单元的词，没有心，不会失败。可以先玩它，也可以跳过。"));
+      if (lv.type === "review") sh.appendChild(el("p", "small-tip", "🔁 复习关：优先出你答错过、还不熟的词。可以先玩它，也可以跳过。"));
+      if (lv.type === "learn" && rec && rec.plays) sh.appendChild(el("p", "sheet-best", "✅ 学过了（" + rec.plays + " 次）"));
+      else if (lv.type === "learn") { /* 没学过：上面已经有说明 */ }
+      else if (rec && rec.stars) sh.appendChild(el("p", "sheet-best", "最好成绩：" + starsText(rec.stars) + " · 正确率 " + rec.best + "% · 玩过 " + rec.plays + " 次"));
       else if (unlocked) sh.appendChild(el("p", "small-tip", "还没过关。❤️ × 5，答错一次少一颗。"));
       if (!unlocked) sh.appendChild(el("p", "small-tip", "🔒 还没解锁：先过前一关（至少 1 颗星）。"));
       var acts = el("div", "sheet-actions");
       if (unlocked) {
-        var go = el("a", "btn", (rec && rec.stars ? "再玩一次 ▶" : "开始 ▶"));
+        var go = el("a", "btn", lv.type === "learn" ? (rec && rec.plays ? "再学一次 ▶" : "开始学 ▶") : (rec && rec.stars ? "再玩一次 ▶" : "开始 ▶"));
         go.href = "pages/play.html#level=" + encodeURIComponent(lv.id);
         go.id = "level-start";
         acts.appendChild(go);
@@ -233,26 +237,39 @@
   function nodeEl(lv) {
     var unlocked = W.isUnlocked(lv);
     var st = W.starsOf(lv);
-    var isCur = cur && cur.id === lv.id && unlocked && st < 1;
+    var isLearn = lv.type === "learn";
+    var done = W.isDone(lv);
+    var isCur = cur && cur.id === lv.id && unlocked && !done;
+    // 被已经过了的关“跳过”的背单词 / 复习关：可以补学（半透明 + 小标记），不挡路，气泡也不会拉回来
+    var optional = W.isPractice(lv) && unlocked && !done && cur && lv.order < cur.order;
     var wrap = el("div", "node-wrap");
     wrap.setAttribute("data-level", lv.id);
     // 圆钮里的图案：普通关是白色星星（SVG），Boss 👑、对话任务 💬、没解锁 🔒
-    var icon = !unlocked ? "🔒" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : "";
+    var icon = !unlocked ? "🔒" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : isLearn ? (done ? "✅" : "📖") : lv.type === "review" ? "🔁" : "";
     if (lv.type === "boss") wrap.classList.add("is-boss");
-    var b = el("button", "node" + (lv.type === "boss" ? " is-boss" : "") + (!unlocked ? " is-locked" : st ? " is-done" : "") + (isCur ? " is-current" : ""));
+    var b = el("button", "node" + (lv.type === "boss" ? " is-boss" : "") + (lv.type === "learn" ? " is-learn" : lv.type === "review" ? " is-review" : "") + (!unlocked ? " is-locked" : done ? " is-done" : "") + (isCur ? " is-current" : "") + (optional ? " is-optional" : ""));
+    if (optional) wrap.classList.add("is-optional");
     if (icon) b.appendChild(el("span", "node-icon", icon)).setAttribute("aria-hidden", "true");
     else b.appendChild(starSvg());
     b.type = "button";
     b.id = "node-" + lv.id;
-    b.setAttribute("aria-label", "第 " + (lv.index + 1) + " 关：" + (lv.titleZh || "") + "，" + TYPE_ZH[lv.type] + "，" + (!unlocked ? "还没解锁" : st ? st + " 颗星" : "还没过关"));
+    b.setAttribute("aria-label", "第 " + (lv.index + 1) + " 关：" + (lv.titleZh || "") + "，" + TYPE_ZH[lv.type] + "，" + (!unlocked ? "还没解锁" : isLearn ? (done ? "学过了" : (optional ? "可以补学" : "还没学")) : st ? st + " 颗星" : (optional ? "可以补做" : "还没过关")));
     b.onclick = function () { levelSheet(lv); };
     if (isCur) b.appendChild(el("span", "node-bubble", "开始 ▶")).setAttribute("aria-hidden", "true");
     wrap.appendChild(b);
-    var ss = el("div", "node-stars");
+    // 背单词 / 复习关的标题一般是“背句子：请和谢谢”这种：小标签放“：”前面的部分，标题只放后面的部分（不重复）
+    var title = lv.titleZh || "", tag = "";
+    var cut = W.isPractice(lv) ? title.search(/[：:]/) : -1;
+    if (cut > 0) { tag = title.slice(0, cut); title = title.slice(cut + 1).replace(/^\s+/, ""); }
+    else if (isLearn) tag = "背单词";
+    else if (lv.type === "review") tag = "复习";
+    var ss = el("div", "node-stars" + (W.isPractice(lv) ? " is-learn" : ""));
     ss.setAttribute("aria-hidden", "true");
-    for (var i = 0; i < 3; i++) ss.appendChild(el("span", i < st ? "on" : "", i < st ? "⭐" : "☆"));
+    if (isLearn) ss.textContent = (done ? "✅ " : "📖 ") + tag + (optional ? " · 可补学" : "");
+    else if (lv.type === "review" && !st) ss.textContent = "🔁 " + tag + (optional ? " · 可补做" : "");
+    else for (var i = 0; i < 3; i++) ss.appendChild(el("span", i < st ? "on" : "", i < st ? "⭐" : "☆"));
     wrap.appendChild(ss);
-    wrap.appendChild(el("div", "node-label", lv.titleZh || ""));
+    wrap.appendChild(el("div", "node-label", title || lv.titleZh || ""));
     return wrap;
   }
 

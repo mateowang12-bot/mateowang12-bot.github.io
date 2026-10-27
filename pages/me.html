@@ -62,6 +62,22 @@
           </label>
         </div>
         <p class="panel-note">点选项、答对、答错、过关时的小音效和手机震动。西语发音不受影响（发音照常读）。iPhone 上的震动需要较新的 iOS，没有也没关系。</p>
+        <!-- 【临时】震动测试区：3 种 iPhone 触感写法，等用户告诉我们哪个会震，再只留那一种（js/sfx.js 的 iosTick），然后删掉这一块 -->
+        <div class="haptic-test" id="haptic-test">
+          <div class="setting-title">📳 震动测试（临时）</div>
+          <p class="panel-note">在 iPhone 上分别点下面 3 个按钮，告诉我们哪一个会轻轻震一下。</p>
+          <div class="card-nav">
+            <button type="button" class="btn btn-light btn-small" id="haptic-1">方法 1</button>
+            <button type="button" class="btn btn-light btn-small" id="haptic-2">方法 2</button>
+            <button type="button" class="btn btn-light btn-small" id="haptic-3">方法 3</button>
+          </div>
+          <div class="haptic-diag" id="haptic-diag" role="status"></div>
+        </div>
+      </div>
+      <div class="setting">
+        <div class="setting-title" id="rate-title">西语朗读速度</div>
+        <div class="rate-options" id="rate-options" role="radiogroup" aria-labelledby="rate-title"></div>
+        <p class="panel-note">选好后会用这个速度读一句示范。关卡里点大喇叭旁边的 🐢，可以用“很慢”再听一遍。</p>
       </div>
       <div class="setting">
         <div class="setting-title">单词卡片</div>
@@ -101,6 +117,7 @@
   <script src="../data/dialogues.js"></script>
   <script src="../data/phrases.js"></script>
   <script src="../data/levels.js"></script>
+  <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
   <script src="../js/modules.js"></script>
   <script src="../js/world.js"></script>
@@ -319,6 +336,53 @@
       if (this.checked && window.Sfx) window.Sfx.buzz(30);
     };
 
+    // ---------- 设置：朗读速度（阶段 12；存在 settings 里，跟着同步；js/speak.js 读它） ----------
+    var RATE_TEXT = { slower: "很慢", slow: "慢", normal: "正常" };
+    function renderRate() {
+      var box = $("rate-options");
+      box.innerHTML = "";
+      var cur = P && P.speechRate ? P.speechRate() : "slow";
+      ["slower", "slow", "normal"].forEach(function (r) {
+        var b = el("button", "goal-opt", RATE_TEXT[r]);
+        if (r === "slow") b.appendChild(el("small", "", "默认")); // 小字放第二行，360 宽也不会把“慢（默认）”折开
+        b.type = "button";
+        b.id = "rate-" + r;
+        b.setAttribute("role", "radio");
+        b.setAttribute("aria-checked", r === cur ? "true" : "false");
+        b.disabled = !P;
+        b.onclick = function () {
+          if (!P) return;
+          P.setSpeechRate(r);
+          // 示范：在点击里同步朗读（iPhone 才肯出声），用刚选的速度
+          if (window.speakSpanish) window.speakSpanish("Hola, ¿cómo estás?", false, null, { rate: r });
+          renderRate();
+          var again = $("rate-" + r);
+          if (again) again.focus();
+        };
+        box.appendChild(b);
+      });
+    }
+
+    // ---------- 【临时】震动测试：3 种写法 + 诊断（等用户反馈后删掉） ----------
+    function renderHapticDiag(last) {
+      var ua = navigator.userAgent || "";
+      var ios = /iP(hone|ad|od)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      var m = /OS (\d+)[_.](\d+)/.exec(ua);
+      var sw = (function () { try { var i = document.createElement("input"); i.type = "checkbox"; i.setAttribute("switch", ""); return "switch" in i ? "是" : "不确定"; } catch (e) { return "否"; } })();
+      $("haptic-diag").textContent = "这台设备：能用网页震动：" + (typeof navigator.vibrate === "function" ? "是" : "否") +
+        "；可能是 iPhone：" + (ios ? "是" : "否") + (m ? "；系统版本：iOS " + m[1] + "." + m[2] : "") +
+        "；认识开关控件：" + sw + "；震动开关：" + (P && P.vibrateOn && !P.vibrateOn() ? "关" : "开") +
+        "；正式使用：方法 " + (window.Sfx && window.Sfx.hapticMethod ? window.Sfx.hapticMethod() : "?") + (last ? "；刚才点了：方法 " + last : "");
+    }
+    if (window.Sfx && window.Sfx.prepareResident) window.Sfx.prepareResident(); // 方法 3：页面一打开就放好常驻开关
+    [1, 2, 3].forEach(function (n) {
+      $("haptic-" + n).onclick = function () {
+        // 在点击里同步执行（iPhone 只在用户操作里给触感）
+        if (window.Sfx && window.Sfx.hapticTest) window.Sfx.hapticTest(n);
+        renderHapticDiag(n);
+      };
+    });
+
     // ---------- 同步状态 ----------
     var SYNC_TEXT = {
       synced: "☁️ 进度已同步到你的 Claude 账号（换设备也能接着学）",
@@ -398,6 +462,8 @@
       renderGoals();
       renderAuto();
       renderSfx();
+      renderRate();
+      renderHapticDiag();
       renderSync();
     }
     renderAll();

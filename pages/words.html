@@ -476,11 +476,21 @@
 
       // 自动发音开：在点击的这一刻“同步”朗读当前这张的词（iPhone 只允许在用户操作的处理函数里同步出声）。
       // 只排这一句；读完时 onEnd 通知我们，再停约 2 秒换下一张（见 currentSpoken）。
-      waitTimer = setTimeout(autoFinish, WAIT_MAX_MS); // 兜底：onEnd 一直不来（例如没有语音），从点击起最多 4 秒
+      // 兜底：onEnd 一直不来（例如没有语音），从点击起 4 秒换卡；但如果还在读（语速调慢了、句子长），就等读完（最多 15 秒）
+      waitTimer = setTimeout(function () { stillSpeaking(seq); }, WAIT_MAX_MS);
       window.speakSpanish(word.es, false, function () { currentSpoken(seq); });
     }
     // 当前词读完了（或读不出来）：如果还是这一次等待，就再停约 2 秒后换卡片；
     // 但从点击算起至少 1.5 秒（读不出来时 onEnd 会马上来，避免提示一闪而过）
+    function stillSpeaking(seq) {
+      if (seq !== waitSeq || !waitTimer) return;
+      var ss = window.speechSynthesis;
+      if (ss && (ss.speaking || ss.pending) && Date.now() - waitStart < 15000) {
+        waitTimer = setTimeout(function () { stillSpeaking(seq); }, 400);
+        return;
+      }
+      autoFinish();
+    }
     function currentSpoken(seq) {
       if (seq !== waitSeq || !waitTimer) return; // 已经换过卡片 / 被取消了：不管
       var left = Math.max(WAIT_AFTER_END_MS, WAIT_MIN_MS - (Date.now() - waitStart));

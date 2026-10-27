@@ -98,5 +98,77 @@
     return d;
   }
 
-  window.Mascot = { NAME: "橙橙", svg: svg, el: el, row: row, empty: empty, MOODS: ["hello", "happy", "cheer", "party", "think"] };
+  // ---------- 卡通小喇叭（阶段 12）：朗读按钮的图案 ----------
+  // 大号（关卡“听音选”的大播放按钮）：一个有表情的小喇叭，张嘴“唱”出三道音波；
+  // 小号（所有 .say 朗读小按钮）：同样的喇叭和音波，没有表情（太小看不清）。
+  // 颜色是 css/style.css 的 --sp-… 变量。正在朗读时按钮加 class "is-speaking"，CSS 让音波一圈圈往外扩、喇叭轻轻跳。
+  var WAVES = '<path class="sp-wave w1" d="M74 33q7 11 0 22"/><path class="sp-wave w2" d="M84 24q14 20 0 40"/><path class="sp-wave w3" d="M94 15q20 29 0 58"/>';
+  var HORN = '<rect class="sp-body" x="4" y="29" width="22" height="30" rx="9"/>' +
+    '<path class="sp-cone" d="M23 32L55 9q12-7 12 7v56q0 14-12 7L23 56z"/>';
+  var HORN_FACE = '<ellipse class="m-ink" cx="40" cy="38" rx="4.4" ry="5.6"/><ellipse class="m-ink" cx="55" cy="34" rx="4.4" ry="5.6"/>' +
+    '<circle class="m-shine" cx="41.6" cy="36" r="1.6"/><circle class="m-shine" cx="56.6" cy="32" r="1.6"/>' +
+    '<ellipse class="m-cheek" cx="35" cy="50" rx="4.5" ry="3"/><ellipse class="m-cheek" cx="62" cy="45" rx="4.5" ry="3"/>' +
+    '<ellipse class="m-ink" cx="49" cy="54" rx="6.5" ry="8"/><path class="m-tongue" d="M44.5 58q4.5 5 9 0q-4.5-3-9 0z"/>';
+  function speakerSvg(mini) {
+    return '<svg xmlns="' + NS + '" viewBox="0 0 104 88" focusable="false" aria-hidden="true"><g class="sp-horn">' + HORN + (mini ? "" : HORN_FACE) + "</g>" + WAVES + "</svg>";
+  }
+  // 给页面里的朗读按钮装上小喇叭图案（.say 小号、.p-listen 大号）；新加到页面上的按钮也会自动装上
+  function decorate(root) {
+    try {
+      var list = (root || document).querySelectorAll(".say:not([data-sp]), .p-listen:not([data-sp])");
+      for (var i = 0; i < list.length; i++) {
+        var b = list[i];
+        b.setAttribute("data-sp", "1");
+        var big = b.classList.contains("p-listen");
+        var ico = document.createElement("span");
+        ico.className = "sp-ico" + (big ? " is-big" : "");
+        ico.setAttribute("aria-hidden", "true");
+        ico.innerHTML = speakerSvg(!big);
+        b.insertBefore(ico, b.firstChild);
+      }
+    } catch (e) {}
+  }
+  // 正在朗读：被点的那个朗读按钮动起来，读完就停（每 0.12 秒看一次 speechSynthesis 还在不在读）
+  var watchEl = null, watchTimer = null, sawBusy = false, watchStart = 0;
+  function busy() {
+    try { var ss = window.speechSynthesis; return !!(ss && (ss.speaking || ss.pending)); } catch (e) { return false; }
+  }
+  function unwatch() {
+    if (watchTimer) { clearTimeout(watchTimer); watchTimer = null; }
+    if (watchEl) watchEl.classList.remove("is-speaking");
+    watchEl = null;
+  }
+  function tick() {
+    if (!watchEl) return;
+    var b = busy();
+    if (b) sawBusy = true;
+    if (!b && (sawBusy || Date.now() - watchStart > 1500)) { unwatch(); return; }
+    watchEl.classList.add("is-speaking");
+    watchTimer = setTimeout(tick, 120);
+  }
+  function watch(btn) {
+    unwatch();
+    if (!btn) return;
+    watchEl = btn;
+    sawBusy = false;
+    watchStart = Date.now();
+    tick();
+  }
+  try {
+    document.addEventListener("click", function (ev) {
+      var t = ev.target && ev.target.closest ? ev.target.closest(".say, .p-listen, .speaker-btn") : null;
+      if (t) setTimeout(function () { watch(t.classList.contains("p-slow") ? (t.parentNode && t.parentNode.querySelector(".p-listen")) || t : t); }, 0);
+    }, true);
+    var startObs = function () {
+      decorate(document);
+      if (window.MutationObserver && document.body) {
+        new MutationObserver(function () { decorate(document); }).observe(document.body, { childList: true, subtree: true });
+      }
+    };
+    if (document.body) startObs();
+    else document.addEventListener("DOMContentLoaded", startObs);
+  } catch (e) {}
+
+  window.Mascot = { NAME: "橙橙", svg: svg, el: el, row: row, empty: empty, MOODS: ["hello", "happy", "cheer", "party", "think"],
+    speakerSvg: speakerSvg, decorate: decorate, watch: watch };
 })();

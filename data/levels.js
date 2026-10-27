@@ -6,6 +6,13 @@
 //   items 里全部是已有数据的 id：ALPHABET 的 letter、WORD_LESSONS 的单词 id、PHRASE_LESSONS 的句子 id、
 //   GRAMMAR_LESSONS 的 lesson id + exercises 下标、DIALOGUES 的 id 或下面 tasks 的 id。
 //   task 关的 count = 这段对话里“我”要说的轮数（整段对话都要做完）。
+// 阶段 13 新增两种关卡（只写中文，没有 titleEn / introEn）：
+//   type "learn"（背单词关）：{ id, type: "learn", titleZh, introZh, items { words, phrases, letters }, count = 条目数 }
+//     只看卡片、不考试；每关最多 8 个条目；放在第一次考到这些条目的关卡前面；没有 modes。
+//   type "review"（复习关）：{ id, type: "review", titleZh, introZh, reviewOf: [区域 id], modes, count: 8 }
+//     题目从 reviewOf 区域的全部条目里抽（优先抽答错过、还不熟的）。
+//     每个区域两个：开头（第一个 learn 关之前）复习上一个区域 id 为 "区域-review-start"；
+//     结尾（Boss 关之前）复习本区域 id 为 "区域-review-end"。机场没有开头复习。
 // tasks[]：新写的对话任务，格式和 data/dialogues.js 完全一样。
 // 学习者在对话里叫 Lin，来自中国，是学生（不分性别）。
 window.WORLD = {
@@ -20,6 +27,13 @@ window.WORLD = {
       stampZh: "马德里机场邮票", stampEn: "Madrid Airport stamp",
       levels: [
         {
+          id: "airport-learn-1", type: "learn",
+          titleZh: "认字母：五个元音",
+          introZh: "先认识 5 个元音：a e i o u。一张一张看卡片，听听发音、跟着念。这一关不考试。",
+          items: { letters: ["A", "E", "I", "O", "U"] },
+          count: 5
+        },
+        {
           id: "airport-1", type: "normal",
           titleZh: "五个元音", titleEn: "The five vowels",
           introZh: "西语只有 5 个元音：a e i o u。读音短而清楚，而且永远不变。",
@@ -29,8 +43,22 @@ window.WORLD = {
           count: 5
         },
         {
+          id: "airport-learn-2", type: "learn",
+          titleZh: "认字母：B 到 G",
+          introZh: "认识辅音 B、C、D、F、G。小提示：B 读音近似“贝”，但只是近似。这一关不考试。",
+          items: { letters: ["B", "C", "D", "F", "G"] },
+          count: 5
+        },
+        {
+          id: "airport-learn-3", type: "learn",
+          titleZh: "认字母：H 到 M",
+          introZh: "再认识 H、J、K、L、M。H 不发音；J 读音近似汉语的 h（只是近似）。这一关不考试。",
+          items: { letters: ["H", "J", "K", "L", "M"] },
+          count: 5
+        },
+        {
           id: "airport-2", type: "normal",
-          titleZh: "辅音（一）：B 到 M", titleEn: "Consonants 1: B to M",
+          titleZh: "辅音：B 到 M", titleEn: "Consonants 1: B to M",
           introZh: "认识 B 到 M 的辅音。小提示：H 不发音，J 读音近似汉语的 h（只是近似）。",
           introEn: "Meet the consonants from B to M. Tip: H is silent, and J sounds roughly like Chinese h.",
           items: { letters: ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M"] },
@@ -38,12 +66,33 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "airport-learn-4", type: "learn",
+          titleZh: "认字母：N 到 S",
+          introZh: "认识 N、Ñ、P、Q、R、S。Ñ 是西语特有的字母，ña 近似“尼亚”连起来快读（只是近似）。这一关不考试。",
+          items: { letters: ["N", "Ñ", "P", "Q", "R", "S"] },
+          count: 6
+        },
+        {
+          id: "airport-learn-5", type: "learn",
+          titleZh: "认字母：T 到 Z",
+          introZh: "最后认识 T、V、W、X、Y、Z。V 和 B 读音一样。这一关不考试。",
+          items: { letters: ["T", "V", "W", "X", "Y", "Z"] },
+          count: 6
+        },
+        {
           id: "airport-3", type: "normal",
-          titleZh: "辅音（二）：N 到 Z", titleEn: "Consonants 2: N to Z",
+          titleZh: "辅音：N 到 Z", titleEn: "Consonants 2: N to Z",
           introZh: "认识 N 到 Z，还有西语特有的 Ñ！R 要轻轻弹舌，V 和 B 读音一样。",
           introEn: "Meet N to Z, including the special Spanish letter Ñ! R is a light tap of the tongue, and V sounds the same as B.",
           items: { letters: ["N", "Ñ", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z"] },
           modes: ["listen"],
+          count: 8
+        },
+        {
+          id: "airport-learn-6", type: "learn",
+          titleZh: "背单词：打招呼",
+          introZh: "早上好、下午好、晚上好，还有“怎么样”和“再见”。先一张张看、听一听，这一关不考试。",
+          items: { words: ["hola", "buenos-dias", "buenas-tardes", "buenas-noches", "que-tal", "bien", "adios", "hasta-luego"] },
           count: 8
         },
         {
@@ -63,6 +112,14 @@ window.WORLD = {
           items: { dialogue: "task-airport" },
           modes: ["dialogue"],
           count: 5
+        },
+        {
+          id: "airport-review-end", type: "review",
+          titleZh: "总复习：马德里机场",
+          introZh: "大关之前热热身：把机场学过的字母和招呼语再练一遍，还不熟的会多出几次。",
+          reviewOf: ["airport"],
+          modes: ["listen", "match"],
+          count: 8
         },
         {
           id: "airport-6", type: "boss",
@@ -89,6 +146,21 @@ window.WORLD = {
       stampZh: "酒店邮票", stampEn: "Hotel stamp",
       levels: [
         {
+          id: "hotel-review-start", type: "review",
+          titleZh: "复习：马德里机场",
+          introZh: "进酒店之前，先把机场学过的字母和招呼语复习一下。以前答错过的会优先出现。",
+          reviewOf: ["airport"],
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "hotel-learn-1", type: "learn",
+          titleZh: "背单词：请和谢谢",
+          introZh: "是、不是、请、谢谢、不客气、对不起。一张张看卡片、听发音，这一关不考试。",
+          items: { words: ["si", "no", "por-favor", "gracias", "de-nada", "perdon", "lo-siento"] },
+          count: 7
+        },
+        {
           id: "hotel-1", type: "normal",
           titleZh: "请和谢谢", titleEn: "Please & thank you",
           introZh: "是、不是、请、谢谢、不客气、对不起——最常用的礼貌小词。",
@@ -96,6 +168,20 @@ window.WORLD = {
           items: { words: ["si", "no", "por-favor", "gracias", "de-nada", "perdon", "lo-siento"] },
           modes: ["listen", "match"],
           count: 7
+        },
+        {
+          id: "hotel-learn-2", type: "learn",
+          titleZh: "背单词：称呼问候",
+          introZh: "先生、女士、很高兴认识你、你好吗、你呢。先看一看、听一听，这一关不考试。",
+          items: { words: ["senor", "senora", "mucho-gusto", "como-estas", "y-tu"] },
+          count: 5
+        },
+        {
+          id: "hotel-learn-3", type: "learn",
+          titleZh: "背句子：请人帮忙",
+          introZh: "请别人帮忙、问对方会不会说英语的几句话。先听熟，下一关再考。",
+          items: { phrases: ["ph-disculpe-pregunta", "ph-me-puede-ayudar", "ph-no-pasa-nada", "ph-habla-ingles", "ph-no-hablo-bien"] },
+          count: 5
         },
         {
           id: "hotel-2", type: "normal",
@@ -110,6 +196,13 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "hotel-learn-4", type: "learn",
+          titleZh: "背单词：数字和房间",
+          introZh: "数字 0 到 5，再加上“酒店”和“卫生间”。听清每个数字怎么读，这一关不考试。",
+          items: { words: ["cero", "uno", "dos", "tres", "cuatro", "cinco", "hotel", "bano"] },
+          count: 8
+        },
+        {
           id: "hotel-3", type: "normal",
           titleZh: "房间号 0–5", titleEn: "Room numbers 0–5",
           introZh: "数字 0 到 5，再加上“酒店”和“卫生间”两个很有用的词。",
@@ -117,6 +210,20 @@ window.WORLD = {
           items: { words: ["cero", "uno", "dos", "tres", "cuatro", "cinco", "hotel", "bano"] },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "hotel-learn-5", type: "learn",
+          titleZh: "背单词：6 到 10",
+          introZh: "接着数：6、7、8、9、10。跟着读几遍，这一关不考试。",
+          items: { words: ["seis", "siete", "ocho", "nueve", "diez"] },
+          count: 5
+        },
+        {
+          id: "hotel-learn-6", type: "learn",
+          titleZh: "背句子：听不懂时",
+          introZh: "我听不懂、请再说一遍、请说慢一点……听不懂时的救命句子，先听熟。",
+          items: { phrases: ["ph-no-entiendo", "ph-puede-repetir", "ph-mas-despacio", "ph-como-se-dice", "ph-que-significa"] },
+          count: 5
         },
         {
           id: "hotel-4", type: "normal",
@@ -138,6 +245,14 @@ window.WORLD = {
           items: { dialogue: "task-hotel" },
           modes: ["dialogue"],
           count: 5
+        },
+        {
+          id: "hotel-review-end", type: "review",
+          titleZh: "总复习：酒店",
+          introZh: "大关之前热热身：礼貌用语、数字 0–10 和救命句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["hotel"],
+          modes: ["listen", "match", "guess"],
+          count: 8
         },
         {
           id: "hotel-6", type: "boss",
@@ -166,6 +281,24 @@ window.WORLD = {
       stampZh: "咖啡馆邮票", stampEn: "Café stamp",
       levels: [
         {
+          id: "cafe-review-start", type: "review",
+          titleZh: "复习：酒店",
+          introZh: "去咖啡馆之前，先把酒店学过的礼貌用语、数字和句子复习一下。以前答错过的会优先出现。",
+          reviewOf: ["hotel"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "cafe-learn-1", type: "learn",
+          titleZh: "背一背：咖啡和面包",
+          introZh: "水、咖啡、牛奶、面包，还有要座位、要菜单、点咖啡的句子。先看先听，这一关不考试。",
+          items: {
+            words: ["agua", "cafe", "leche", "pan", "restaurante"],
+            phrases: ["ph-mesa-para-dos", "ph-la-carta", "ph-me-pone-un-cafe"]
+          },
+          count: 8
+        },
+        {
           id: "cafe-1", type: "normal",
           titleZh: "咖啡和面包", titleEn: "Coffee & bread",
           introZh: "水、咖啡、牛奶、面包，还有怎么要座位、要菜单、点一杯咖啡。",
@@ -178,6 +311,20 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "cafe-learn-2", type: "learn",
+          titleZh: "背单词：主菜和水果",
+          introZh: "水果、苹果、米饭、鸡肉、鱼、肉。看着图片记一记，这一关不考试。",
+          items: { words: ["fruta", "manzana", "arroz", "pollo", "pescado", "carne"] },
+          count: 6
+        },
+        {
+          id: "cafe-learn-3", type: "learn",
+          titleZh: "背句子：怎么点菜",
+          introZh: "服务员问“您要点什么”，你怎么回答“我要……”。先听熟这三句。",
+          items: { phrases: ["ph-que-va-a-tomar", "ph-agua-sin-gas", "ph-para-mi-pollo"] },
+          count: 3
+        },
+        {
           id: "cafe-2", type: "normal",
           titleZh: "主菜和水果", titleEn: "Main dishes & fruit",
           introZh: "肉、鸡肉、鱼、米饭、水果——再学会跟服务员说“我要……”。",
@@ -188,6 +335,16 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "cafe-learn-4", type: "learn",
+          titleZh: "背一背：好吃和买单",
+          introZh: "好、坏，“还要别的吗”“真好吃”，还有结账和刷卡。先看先听，这一关不考试。",
+          items: {
+            words: ["bueno", "malo"],
+            phrases: ["ph-algo-mas", "ph-esta-muy-bueno", "ph-la-cuenta", "ph-pagar-con-tarjeta"]
+          },
+          count: 6
         },
         {
           id: "cafe-3", type: "normal",
@@ -223,6 +380,14 @@ window.WORLD = {
           count: 5
         },
         {
+          id: "cafe-review-end", type: "review",
+          titleZh: "总复习：咖啡馆",
+          introZh: "大关之前热热身：食物、饮料和点餐句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["cafe"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
           id: "cafe-6", type: "boss",
           titleZh: "大关：早餐大考验", titleEn: "Boss: The breakfast challenge",
           introZh: "食物、饮料和所有点餐句子一起上！限时快答别手软。",
@@ -248,6 +413,21 @@ window.WORLD = {
       stampZh: "公园广场邮票", stampEn: "Park & Square stamp",
       levels: [
         {
+          id: "park-review-start", type: "review",
+          titleZh: "复习：咖啡馆",
+          introZh: "去公园之前，先把咖啡馆学过的食物和点餐句子复习一下。以前答错过的会优先出现。",
+          reviewOf: ["cafe"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "park-learn-1", type: "learn",
+          titleZh: "背单词：五种颜色",
+          introZh: "红、黄、蓝、绿、白。看着颜色听发音，这一关不考试。",
+          items: { words: ["rojo", "amarillo", "azul", "verde", "blanco"] },
+          count: 5
+        },
+        {
           id: "park-1", type: "normal",
           titleZh: "红黄蓝绿白", titleEn: "Red, yellow, blue, green, white",
           introZh: "先学 5 种最常见的颜色。",
@@ -255,6 +435,13 @@ window.WORLD = {
           items: { words: ["rojo", "amarillo", "azul", "verde", "blanco"] },
           modes: ["listen", "match"],
           count: 5
+        },
+        {
+          id: "park-learn-2", type: "learn",
+          titleZh: "背单词：更多颜色",
+          introZh: "黑、灰、橙、粉、棕，再加上“街道”。先看先听，这一关不考试。",
+          items: { words: ["negro", "gris", "naranja", "rosa", "marron", "calle"] },
+          count: 6
         },
         {
           id: "park-2", type: "normal",
@@ -266,6 +453,13 @@ window.WORLD = {
           count: 6
         },
         {
+          id: "park-learn-3", type: "learn",
+          titleZh: "背单词：天气",
+          introZh: "天气、热、冷、出太阳、下雨。注意 hace 的 h 不发音。这一关不考试。",
+          items: { words: ["tiempo", "hace-calor", "hace-frio", "hace-sol", "llueve"] },
+          count: 5
+        },
+        {
           id: "park-3", type: "normal",
           titleZh: "今天天气怎么样？", titleEn: "What's the weather like?",
           introZh: "热、冷、出太阳、下雨——西语说天气多用 hace…（h 不发音）。",
@@ -273,6 +467,13 @@ window.WORLD = {
           items: { words: ["tiempo", "hace-calor", "hace-frio", "hace-sol", "llueve"] },
           modes: ["listen", "match"],
           count: 5
+        },
+        {
+          id: "park-learn-4", type: "learn",
+          titleZh: "背单词：四季和美景",
+          introZh: "春、夏、秋、冬、今天，还有“漂亮”和“难看”。先看先听，这一关不考试。",
+          items: { words: ["primavera", "verano", "otono", "invierno", "hoy", "bonito", "feo"] },
+          count: 7
         },
         {
           id: "park-4", type: "normal",
@@ -285,12 +486,20 @@ window.WORLD = {
         },
         {
           id: "park-5", type: "task",
-          titleZh: "和 Sofía 看图画书", titleEn: "A picture book with Sofía",
+          titleZh: "和 Sofía 看书", titleEn: "A picture book with Sofía",
           introZh: "Sofía 指着书上的画问你是什么颜色。注意颜色的阴阳性和单复数！",
           introEn: "Sofía points at the pictures and asks about colors. Watch gender and plural!",
           items: { dialogue: "colors" },
           modes: ["dialogue"],
           count: 5
+        },
+        {
+          id: "park-review-end", type: "review",
+          titleZh: "总复习：公园广场",
+          introZh: "大关之前热热身：颜色、天气和季节再练一遍，还不熟的会多出几次。",
+          reviewOf: ["park"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
         },
         {
           id: "park-6", type: "boss",
@@ -317,6 +526,21 @@ window.WORLD = {
       stampZh: "朋友家邮票", stampEn: "Friend's Home stamp",
       levels: [
         {
+          id: "home-review-start", type: "review",
+          titleZh: "复习：公园广场",
+          introZh: "去朋友家之前，先把公园学过的颜色、天气和季节复习一下。以前答错过的会优先出现。",
+          reviewOf: ["park"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "home-learn-1", type: "learn",
+          titleZh: "背单词：我的家人",
+          introZh: "家庭、妈妈、爸爸、兄弟、姐妹。先看先听，这一关不考试。",
+          items: { words: ["familia", "madre", "padre", "hermano", "hermana"] },
+          count: 5
+        },
+        {
           id: "home-1", type: "normal",
           titleZh: "我的家人", titleEn: "My family",
           introZh: "爸爸、妈妈、兄弟、姐妹，再学“我、你、他、她”这些人称代词。",
@@ -329,6 +553,20 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "home-learn-2", type: "learn",
+          titleZh: "背单词：爷爷奶奶",
+          introZh: "儿子、女儿、爷爷、奶奶，还有“家”。先看先听，这一关不考试。",
+          items: { words: ["hijo", "hija", "abuelo", "abuela", "casa"] },
+          count: 5
+        },
+        {
+          id: "home-learn-3", type: "learn",
+          titleZh: "背句子：认识新朋友",
+          introZh: "你叫什么名字、我叫……、很高兴认识你、你是哪里人、我是中国人。先听熟，下一关再考。",
+          items: { phrases: ["ph-como-te-llamas", "ph-me-llamo", "ph-encantado", "ph-de-donde-eres", "ph-soy-chino"] },
+          count: 5
+        },
+        {
           id: "home-2", type: "normal",
           titleZh: "爷爷奶奶和孩子们", titleEn: "Grandparents & children",
           introZh: "爷爷奶奶、儿子女儿、家，还有“你叫什么名字”“我是中国人”。",
@@ -339,6 +577,16 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "home-learn-4", type: "learn",
+          titleZh: "背一背：自我介绍",
+          introZh: "学校，还有住在哪儿、几岁、做什么工作、我是学生、我会说一点西语。先看先听，这一关不考试。",
+          items: {
+            words: ["escuela"],
+            phrases: ["ph-donde-vives", "ph-cuantos-anos", "ph-a-que-te-dedicas", "ph-soy-estudiante", "ph-hablo-un-poco"]
+          },
+          count: 6
         },
         {
           id: "home-3", type: "normal",
@@ -372,6 +620,14 @@ window.WORLD = {
           count: 5
         },
         {
+          id: "home-review-end", type: "review",
+          titleZh: "总复习：朋友家做客",
+          introZh: "大关之前热热身：家人、自我介绍、人称代词和 ser 再练一遍，还不熟的会多出几次。",
+          reviewOf: ["home"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
           id: "home-6", type: "boss",
           titleZh: "大关：家庭大聚会", titleEn: "Boss: Big family gathering",
           introZh: "家人、自我介绍、人称代词和 ser 一起考，看你能不能记住每个人！",
@@ -398,6 +654,28 @@ window.WORLD = {
       stampZh: "商店邮票", stampEn: "Shop stamp",
       levels: [
         {
+          id: "shop-review-start", type: "review",
+          titleZh: "复习：朋友家做客",
+          introZh: "去购物之前，先把朋友家学过的家人、自我介绍和 ser 复习一下。以前答错过的会优先出现。",
+          reviewOf: ["home"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
+          id: "shop-learn-1", type: "learn",
+          titleZh: "背单词：衣服（一）",
+          introZh: "衣服、衬衫、T恤、裤子、连衣裙，还有“商店”。先看先听，这一关不考试。",
+          items: { words: ["ropa", "camisa", "camiseta", "pantalones", "vestido", "tienda"] },
+          count: 6
+        },
+        {
+          id: "shop-learn-2", type: "learn",
+          titleZh: "背句子：试衣服",
+          introZh: "我只是看看、有别的尺码吗、我能试一下吗。先听熟这三句。",
+          items: { phrases: ["ph-solo-estoy-mirando", "ph-tiene-otra-talla", "ph-puedo-probarmelo"] },
+          count: 3
+        },
+        {
           id: "shop-1", type: "normal",
           titleZh: "衣服（一）", titleEn: "Clothes 1",
           introZh: "衬衫、T恤、裤子、连衣裙，再学“我只是看看”“我能试一下吗”。",
@@ -410,8 +688,22 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "shop-learn-3", type: "learn",
+          titleZh: "背单词：衣服（二）",
+          introZh: "裙子、鞋、夹克、大衣、超市，还有“贵”和“便宜”。先看先听，这一关不考试。",
+          items: { words: ["falda", "zapatos", "chaqueta", "abrigo", "supermercado", "caro", "barato"] },
+          count: 7
+        },
+        {
+          id: "shop-learn-4", type: "learn",
+          titleZh: "背句子：问价钱",
+          introZh: "多少钱、太贵了、有便宜一点的吗。先听熟这三句。",
+          items: { phrases: ["ph-cuanto-cuesta", "ph-es-muy-caro", "ph-algo-mas-barato"] },
+          count: 3
+        },
+        {
           id: "shop-2", type: "normal",
-          titleZh: "衣服（二）：贵还是便宜？", titleEn: "Clothes 2: Expensive or cheap?",
+          titleZh: "衣服：贵不贵？", titleEn: "Clothes 2: Expensive or cheap?",
           introZh: "裙子、鞋、外套，还有“多少钱”“太贵了”“有便宜点的吗”。",
           introEn: "Skirt, shoes, jacket and coat, plus \"How much?\", \"It's too expensive\" and \"Anything cheaper?\".",
           items: {
@@ -420,6 +712,20 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "shop-learn-5", type: "learn",
+          titleZh: "背数字：30–60",
+          introZh: "三十、四十、五十、六十。40、50、60 都以 -enta 结尾，只有 30 是 treinta（-inta）。这一关不考试。",
+          items: { words: ["treinta", "cuarenta", "cincuenta", "sesenta"] },
+          count: 4
+        },
+        {
+          id: "shop-learn-6", type: "learn",
+          titleZh: "背数字：70–100",
+          introZh: "七十、八十、九十、一百，还有“一共多少钱”。先看先听，这一关不考试。",
+          items: { words: ["setenta", "ochenta", "noventa", "cien"], phrases: ["ph-cuanto-es"] },
+          count: 5
         },
         {
           id: "shop-3", type: "normal",
@@ -432,6 +738,13 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "shop-learn-7", type: "learn",
+          titleZh: "背一背：新的旧的",
+          introZh: "新、旧，还有“我要这个”“我买了”“能给我一个袋子吗”。先看先听，这一关不考试。",
+          items: { words: ["nuevo", "viejo"], phrases: ["ph-quiero-esto", "ph-me-lo-llevo", "ph-me-da-una-bolsa"] },
+          count: 5
         },
         {
           id: "shop-4", type: "normal",
@@ -454,6 +767,14 @@ window.WORLD = {
           items: { dialogue: "task-shop" },
           modes: ["dialogue"],
           count: 6
+        },
+        {
+          id: "shop-review-end", type: "review",
+          titleZh: "总复习：商店",
+          introZh: "大关之前热热身：衣服、价格、形容词、购物句子和阴阳性再练一遍，还不熟的会多出几次。",
+          reviewOf: ["shop"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
         },
         {
           id: "shop-6", type: "boss",
@@ -484,6 +805,28 @@ window.WORLD = {
       stampZh: "火车站邮票", stampEn: "Train Station stamp",
       levels: [
         {
+          id: "train-review-start", type: "review",
+          titleZh: "复习：商店",
+          introZh: "去火车站之前，先把商店学过的衣服、价格和购物句子复习一下。以前答错过的会优先出现。",
+          reviewOf: ["shop"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
+          id: "train-learn-1", type: "learn",
+          titleZh: "背单词：周一到周五",
+          introZh: "星期一到星期五。西语的星期不用大写。先看先听，这一关不考试。",
+          items: { words: ["lunes", "martes", "miercoles", "jueves", "viernes"] },
+          count: 5
+        },
+        {
+          id: "train-learn-2", type: "learn",
+          titleZh: "背一背：周末和明天",
+          introZh: "星期六、星期天、明天，还有“今天星期几”“我们明天见吗”。先看先听，这一关不考试。",
+          items: { words: ["sabado", "domingo", "manana"], phrases: ["ph-que-dia-es-hoy", "ph-quedamos-manana"] },
+          count: 5
+        },
+        {
           id: "train-1", type: "normal",
           titleZh: "星期一到星期天", titleEn: "Monday to Sunday",
           introZh: "一个星期的七天，还有“明天”。再学“今天星期几”“我们明天见吗”。",
@@ -494,6 +837,20 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "train-learn-3", type: "learn",
+          titleZh: "背数字：11–15",
+          introZh: "十一到十五：once、doce、trece、catorce、quince。先看先听，这一关不考试。",
+          items: { words: ["once", "doce", "trece", "catorce", "quince"] },
+          count: 5
+        },
+        {
+          id: "train-learn-4", type: "learn",
+          titleZh: "背一背：买火车票",
+          introZh: "车站、昨天，还有买票、要往返票、问火车几点开的句子。先看先听，这一关不考试。",
+          items: { words: ["estacion", "ayer"], phrases: ["ph-un-billete-para", "ph-ida-y-vuelta", "ph-a-que-hora-sale"] },
+          count: 5
         },
         {
           id: "train-2", type: "normal",
@@ -508,6 +865,20 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "train-learn-5", type: "learn",
+          titleZh: "背数字：16–20",
+          introZh: "十六到二十。dieciséis 可以想成 diez y seis（十和六）连在一起。这一关不考试。",
+          items: { words: ["dieciseis", "diecisiete", "dieciocho", "diecinueve", "veinte"] },
+          count: 5
+        },
+        {
+          id: "train-learn-6", type: "learn",
+          titleZh: "背句子：几点了",
+          introZh: "现在几点、一点半、我们几点见、好的、请稍等。先听熟，下一关再考。",
+          items: { phrases: ["ph-que-hora-es", "ph-es-la-una-y-media", "ph-a-que-hora-quedamos", "ph-vale-perfecto", "ph-un-momento"] },
+          count: 5
+        },
+        {
           id: "train-3", type: "normal",
           titleZh: "几点了？", titleEn: "What time is it?",
           introZh: "数字 16–20，问现在几点、约几点见面，说“好的”和“请稍等”。",
@@ -518,6 +889,20 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "train-learn-7", type: "learn",
+          titleZh: "背句子：坐车出行",
+          introZh: "问站台、问公交车、找车站、去机场、路上要多久。先听熟，这一关不考试。",
+          items: { phrases: ["ph-de-que-anden", "ph-este-autobus", "ph-parada-de-autobus", "ph-al-aeropuerto", "ph-cuanto-tarda"] },
+          count: 5
+        },
+        {
+          id: "train-learn-8", type: "learn",
+          titleZh: "背句子：打车和约人",
+          introZh: "能走路去吗、请在这里停车，还有“你有空吗”“今天不行”“我要迟到了”。先听熟，这一关不考试。",
+          items: { phrases: ["ph-se-puede-ir-a-pie", "ph-pare-aqui", "ph-estas-libre", "ph-hoy-no-puedo", "ph-llego-tarde"] },
+          count: 5
         },
         {
           id: "train-4", type: "normal",
@@ -539,6 +924,14 @@ window.WORLD = {
           items: { dialogue: "task-train" },
           modes: ["dialogue"],
           count: 6
+        },
+        {
+          id: "train-review-end", type: "review",
+          titleZh: "总复习：火车站",
+          introZh: "大关之前热热身：星期、数字 11–20、时间和出行句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["train"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
         },
         {
           id: "train-6", type: "boss",
@@ -569,6 +962,21 @@ window.WORLD = {
       stampZh: "药店邮票", stampEn: "Pharmacy stamp",
       levels: [
         {
+          id: "pharmacy-review-start", type: "review",
+          titleZh: "复习：火车站",
+          introZh: "找药店之前，先把火车站学过的星期、数字和出行句子复习一下。以前答错过的会优先出现。",
+          reviewOf: ["train"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "pharmacy-learn-1", type: "learn",
+          titleZh: "背句子：问路",
+          introZh: "附近有没有……、远不远，还有“在右边”“向左转”“一直走”。先听熟，这一关不考试。",
+          items: { phrases: ["ph-hay-un-supermercado", "ph-esta-lejos", "ph-esta-a-la-derecha", "ph-gire-a-la-izquierda", "ph-siga-todo-recto"] },
+          count: 5
+        },
+        {
           id: "pharmacy-1", type: "normal",
           titleZh: "药店在哪儿？", titleEn: "Where's the pharmacy?",
           introZh: "问附近有没有某个地方、远不远，听懂“右边、左转、一直走”。",
@@ -578,6 +986,13 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 5
+        },
+        {
+          id: "pharmacy-learn-2", type: "learn",
+          titleZh: "背句子：在哪儿",
+          introZh: "厕所在哪里、我迷路了、去车站怎么走、能在地图上指给我看吗。先听熟，这一关不考试。",
+          items: { phrases: ["ph-donde-esta-el-bano", "ph-estoy-perdido", "ph-como-llego-estacion", "ph-en-el-mapa"] },
+          count: 4
         },
         {
           id: "pharmacy-2", type: "normal",
@@ -592,6 +1007,20 @@ window.WORLD = {
           count: 8
         },
         {
+          id: "pharmacy-learn-3", type: "learn",
+          titleZh: "背单词：头和脸",
+          introZh: "头、眼睛、嘴、鼻子、耳朵。先看先听，这一关不考试。",
+          items: { words: ["cabeza", "ojo", "boca", "nariz", "oreja"] },
+          count: 5
+        },
+        {
+          id: "pharmacy-learn-4", type: "learn",
+          titleZh: "背句子：不舒服",
+          introZh: "我头疼、我生病了、我累了、我冷、我需要帮助。先听熟，下一关再考。",
+          items: { phrases: ["ph-me-duele-la-cabeza", "ph-estoy-enfermo", "ph-estoy-cansado", "ph-tengo-frio", "ph-necesito-ayuda"] },
+          count: 5
+        },
+        {
           id: "pharmacy-3", type: "normal",
           titleZh: "头和脸", titleEn: "Head & face",
           introZh: "头、眼睛、嘴、鼻子、耳朵，再学“我头疼”“我生病了”“我需要帮助”。",
@@ -602,6 +1031,20 @@ window.WORLD = {
           },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "pharmacy-learn-5", type: "learn",
+          titleZh: "背单词：手和脚",
+          introZh: "手、胳膊、腿、脚，还有“医院”。先看先听，这一关不考试。",
+          items: { words: ["mano", "brazo", "pierna", "pie", "hospital"] },
+          count: 5
+        },
+        {
+          id: "pharmacy-learn-6", type: "learn",
+          titleZh: "背句子：饿了渴了",
+          introZh: "我饿了、我渴了、我很喜欢、我不喜欢，还有“请叫医生”。先听熟，下一关再考。",
+          items: { phrases: ["ph-tengo-hambre", "ph-tengo-sed", "ph-me-gusta-mucho", "ph-no-me-gusta", "ph-llame-a-un-medico"] },
+          count: 5
         },
         {
           id: "pharmacy-4", type: "normal",
@@ -623,6 +1066,14 @@ window.WORLD = {
           items: { dialogue: "task-pharmacy" },
           modes: ["dialogue"],
           count: 6
+        },
+        {
+          id: "pharmacy-review-end", type: "review",
+          titleZh: "总复习：药店",
+          introZh: "大关之前热热身：身体部位、问路、感受和 estar 再练一遍，还不熟的会多出几次。",
+          reviewOf: ["pharmacy"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
         },
         {
           id: "pharmacy-6", type: "boss",
@@ -653,6 +1104,21 @@ window.WORLD = {
       stampZh: "农场邮票", stampEn: "Farm stamp",
       levels: [
         {
+          id: "farm-review-start", type: "review",
+          titleZh: "复习：药店",
+          introZh: "去农场之前，先把药店学过的身体部位、问路和感受复习一下。以前答错过的会优先出现。",
+          reviewOf: ["pharmacy"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
+          id: "farm-learn-1", type: "learn",
+          titleZh: "背单词：农场动物",
+          introZh: "狗、猫、鸟、鱼、马、奶牛、猪、老鼠。看着图片听发音，这一关不考试。",
+          items: { words: ["perro", "gato", "pajaro", "pez", "caballo", "vaca", "cerdo", "raton"] },
+          count: 8
+        },
+        {
           id: "farm-1", type: "normal",
           titleZh: "农场的动物", titleEn: "Farm animals",
           introZh: "狗、猫、鸟、鱼、马、奶牛、猪、老鼠——农场里全都有！",
@@ -660,6 +1126,13 @@ window.WORLD = {
           items: { words: ["perro", "gato", "pajaro", "pez", "caballo", "vaca", "cerdo", "raton"] },
           modes: ["listen", "match"],
           count: 8
+        },
+        {
+          id: "farm-learn-2", type: "learn",
+          titleZh: "背单词：动词和大小",
+          introZh: "说、吃、喝、住、工作，再加上“大”和“小”。先看先听，这一关不考试。",
+          items: { words: ["hablar", "comer", "beber", "vivir", "trabajar", "grande", "pequeno"] },
+          count: 7
         },
         {
           id: "farm-2", type: "normal",
@@ -671,8 +1144,15 @@ window.WORLD = {
           count: 7
         },
         {
+          id: "farm-learn-3", type: "learn",
+          titleZh: "背单词：更多动词",
+          introZh: "需要、去、有、想要、喜欢。先看先听，这一关不考试。",
+          items: { words: ["necesitar", "ir", "tener", "querer", "gustar"] },
+          count: 5
+        },
+        {
           id: "farm-3", type: "normal",
-          titleZh: "需要、去、有、想要、喜欢", titleEn: "Need, go, have, want, like",
+          titleZh: "更多常用动词", titleEn: "Need, go, have, want, like",
           introZh: "再学五个常用动词，然后练规则动词的变位：-o, -as, -a…",
           introEn: "Five more common verbs, then practice regular verb endings: -o, -as, -a…",
           items: {
@@ -701,6 +1181,14 @@ window.WORLD = {
           count: 6
         },
         {
+          id: "farm-review-end", type: "review",
+          titleZh: "总复习：乡下农场",
+          introZh: "大关之前热热身：动物、动词和变位再练一遍，还不熟的会多出几次。",
+          reviewOf: ["farm"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
           id: "farm-6", type: "boss",
           titleZh: "大关：农场大丰收", titleEn: "Boss: Harvest time",
           introZh: "动物、动词和变位全部混在一起，帮 Paco 把活儿干完！",
@@ -725,6 +1213,14 @@ window.WORLD = {
       npc: { name: "Javier", emoji: "🕺", roleZh: "派对主人", roleEn: "party host" },
       stampZh: "告别派对邮票", stampEn: "Farewell Party stamp",
       levels: [
+        {
+          id: "party-review-start", type: "review",
+          titleZh: "复习：乡下农场",
+          introZh: "最后一天开始啦！先把农场学过的动物、动词和变位复习一下。以前答错过的会优先出现。",
+          reviewOf: ["farm"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
         {
           id: "party-1", type: "task",
           titleZh: "又见 Carmen", titleEn: "Carmen again",
@@ -762,6 +1258,14 @@ window.WORLD = {
             phrases: ["ph-me-llamo", "ph-cuanto-cuesta", "ph-donde-esta-el-bano", "ph-tengo-hambre"]
           },
           modes: ["guess", "order", "match"],
+          count: 8
+        },
+        {
+          id: "party-review-end", type: "review",
+          titleZh: "总复习：告别派对",
+          introZh: "终极大关之前热热身：这一站的内容来自整个旅行，还不熟的词会多出几次。",
+          reviewOf: ["party"],
+          modes: ["listen", "match", "guess", "order", "fill"],
           count: 8
         },
         {

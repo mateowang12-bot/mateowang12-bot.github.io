@@ -15,8 +15,13 @@
 //   World.regions()              区域列表（每个区域多了 index）
 //   World.levels()               所有关卡按顺序排成一列（每关多了 region、regionIndex、index、order）
 //   World.getLevel(id) / getRegion(id)
-//   World.isUnlocked(level)      解锁规则：第一关开放；前一关 ≥ 1 星才解锁下一关（boss 是区域最后一关，所以 boss 过了才开下一个区域）
-//   World.current()              现在该玩的关卡（第一个解锁了但还没星星的；全过了就是最后一关）
+//   World.isUnlocked(level)      解锁规则：第一关开放；前一关 ≥ 1 星才解锁下一关（boss 是区域最后一关，所以 boss 过了才开下一个区域）。
+//                                阶段 12：背单词关（type "learn"）和复习关（type "review"）是“推荐关”，不挡路：
+//                                算“前一关”时跳过它们，看再往前最近的一个普通 / 对话 / Boss 关有没有星星。
+//                                这样新插进来的 learn / review 关不会把老存档锁住（已经过了的关之前、之后都能接着玩），
+//                                新用户的地图气泡也会先指向它们（见 current）。
+//   World.current()              现在该玩的关卡：最后一个有星星的关卡之后，第一个解锁了但还没星星的（全过了就是最后一关）
+//   World.isPractice(level)      是不是背单词关 / 复习关
 //   World.nextLevel(level)       下一关（没有 → null）
 //   World.regionStars(region)    → { got, max }
 //   World.resolve(level)         把 items 里的 id 换成真正的内容 → { letters, words, phrases, grammar:[练习题], dialogue }
@@ -185,7 +190,7 @@
         if (!l || !l.id) continue;
         var lv = {};
         for (var k2 in l) if (has(l, k2)) lv[k2] = l[k2];
-        lv.type = lv.type === "boss" || lv.type === "task" ? lv.type : "normal";
+        lv.type = lv.type === "boss" || lv.type === "task" || lv.type === "learn" || lv.type === "review" ? lv.type : "normal";
         lv.items = lv.items && typeof lv.items === "object" ? lv.items : {};
         var ms = [];
         var srcModes = arr(lv.modes);
@@ -215,34 +220,104 @@
     var r = p && p.getLevel ? p.getLevel(lv.id) : null;
     return r ? r.stars : 0;
   }
+  function isPractice(lv) { return !!lv && (lv.type === "learn" || lv.type === "review"); }
+  // 背单词关不给星星：学完一次（有记录、玩过）就算“学过了”
+  function learnDone(lv) {
+    var p = P();
+    var r = lv && lv.type === "learn" && p && p.getLevel ? p.getLevel(lv.id) : null;
+    return !!(r && r.plays > 0);
+  }
+  // 这一关算不算“完成了”：普通 / 对话 / 大关 / 复习关 ≥ 1 星；背单词关学过一次
+  function isDone(lv) { return lv && lv.type === "learn" ? learnDone(lv) : starsOf(lv) >= 1; }
   function isUnlocked(lv) {
     if (!lv) return false;
     if (lv.order === 0) return true;
-    var prev = levels()[lv.order - 1];
-    return !!prev && starsOf(prev) >= 1;
+    var ls = levels();
+    // 往前找最近的一个“正式关”（跳过背单词 / 复习关）；前面只有推荐关 → 开放
+    for (var i = lv.order - 1; i >= 0; i--) {
+      if (isPractice(ls[i])) continue;
+      return starsOf(ls[i]) >= 1;
+    }
+    return true;
   }
   function current() {
     var ls = levels();
-    for (var i = 0; i < ls.length; i++) {
-      if (!isUnlocked(ls[i])) return ls[Math.max(0, i - 1)];
-      if (starsOf(ls[i]) < 1) return ls[i];
+    var last = -1;
+    for (var i = 0; i < ls.length; i++) if (isDone(ls[i])) last = i;
+    for (var j = last + 1; j < ls.length; j++) {
+      if (!isUnlocked(ls[j])) break;
+      if (!isDone(ls[j])) return ls[j];
     }
-    return ls[ls.length - 1] || null;
+    return ls[Math.max(0, Math.min(ls.length - 1, last + 1))] || ls[ls.length - 1] || null;
   }
   function nextLevel(lv) {
     return lv ? levels()[lv.order + 1] || null : null;
   }
   function regionStars(reg) {
-    var got = 0;
-    for (var i = 0; i < reg.levels.length; i++) got += starsOf(reg.levels[i]);
-    return { got: got, max: reg.levels.length * 3 };
+    var got = 0, n = 0;
+    for (var i = 0; i < reg.levels.length; i++) {
+      if (reg.levels[i].type === "learn") continue; // 背单词关没有星星，不算进区域星星
+      got += starsOf(reg.levels[i]);
+      n++;
+    }
+    return { got: got, max: n * 3 };
   }
   function regionUnlocked(reg) { return isUnlocked(reg.levels[0]); }
 
   // ---------- items → 真正的内容 ----------
+  // 复习关：把 reviewOf 里那些区域所有关卡的条目合在一起，按“掌握得最差”排序后截取一部分
+  //   （答错过的、Leitner 盒子低的、还没掌握的在前；没见过的排在中间；已掌握的在最后）
+  var REVIEW_CAP = { words: 16, phrases: 8, letters: 6, grammar: 6 };
+  function reviewItems(lv) {
+    var p = P();
+    var ids = { words: [], phrases: [], letters: [], grammar: [] }, seen = {};
+    var rs = arr(lv.reviewOf);
+    for (var r = 0; r < rs.length; r++) {
+      var reg = getRegion(rs[r]);
+      if (!reg) continue;
+      for (var i = 0; i < reg.levels.length; i++) {
+        var it0 = reg.levels[i].items || {};
+        var lists = [["words", "w:"], ["phrases", "p:"], ["letters", "l:"]];
+        for (var q = 0; q < lists.length; q++) {
+          var src = arr(it0[lists[q][0]]);
+          for (var k = 0; k < src.length; k++) {
+            var key = lists[q][1] + src[k];
+            if (seen[key]) continue;
+            seen[key] = 1;
+            ids[lists[q][0]].push(src[k]);
+          }
+        }
+        var G = arr(it0.grammar);
+        for (var g = 0; g < G.length; g++) if (G[g] && G[g].lesson) ids.grammar.push(G[g]);
+      }
+    }
+    var R = rng("review-" + lv.id + "-" + Date.now());
+    function weak(id) {
+      var w = p && p.getWord ? p.getWord(id) : null;
+      if (!w) return 50 + R();                     // 没见过
+      var s = w.box * 20 - (w.wrong > 0 ? 30 : 0) - (w.wrong > w.correct ? 10 : 0);
+      if (w.box >= 3) s += 60;                    // 已经掌握：放在最后
+      return s + R() * 5;
+    }
+    function sortWeak(list) {
+      return list.map(function (id) { return { id: id, s: weak(id) }; }).sort(function (a, b) { return a.s - b.s; }).map(function (x) { return x.id; });
+    }
+    return {
+      words: sortWeak(ids.words).slice(0, REVIEW_CAP.words),
+      phrases: sortWeak(ids.phrases).slice(0, REVIEW_CAP.phrases),
+      // 字母和语法题没有“熟不熟”的记录：每次随机抽，不总是前几个
+      letters: shuffleR(ids.letters, R).slice(0, REVIEW_CAP.letters),
+      grammar: shuffleR(ids.grammar, R).slice(0, REVIEW_CAP.grammar)
+    };
+  }
+  function shuffleR(list, R) {
+    var a = list.slice();
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(R() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
   function resolve(lv) {
     var c = index();
-    var it = (lv && lv.items) || {};
+    var it = (lv && lv.type === "review" && lv.reviewOf) ? reviewItems(lv) : ((lv && lv.items) || {});
     var out = { letters: [], words: [], phrases: [], grammar: [], dialogue: null, missing: [] };
     var i, k;
     var L = arr(it.letters);
@@ -334,6 +409,7 @@
     for (var r = 0; r < rs.length; r++) {
       if (!regionUnlocked(rs[r])) continue;
       for (var i = 0; i < rs[r].levels.length; i++) {
+        if (isPractice(rs[r].levels[i])) continue; // 每日挑战跳过背单词关和复习关
         var it = rs[r].levels[i].items || {};
         var lists = [[arr(it.words), words, "w:"], [arr(it.phrases), phrases, "p:"], [arr(it.letters), letters, "l:"]];
         for (var q = 0; q < lists.length; q++) {
@@ -375,7 +451,7 @@
     AVATARS: AVATARS, SKINS: SKINS, RANKS: RANKS, MODES: MODES, MODE_INFO: MODE_INFO,
     isFallback: function () { return build().fallback; },
     regions: regions, levels: levels, getLevel: getLevel, getRegion: getRegion,
-    starsOf: starsOf, isUnlocked: isUnlocked, regionUnlocked: regionUnlocked, current: current, nextLevel: nextLevel, regionStars: regionStars,
+    starsOf: starsOf, isUnlocked: isUnlocked, isPractice: isPractice, learnDone: learnDone, isDone: isDone, regionUnlocked: regionUnlocked, current: current, nextLevel: nextLevel, regionStars: regionStars,
     resolve: resolve, dialogueById: dialogueById, index: index,
     avatar: function (id) { return find(AVATARS, id) || AVATARS[0]; },
     skin: function (id) { return find(SKINS, id) || SKINS[0]; },

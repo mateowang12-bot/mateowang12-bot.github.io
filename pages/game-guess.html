@@ -48,6 +48,11 @@
         <div class="hearts" id="q-hearts" aria-live="polite"></div>
       </div>
       <div class="guess-keys" id="keys" role="group" aria-label="字母键盘"></div>
+      <!-- 阶段 12：也可以用手机自带的键盘：点按钮弹出键盘，打一个字母就猜一个（重音字母当普通字母） -->
+      <div class="kb-guess">
+        <button type="button" class="btn btn-light btn-small" id="kb-btn">⌨️ 用键盘输入</button>
+        <input type="text" class="text-input kb-guess-input" id="kb-input" hidden autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" lang="es" inputmode="text" enterkeyhint="next" aria-label="打一个字母就猜一个" placeholder="打一个字母">
+      </div>
       <div class="quiz-feedback" id="feedback" hidden></div>
       <div class="card-nav">
         <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一个词 →</button>
@@ -311,6 +316,27 @@
     }
 
     // 实体键盘：直接打字母
+    // 用手机键盘猜：点按钮 → 显示输入框并 focus（在点击里同步，iPhone 才弹出键盘）；每打一个字母就猜一次，然后清空
+    $("kb-btn").onclick = function () {
+      var i = $("kb-input");
+      i.hidden = false;
+      try { i.focus(); } catch (e) {}
+    };
+    $("kb-input").addEventListener("input", function () {
+      var v = this.value;
+      this.value = "";
+      for (var c = 0; c < v.length; c++) {
+        var ch = v.charAt(c);
+        if (/[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(ch)) guess(ch);
+      }
+    });
+    $("kb-input").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        var nb = $("next-btn");
+        if (nb && !nb.hidden) nb.click();
+      }
+    });
     document.addEventListener("keydown", function (ev) {
       if ($("play-screen").hidden || ev.altKey || ev.ctrlKey || ev.metaKey || K.typing(ev)) return;
       var k = ev.key || "";

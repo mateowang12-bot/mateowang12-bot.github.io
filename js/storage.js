@@ -78,6 +78,7 @@
 //   Progress.dailyGoal() / setDailyGoal(n)  每日目标（10 / 20 / 50 / 100，默认 20；存在 settings 里，跟着同步）
 //   Progress.soundOn() / setSound(bool)      音效开关（阶段 12，默认开；存在 settings 里，跟着同步）
 //   Progress.vibrateOn() / setVibrate(bool)  震动开关（阶段 12，默认开；同上）
+//   Progress.speechRate() / setSpeechRate(v) 西语朗读语速（阶段 12）："slower" 很慢 / "slow" 慢（默认）/ "normal" 正常；js/speak.js 读它
 //   Progress.studyDayKeys()             学过的日期列表（排好序）
 //
 // ---------- 冒险闯关（阶段 11；关卡数据和奖励清单在 js/world.js） ----------
@@ -127,6 +128,7 @@
     letter: 1,         // 字母点一个（每个字母每天最多算一次）
     chatMsg: 2,        // AI 对话发一句（每天最多算 20 句）
     // ---- 阶段 11：冒险闯关 ----
+    learnDone: 5,      // 阶段 12：背单词关学完（同一关每天第一次才给；不给星星）
     level1: 10,        // 过关 ⭐（同一关每天第一次过关）
     level2: 15,        // 过关 ⭐⭐（同一关每天第一次过关）
     level3: 20,        // 过关 ⭐⭐⭐（同一关每天第一次过关）
@@ -140,9 +142,11 @@
   var CHAT_XP_DAILY_MAX = 20;
   var GOALS = [10, 20, 50, 100];
   var DEFAULT_GOAL = 20;
+  var RATES = ["slower", "slow", "normal"]; // 朗读语速三档（具体数值在 js/speak.js）
+  var DEFAULT_RATE = "slow";
 
   function defaultSettings() {
-    return { dailyGoal: DEFAULT_GOAL, sound: true, vibrate: true, updatedAt: 0 };
+    return { dailyGoal: DEFAULT_GOAL, sound: true, vibrate: true, speechRate: DEFAULT_RATE, updatedAt: 0 };
   }
 
   function emptyState() {
@@ -218,6 +222,7 @@
     out.dailyGoal = GOALS.indexOf(g) !== -1 ? g : DEFAULT_GOAL;
     out.sound = s.sound !== false;
     out.vibrate = s.vibrate !== false;
+    out.speechRate = RATES.indexOf(s.speechRate) !== -1 ? s.speechRate : DEFAULT_RATE;
     out.updatedAt = Math.max(0, num(s.updatedAt, 0));
     return out;
   }
@@ -816,7 +821,7 @@
     g = Math.floor(num(g, DEFAULT_GOAL));
     if (GOALS.indexOf(g) === -1) return dailyGoal();
     var st = load();
-    st.settings = { dailyGoal: g, sound: st.settings.sound, vibrate: st.settings.vibrate, updatedAt: Math.max(Date.now(), st.settings.updatedAt + 1) };
+    st.settings = { dailyGoal: g, sound: st.settings.sound, vibrate: st.settings.vibrate, speechRate: st.settings.speechRate, updatedAt: Math.max(Date.now(), st.settings.updatedAt + 1) };
     save(st);
     return g;
   }
@@ -830,14 +835,21 @@
   function setSwitch(name, on) {
     var st = load();
     var s = st.settings;
-    var next = { dailyGoal: s.dailyGoal, sound: s.sound !== false, vibrate: s.vibrate !== false, updatedAt: Math.max(Date.now(), s.updatedAt + 1) };
-    next[name] = !!on;
+    var next = { dailyGoal: s.dailyGoal, sound: s.sound !== false, vibrate: s.vibrate !== false, speechRate: s.speechRate, updatedAt: Math.max(Date.now(), s.updatedAt + 1) };
+    next[name] = name === "speechRate" ? on : !!on;
     st.settings = next;
     save(st);
     try { window.dispatchEvent(new Event("settings-changed")); } catch (e) {}
-    return !!on;
+    return next[name];
   }
   function setSound(on) { return setSwitch("sound", on); }
+  function speechRate() {
+    return load().settings.speechRate || DEFAULT_RATE;
+  }
+  function setSpeechRate(v) {
+    if (RATES.indexOf(v) === -1) return speechRate();
+    return setSwitch("speechRate", v);
+  }
   function setVibrate(on) { return setSwitch("vibrate", on); }
 
   function alphabetInfo() {
@@ -884,6 +896,16 @@
     return out;
   }
   // 过关给经验值：同一关每天第一次按星星给（level1/2/3），之后再过给 levelRepeat；stars = 0（失败）不给
+  // 背单词关（阶段 12）：同一关每天第一次学完 +learnDone，之后不再给（用和关卡一样的每日 caps 防刷分）
+  function awardLearn(id) {
+    if (!id) return null;
+    var c = loadCaps();
+    var k = "learn:" + String(id);
+    if (c.levels[k]) return null;
+    c.levels[k] = 1;
+    saveCaps(c);
+    return addXp(XP_RULES.learnDone);
+  }
   function awardLevel(id, stars) {
     stars = Math.floor(num(stars, 0));
     if (!id || stars < 1) return null;
@@ -1173,9 +1195,9 @@
 
     // 设置：取较新的；时间一样取目标大的（结果和合并顺序无关）
     var sa = a.settings, sb = b.settings;
-    var rankS = function (x) { return x.dailyGoal * 4 + (x.sound ? 2 : 0) + (x.vibrate ? 1 : 0); };
+    var rankS = function (x) { return x.dailyGoal * 16 + RATES.indexOf(x.speechRate) * 4 + (x.sound ? 2 : 0) + (x.vibrate ? 1 : 0); };
     var sp = sa.updatedAt !== sb.updatedAt ? (sa.updatedAt > sb.updatedAt ? sa : sb) : (rankS(sa) >= rankS(sb) ? sa : sb);
-    out.settings = { dailyGoal: sp.dailyGoal, sound: sp.sound, vibrate: sp.vibrate, updatedAt: sp.updatedAt };
+    out.settings = { dailyGoal: sp.dailyGoal, sound: sp.sound, vibrate: sp.vibrate, speechRate: sp.speechRate, updatedAt: sp.updatedAt };
     return out;
   }
   // 合并两组“成绩”记录（语法课 / 情景对话），结果写进 out；早于 R（resetAt）的丢掉
@@ -1547,6 +1569,10 @@
     setSound: setSound,
     vibrateOn: vibrateOn,
     setVibrate: setVibrate,
+    awardLearn: awardLearn,
+    speechRate: speechRate,
+    setSpeechRate: setSpeechRate,
+    RATES: RATES,
     setDailyGoal: setDailyGoal,
     unlockBadge: unlockBadge,
     badges: badges,

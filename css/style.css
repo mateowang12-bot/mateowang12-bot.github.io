@@ -5174,10 +5174,7 @@ a.all-link:hover {
   box-shadow: 0 var(--edge) 0 var(--primary-edge);
 }
 
-/* ---------- 隐藏的“触感”小开关（js/sfx.js 在 iPhone 上用；不显示、不能聚焦、不占位置） ---------- */
-.sfx-haptic {
-  display: none !important;
-}
+/* 隐藏的“触感”小开关：样式直接写在 js/sfx.js 里（写法 2 要求不能是 display:none，所以这里不再统一藏起来） */
 
 /* ---------- 小屏 ---------- */
 @media (max-width: 480px) {
@@ -5379,4 +5376,641 @@ a.all-link:hover {
   .gram-table .say::before {
     content: "";
   }
+}
+/* ---------- 阶段 12：朗读按钮的卡通小喇叭（图案在 js/mascot.js，颜色在这里） ---------- */
+:root {
+  --sp-body: var(--select);
+  --sp-cone: var(--accent);
+  --sp-edge: var(--m-ink);
+  --sp-wave: var(--select);
+}
+.say::before {
+  content: none;
+}
+.sp-ico {
+  display: inline-block;
+  width: 1.45em;
+  height: 1.2em;
+  margin-right: 0.3em;
+  vertical-align: -0.25em;
+  line-height: 0;
+}
+.sp-ico svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.sp-ico .sp-body { fill: var(--sp-body); stroke: var(--sp-edge); stroke-width: 7; stroke-linejoin: round; }
+.sp-ico .sp-cone { fill: var(--sp-cone); stroke: var(--sp-edge); stroke-width: 7; stroke-linejoin: round; }
+.sp-ico .sp-wave { fill: none; stroke: var(--sp-wave); stroke-width: 9; stroke-linecap: round; }
+.sp-ico.is-big .sp-body,
+.sp-ico.is-big .sp-cone { stroke-width: 4.5; }
+.sp-ico.is-big .sp-wave { stroke-width: 7; }
+.sp-ico .m-ink { fill: var(--m-ink); }
+.sp-ico .m-shine { fill: var(--m-shine); }
+.sp-ico .m-cheek { fill: var(--m-cheek); opacity: 0.8; }
+.sp-ico .m-tongue { fill: var(--m-tongue); }
+.sp-ico .sp-horn,
+.sp-ico .sp-wave {
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+/* 正在朗读：音波一圈圈往外扩，喇叭轻轻跳 */
+.is-speaking .sp-ico .sp-wave {
+  animation: sp-wave 0.9s ease-out infinite;
+}
+.is-speaking .sp-ico .sp-wave.w2 { animation-delay: 0.15s; }
+.is-speaking .sp-ico .sp-wave.w3 { animation-delay: 0.3s; }
+.is-speaking .sp-ico .sp-horn {
+  transform-origin: center;
+  animation: sp-bop 0.45s ease-in-out infinite;
+}
+@keyframes sp-wave {
+  0% { opacity: 0.25; transform: translateX(-6%) scale(0.8); }
+  45% { opacity: 1; transform: translateX(0) scale(1.05); }
+  100% { opacity: 0.25; transform: translateX(6%) scale(1); }
+}
+@keyframes sp-bop {
+  0%, 100% { transform: scale(1) rotate(0); }
+  50% { transform: scale(1.08) rotate(-4deg); }
+}
+/* 关卡的大播放按钮：圆滚滚的白卡 + 厚底边，里面是有表情的小喇叭；旁边是 🐢 慢速再听 */
+.p-listen-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 14px;
+  margin: 4px 0 14px;
+}
+.p-listen {
+  width: 116px;
+  height: 100px;
+  margin: 0;
+  border-radius: 34px;
+  border: 3px solid var(--select);
+  background: var(--select-soft);
+  box-shadow: 0 7px 0 var(--select-edge);
+  font-size: 1rem;
+}
+.p-listen .sp-ico {
+  width: 98px;
+  height: 82px;
+  margin: 0;
+  vertical-align: middle;
+}
+.p-slow {
+  font: inherit;
+  width: 56px;
+  height: 56px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 20px;
+  border: 3px solid var(--border-strong);
+  background: var(--card);
+  box-shadow: 0 5px 0 var(--border-strong);
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+.p-slow:active {
+  transform: translateY(5px);
+  box-shadow: 0 0 0 var(--border-strong);
+}
+.p-slow.is-speaking {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+@media (max-height: 600px) {
+  .p-listen-row {
+    gap: 10px;
+    margin: 2px 0 8px;
+  }
+  .p-listen {
+    width: 84px;
+    height: 64px;
+    border-radius: 24px;
+  }
+  .p-listen .sp-ico {
+    width: 64px;
+    height: 52px;
+  }
+  .p-slow {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4rem;
+    border-radius: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-speaking .sp-ico .sp-wave,
+  .is-speaking .sp-ico .sp-horn {
+    animation: none !important;
+  }
+}
+
+/* ---------- “我的”页：语速、震动测试（临时） ---------- */
+.rate-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.haptic-test {
+  margin-top: 12px;
+  padding: 12px;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.haptic-test .card-nav {
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+.haptic-diag {
+  margin-top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+/* ---------- 阶段 12：背单词关的大卡片、地图上的背单词 / 复习关节点 ---------- */
+.learn-card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 16px 14px;
+  margin: 6px 0 10px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 26px;
+  box-shadow: 0 6px 0 var(--border);
+  max-height: 440px;
+  overflow-wrap: anywhere;
+}
+.learn-emoji {
+  font-size: clamp(3rem, 9vh, 5.5rem);
+  line-height: 1.1;
+}
+.learn-es {
+  font-size: clamp(2rem, 6vh, 3rem);
+  font-weight: 900;
+  color: var(--primary-text);
+  line-height: 1.15;
+  max-width: 100%;
+}
+.learn-es.is-phrase {
+  font-size: clamp(1.5rem, 4.2vh, 2.2rem);
+}
+.learn-zh {
+  font-size: clamp(1.2rem, 3vh, 1.6rem);
+  font-weight: 800;
+}
+.learn-ex {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 2px dashed var(--border);
+  width: 100%;
+}
+.learn-ex-label {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+}
+.learn-ex-zh {
+  font-size: var(--fs-sm);
+}
+.learn-row {
+  margin-bottom: 4px;
+}
+.node.is-learn {
+  background: var(--select);
+  box-shadow: 0 7px 0 var(--select-edge), inset 0 -5px 0 rgba(0, 0, 0, 0.08);
+}
+.node.is-learn:active {
+  box-shadow: 0 0 0 var(--select-edge);
+}
+.node.is-review {
+  background: var(--band-6);
+  box-shadow: 0 7px 0 var(--band-6-edge), inset 0 -5px 0 rgba(0, 0, 0, 0.08);
+}
+.node.is-review:active {
+  box-shadow: 0 0 0 var(--band-6-edge);
+}
+.node.is-current.is-learn {
+  box-shadow: 0 7px 0 var(--select-edge), 0 0 0 7px var(--card), 0 0 0 11px var(--select);
+}
+.node.is-current.is-review {
+  box-shadow: 0 7px 0 var(--band-6-edge), 0 0 0 7px var(--card), 0 0 0 11px var(--band-6);
+}
+.node.is-done.is-learn,
+.node.is-done.is-review {
+  background: var(--accent);
+  box-shadow: 0 7px 0 var(--accent-edge), inset 0 -5px 0 rgba(0, 0, 0, 0.08);
+}
+@media (max-height: 600px) {
+  .learn-card {
+    padding: 8px 10px;
+    gap: 2px;
+    margin: 2px 0 6px;
+  }
+  .learn-emoji { font-size: 2.4rem; }
+  .learn-es { font-size: 1.7rem; }
+  .learn-es.is-phrase { font-size: 1.3rem; }
+  .learn-zh { font-size: 1.1rem; }
+  .learn-ex { margin-top: 2px; padding-top: 4px; }
+}
+
+/* ---------- 阶段 12：手机屏幕高的时候把空间用起来（关卡里的模块跟着屏幕变大） ---------- */
+/* 只在比较高的屏幕（≥ 640px）上放大；320×568 这类矮屏保持前面的紧凑排版，保证一屏放下 */
+@media (min-height: 640px) {
+  .play-main > .p-screen > .p-options {
+    flex: 1 0 auto;
+    grid-auto-rows: 1fr;
+    max-height: 520px;
+    align-content: stretch;
+    margin-bottom: 8px;
+  }
+  .p-options .quiz-option {
+    min-height: clamp(64px, 11vh, 120px);
+    font-size: clamp(1.1rem, 1.2vh + 0.75rem, 1.5rem);
+    padding: 12px 16px;
+  }
+  .p-options .quiz-option .opt-emoji {
+    font-size: clamp(1.6rem, 3.6vh, 2.6rem);
+  }
+  .p-options .letter-opt {
+    font-size: clamp(1.8rem, 4.4vh, 2.8rem);
+  }
+  .q-title {
+    font-size: clamp(1.35rem, 1.2vh + 0.95rem, 1.75rem);
+  }
+  .p-listen {
+    width: clamp(116px, 18vh, 168px);
+    height: clamp(100px, 15vh, 140px);
+    border-radius: 40px;
+  }
+  .p-listen .sp-ico {
+    width: 80%;
+    height: 80%;
+  }
+  .p-slow {
+    width: clamp(56px, 8.5vh, 76px);
+    height: clamp(56px, 8.5vh, 76px);
+    font-size: clamp(1.7rem, 4vh, 2.4rem);
+  }
+  .p-listen-row {
+    margin-bottom: 18px;
+  }
+  .q-big {
+    font-size: clamp(2.2rem, 6vh, 3.2rem);
+  }
+  .play-main .m-board {
+    flex: 1 0 auto;
+    max-height: 560px;
+  }
+  .play-main .m-col {
+    grid-auto-rows: 1fr;
+  }
+  .m-card {
+    min-height: clamp(56px, 9vh, 96px);
+    font-size: clamp(1rem, 1vh + 0.75rem, 1.35rem);
+  }
+  .play-main .guess-key {
+    min-height: clamp(44px, 7vh, 64px);
+    font-size: clamp(1.15rem, 2.6vh, 1.5rem);
+  }
+  .guess-hint {
+    font-size: clamp(1.35rem, 3.4vh, 2rem);
+  }
+  .play-main .order-token {
+    min-height: clamp(48px, 7vh, 62px);
+    font-size: clamp(1.15rem, 2.4vh, 1.45rem);
+  }
+  .order-meaning,
+  .fill-prompt {
+    font-size: clamp(1.35rem, 3.2vh, 1.9rem);
+  }
+  .play-foot .btn {
+    min-height: 58px;
+    font-size: 1.25rem;
+  }
+}
+/* 地图、练习、收藏、我的：手机上卡片和按钮稍微大一点 */
+@media (max-width: 700px) {
+  .container {
+    font-size: 1.04rem;
+  }
+  .module-card {
+    min-height: 92px;
+    padding: 16px 18px;
+  }
+  .module-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+  .module-card {
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+  }
+  .module-title {
+    font-size: 1.25rem;
+  }
+  .today-card {
+    padding: 14px 8px;
+  }
+  .today-icon {
+    font-size: 1.7rem;
+  }
+  .stat-card,
+  .badge {
+    padding: 16px 14px;
+  }
+  .stat-num {
+    font-size: 1.9rem;
+  }
+  .badge-icon {
+    font-size: 2.5rem;
+  }
+  .pick {
+    min-height: 88px;
+  }
+  .pick-emoji {
+    font-size: 2.3rem;
+  }
+  .chest-icon {
+    font-size: 5rem;
+  }
+  .daily-card {
+    min-height: 84px;
+    padding: 14px 16px;
+  }
+  .daily-title {
+    font-size: 1.25rem;
+  }
+  .map-chip {
+    min-height: 48px;
+    font-size: 1.02rem;
+  }
+  .region-sign {
+    min-height: 78px;
+  }
+  .region-title {
+    font-size: 1.25rem;
+  }
+  .goal-opt {
+    min-height: 62px;
+  }
+}/* 背单词卡片：没有 emoji 时的大字母圆牌 */
+.learn-badge {
+  width: clamp(76px, 13vh, 112px);
+  height: clamp(76px, 13vh, 112px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--select);
+  color: var(--on-primary);
+  box-shadow: 0 6px 0 var(--select-edge);
+  font-size: clamp(2.6rem, 7vh, 4rem);
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.learn-badge.kind-phrase {
+  background: var(--purple);
+  box-shadow: 0 6px 0 var(--purple-edge);
+}
+.learn-badge.is-letter {
+  background: var(--band-3);
+  box-shadow: 0 6px 0 var(--band-3-edge);
+}
+@media (max-height: 600px) {
+  .learn-badge { width: 56px; height: 56px; font-size: 2rem; }
+}
+/* 地图：背单词关的“学过了”、可以补学的推荐关（半透明 + 小标记） */
+.node-stars.is-learn {
+  letter-spacing: 0;
+  color: var(--text);
+}
+.node-wrap.is-optional .node {
+  opacity: 0.55;
+}
+.node-wrap.is-optional .node-stars {
+  color: var(--select-text);
+  border-color: var(--select);
+}/* 放大排版的修正：选项只“吃”多出来的空间（最小高度不跟着屏幕变大），答错条弹出来时题目区也放得下 */
+@media (min-height: 640px) {
+  .p-options .quiz-option {
+    min-height: 58px;
+  }
+  .p-options.is-col .quiz-option {
+    min-height: 52px;
+  }
+  .p-listen {
+    width: clamp(110px, 16vh, 168px);
+    height: clamp(92px, 12.5vh, 140px);
+  }
+  .p-listen-row {
+    margin-bottom: 12px;
+  }
+  .p-result-hero .mascot.is-big {
+    width: clamp(84px, 13vh, 128px);
+    height: clamp(84px, 13vh, 128px);
+  }
+}@media (min-height: 640px) {
+  .p-options.is-col .quiz-option {
+    font-size: clamp(1.05rem, 0.6vh + 0.8rem, 1.3rem);
+    padding: 8px 14px;
+    line-height: 1.3;
+  }
+  .p-options.is-col .quiz-option .opt-emoji {
+    font-size: clamp(1.4rem, 2.6vh, 2rem);
+  }
+  .p-options .letter-opt {
+    font-size: clamp(1.6rem, 3.4vh, 2.4rem);
+  }
+}
+/* 屏幕不太高（640–760px，例如 360×740）：题目区留给选项，标题和喇叭稍微收一收 */
+@media (min-height: 640px) and (max-height: 760px) {
+  .q-kind {
+    display: none;
+  }
+  .q-title {
+    font-size: 1.3rem;
+    margin-bottom: 6px;
+  }
+  .p-listen {
+    width: 104px;
+    height: 84px;
+    border-radius: 30px;
+  }
+  .p-slow {
+    width: 56px;
+    height: 56px;
+  }
+  .p-listen-row {
+    margin: 0 0 10px;
+  }
+}/* 手机上两列选项：emoji 放在文字上面、居中，1–4 编号不显示（编号是给电脑键盘用的），文字有整格宽度，不会被挤成一行两三个字 */
+@media (max-width: 480px) {
+  .p-options:not(.is-col) .quiz-option {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    gap: 4px;
+  }
+  .p-options .quiz-option-num {
+    display: none;
+  }
+}@media (max-height: 600px) {
+  .p-listen-row {
+    margin-bottom: 4px;
+  }
+  .q-title {
+    margin-bottom: 4px;
+  }
+}
+/* ---------- 阶段 13 检查后的修正 ---------- */
+/* 选项不要太大：手机上每个选项最高约 150px、宽屏约 120px；多出来的空间让选项区上下居中 */
+.play-main > .p-screen > .p-options {
+  max-height: calc(var(--rows, 2) * 150px + (var(--rows, 2) - 1) * 12px);
+  margin-top: auto;
+  margin-bottom: auto;
+}
+@media (min-width: 700px) {
+  .play-main > .p-screen > .p-options {
+    max-height: calc(var(--rows, 2) * 120px + (var(--rows, 2) - 1) * 12px);
+  }
+}
+/* 字母卡片：读法说明（可能比较长，太长时在卡片里自己滚动） */
+.learn-sound {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text);
+  max-width: 34em;
+  max-height: 30vh;
+  overflow-y: auto;
+  text-align: left;
+}
+@media (max-height: 600px) {
+  .learn-sound {
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    max-height: 22vh;
+  }
+}
+/* 地图标题：两行时尽量平均分（不要一个字单独掉到第二行） */
+.node-label {
+  text-wrap: balance;
+}
+.node-stars.is-learn {
+  white-space: nowrap;
+}
+/* ---------- 关卡“猜单词”：用手机自带键盘输入整个单词 ---------- */
+.guess-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin: 10px 0 4px;
+}
+.guess-input.text-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 56px;
+  font-size: 1.35rem; /* ≥ 16px：iPhone 点输入框时不会自动放大页面 */
+  font-weight: 800;
+  border-width: 3px;
+  border-radius: 16px;
+  box-shadow: inset 0 3px 0 var(--surface-2);
+  padding: 6px 14px;
+  letter-spacing: 0.04em;
+}
+.guess-input.text-input:focus {
+  border-color: var(--select);
+}
+.guess-input[readonly] {
+  background: var(--surface-2);
+}
+.guess-hint-btn.btn {
+  flex: none;
+  min-height: 56px;
+  padding: 6px 12px;
+  font-size: var(--fs-sm);
+}
+.guess-tip {
+  text-align: center;
+  margin-top: 2px;
+}
+.guess-slot.hinted {
+  color: var(--accent-text);
+}
+.accent-note {
+  margin-top: 4px;
+  font-weight: 700;
+  color: var(--text);
+}
+/* 键盘弹出后：整页高度 = 键盘上方的可见高度（js/play.js 写 --vvh / --vvt），省掉次要的东西 */
+.vv-set .play-app {
+  height: var(--vvh);
+  transform: translateY(var(--vvt, 0px));
+}
+.kb-open .play-main .q-kind,
+.kb-open .play-main .guess-tip,
+.kb-open .play-main .q-title {
+  display: none;
+}
+.kb-open .play-head {
+  padding-top: 4px;
+  padding-bottom: 2px;
+}
+.kb-open .play-main .guess-hint {
+  font-size: 1.1rem;
+}
+.kb-open .play-main .guess-word {
+  margin: 2px 0;
+}
+.kb-open .guess-input-row {
+  margin: 4px 0 2px;
+}
+.kb-open .play-foot {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.kb-open .play-foot .btn {
+  min-height: 46px;
+}
+@media (max-height: 600px) {
+  .guess-input.text-input,
+  .guess-hint-btn.btn {
+    min-height: 48px;
+  }
+  .guess-input-row {
+    margin: 6px 0 2px;
+  }
+}
+@media (min-height: 640px) {
+  .p-guess .guess-input.text-input {
+    min-height: 64px;
+    font-size: 1.6rem;
+  }
+}/* 小游戏“猜单词”：用手机键盘输入（打一个字母猜一个） */
+.kb-guess {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 640px;
+  margin: 12px auto 0;
+}
+.kb-guess-input.text-input {
+  flex: 0 1 180px;
+  text-align: center;
+}/* 没解锁的背单词 / 复习关：和其他锁住的关一样是灰色 */
+.node.is-locked.is-learn,
+.node.is-locked.is-review {
+  background: var(--surface-2);
+  box-shadow: 0 7px 0 var(--border-strong), inset 0 -5px 0 rgba(0, 0, 0, 0.05);
 }
