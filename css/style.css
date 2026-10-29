@@ -5184,7 +5184,6 @@ a.all-link:hover {
   box-shadow: 0 var(--edge) 0 var(--primary-edge);
 }
 
-/* 隐藏的“触感”小开关：样式直接写在 js/sfx.js 里（写法 2 要求不能是 display:none，所以这里不再统一藏起来） */
 
 /* ---------- 小屏 ---------- */
 @media (max-width: 480px) {
@@ -5519,28 +5518,12 @@ a.all-link:hover {
   }
 }
 
-/* ---------- “我的”页：语速、震动测试（临时） ---------- */
+/* ---------- “我的”页：语速 ---------- */
 .rate-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
-}
-.haptic-test {
-  margin-top: 12px;
-  padding: 12px;
-  border: 2px dashed var(--border-strong);
-  border-radius: var(--radius);
-}
-.haptic-test .card-nav {
-  margin-top: 8px;
-  justify-content: flex-start;
-}
-.haptic-diag {
-  margin-top: 8px;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  overflow-wrap: anywhere;
 }
 /* ---------- 阶段 12：背单词关的大卡片、地图上的背单词 / 复习关节点 ---------- */
 .learn-card {
@@ -6303,4 +6286,64 @@ a.all-link:hover {
   .play-foot .fb-body {
     max-height: 124px;
   }
+}
+/* ---------- 阶段 15：账号同步（邮箱登录）和搬家码（“我的”页） ---------- */
+.cloud-form,
+.move-in {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.field {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+}
+.field .text-input {
+  width: 100%;
+  min-height: 48px;
+}
+.cloud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+.cloud-actions .btn {
+  flex: 1 1 120px;
+}
+.cloud-note {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+}
+.cloud-status {
+  margin-top: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--primary-text);
+  min-height: 1.4em;
+}
+.cloud-status:empty {
+  min-height: 0;
+  margin: 0;
+}
+.cloud-status.is-warn {
+  color: var(--danger-text);
+}
+.move-text {
+  width: 100%;
+  margin-top: 8px;
+  font: 600 0.9rem/1.4 ui-monospace, Consolas, monospace;
+  word-break: break-all;
+  resize: vertical;
+}
+.move-file {
+  position: relative;
+}/* 搬家码的“确定合并”框：用蓝色（不是清除记录那种红色警告） */
+#move-confirm {
+  border-color: var(--select);
+  background: var(--select-soft);
 }

@@ -1167,16 +1167,22 @@
       if (window.requestAnimationFrame) window.requestAnimationFrame(again);
       else setTimeout(again, 16);
     }
+    var sayToken = 0; // 每选对一次 +1：补读时确认还是同一轮
     function go(queue) {
-      var lines = d.lines;
+      var lines = d.lines, said = [];
       while (pos < lines.length && lines[pos].who === "them") {
         bubble(lines[pos].es, lines[pos].zh, "them");
         speak(lines[pos].es, queue);
+        said.push(lines[pos].es);
         queue = true;
         pos++;
       }
-      if (pos >= lines.length) return endDialogue();
-      showTurn(lines[pos]);
+      if (pos >= lines.length) endDialogue();
+      else showTurn(lines[pos]);
+      return said; // 对方这次说的话（选对后补读用）
+    }
+    function synthBusy() {
+      try { var ss = window.speechSynthesis; return !!(ss && (ss.speaking || ss.pending)); } catch (e) { return false; }
     }
     function showTurn(ln) {
       S.dlgLine = ln; // 当前这一轮（自动测试用）
@@ -1203,9 +1209,17 @@
             clear(turn);
             var row = bubble(o.es, o.zh, "me");
             if (ln.note) row.appendChild(el("div", "mini-card", "💡 " + ln.note));
-            speak(o.es);
+            var token = ++sayToken, reply = [];
+            // 先读我这句，对方的话排在后面接着读。
+            // 有的浏览器（Windows 上的 Chrome / Edge）会把排队的句子弄丢：我这句读完后如果什么都没在读，就补读对方的话
+            if (window.speakSpanish) window.speakSpanish(o.es, false, function () {
+              setTimeout(function () {
+                if (token !== sayToken || synthBusy() || !reply.length) return;
+                reply.forEach(function (t, k) { speak(t, k > 0); });
+              }, 150);
+            });
             pos++;
-            go(true);
+            reply = go(true);
             return;
           }
           missedHere = true;

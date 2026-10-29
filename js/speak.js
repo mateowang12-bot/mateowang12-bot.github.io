@@ -40,7 +40,9 @@
     else if (lang === "es-mx") s += 3;
     if (GOOD_NAMES.test(v.name || "")) s += 4;
     if (NOVELTY_NAMES.test(v.name || "")) s -= 8;
-    if (v.localService) s += 1;
+    // 装在本机的语音点了马上读；“Online (Natural)”这类在线语音每读一次都要等网络（国内常常要等好几秒），
+    // 所以只要有本机西语语音就一定优先用它
+    if (v.localService) s += 10;
     return s;
   }
 
@@ -97,6 +99,13 @@
     NO_VOICE_MSG =
       "你的电脑没有西班牙语语音，所以可能听不到正确的发音。" +
       "可以在 Windows 设置 → 时间和语言 → 语音 里添加“西班牙语(西班牙)”，然后重新打开浏览器。";
+  }
+  // 只有在线西语语音（Edge 的 “Online (Natural)”）：能读，但每次都要等网络，点了以后可能过一会儿才出声
+  var ONLINE_ONLY_MSG = null;
+  if (IS_WINDOWS) {
+    ONLINE_ONLY_MSG =
+      "发音慢？你的电脑只有“在线”西语语音，每读一次都要等网络。" +
+      "在 Windows 设置 → 时间和语言 → 语音 → 添加语音，装“西班牙语(西班牙)”，重新打开浏览器后就能马上发音。";
   } else {
     NO_VOICE_MSG =
       "你的设备好像没有西班牙语语音，所以可能听不到正确的发音。" +
@@ -109,6 +118,7 @@
   // 如果语音已加载但没有西语，就提示
   function checkVoice() {
     if (voicesLoaded && !spanishVoice) showNotice(NO_VOICE_MSG);
+    else if (spanishVoice && !spanishVoice.localService && ONLINE_ONLY_MSG) showNotice(ONLINE_ONLY_MSG);
   }
 
   // 正在朗读 / 排队中的句子。有些浏览器（Chrome / Edge）会把没人引用的 utterance 当垃圾回收掉，
@@ -166,7 +176,9 @@
     if (!spanishVoice) pickVoice();
 
     try {
-      if (!queue) synth.cancel(); // 先停掉上一句，避免排队
+      // 先停掉上一句，避免排队。只在真的有声音在读 / 排队时才 cancel：
+      // Chrome / Edge 在 cancel 之后紧接着 speak，有时要等一会儿才开始读
+      if (!queue && (synth.speaking || synth.pending)) synth.cancel();
       if (synth.paused) synth.resume(); // iPhone 切回网页后朗读有时停在“暂停”状态
       var u = new SpeechSynthesisUtterance(text);
       u.lang = "es-ES";

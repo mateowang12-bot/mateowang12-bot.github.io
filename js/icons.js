@@ -57,7 +57,8 @@
     cloud: function () { return P("s w", "M14 38a9 9 0 01-1-18 12 12 0 0123-2 9 9 0 012 20z") + HL(18, 24, 4, 2); },
     mic: function () { return R("s gy", 17, 6, 14, 24, 7) + L("M11 22a13 13 0 0026 0M24 35v6M17 42h14"); },
     bulb: function () { return P("s y", "M24 5a13 13 0 00-8 23c2 2 3 4 3 6h10c0-2 1-4 3-6a13 13 0 00-8-23z") + R("s gy", 18, 34, 12, 8, 3) + HL(19, 13, 3.5, 2.5); },
-    turtle: function () { return E("s g", 34, 30, 6, 5) + E("s g", 13, 36, 4, 3) + E("s g", 31, 36, 4, 3) + P("s y", "M7 32a15 13 0 0130 0z") + L("M14 22l4 5 5-6 5 6 4-5") + C("k", 36, 28.5, 1.2); },
+    // 侧面的小乌龟（头朝右）：尾巴、四条腿、头 → 棕色龟壳 + 六边形花纹 → 黄色壳边 → 眼睛和微笑
+    turtle: function () { return P("s g", "M7 30l-5 2 5 3z") + E("s g", 12, 38, 4.5, 4.5) + E("s g", 30, 38, 4.5, 4.5) + P("s g", "M33 30l4-6 4 2-3 6z") + C("s g", 40.5, 21.5, 6.5) + P("s br", "M4 33a17 17 0 0134 0z") + P("s br2", "M16 24.5l5-3.5 5 3.5v5.5l-5 3-5-3z") + L("M21 21v-5M16 24.5l-7-3M26 24.5l7-3") + R("s y", 3, 32, 37, 5, 2.5) + HL(13, 21, 3, 2) + C("k", 42, 20.5, 1.7) + C("w", 42.6, 19.9, 0.6) + L("M39.5 25.5q2.5 1.4 5-.3"); },
     keyboard: function () { return R("s w", 4, 13, 40, 24, 5) + R("gy", 9, 18, 5, 4, 1) + R("gy", 16, 18, 5, 4, 1) + R("gy", 23, 18, 5, 4, 1) + R("gy", 30, 18, 5, 4, 1) + R("gy", 9, 24, 5, 4, 1) + R("gy", 16, 24, 5, 4, 1) + R("gy", 23, 24, 5, 4, 1) + R("gy", 30, 24, 5, 4, 1) + R("k2", 14, 30, 20, 3, 1.5); },
     speaker: function () { return R("s b", 6, 18, 9, 12, 3) + P("s y", "M14 19l13-10v30l-13-10z") + L("M32 17q5 7 0 14M37 12q9 12 0 24"); },
     bell: function () { return P("s y", "M24 6a12 12 0 00-12 12v9l-4 6h32l-4-6v-9A12 12 0 0024 6z") + C("s o", 24, 37, 4) + HL(19, 14, 2.5, 3.5); },
@@ -217,7 +218,7 @@
     "👀": "eye", "🔀": "shuffle", "🙂": "smile", "🧳": "suitcase", "🎯": "target", "👣": "footprints", "🌱": "sprout",
     "🌿": "leaf", "🌳": "tree", "📐": "ruler", "🎭": "masks", "🎮": "gamepad", "🤖": "robot", "🔤": "abc", "📇": "cards",
     "📚": "books", "🗺️": "map", "🗺": "map", "🎧": "headphones", "🔗": "link", "🧩": "puzzle", "⚡": "bolt", "🃏": "cards",
-    "🐼": "panda", "🌊": "skin-ocean", "🌅": "skin-sunset", "💜": "skin-violet", "👤": "smile"
+    "🐼": "panda", "📦": "suitcase", "🌊": "skin-ocean", "🌅": "skin-sunset", "💜": "skin-violet", "👤": "smile"
   };
   var EMOJI_RE = /\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*|[☀-➿]️?/gu;
   var EMOJI_TEST = /\p{Extended_Pictographic}|\u2606/u; // ☆（空星）不是 emoji，但也换成同一套的空星图标，和 ⭐ 一致

@@ -56,28 +56,19 @@
             <input type="checkbox" id="sound-on">
             <span class="quiz-check-text">🔔 声音</span>
           </label>
+          <span class="small-tip" id="vibrate-note" hidden>📳 iPhone 的网页不支持震动</span>
           <label class="quiz-check" for="vibrate-on">
             <input type="checkbox" id="vibrate-on">
             <span class="quiz-check-text">📳 震动</span>
           </label>
         </div>
-        <p class="panel-note">点选项、答对、答错、过关时的小音效和手机震动。西语发音不受影响（发音照常读）。iPhone 上的震动需要较新的 iOS，没有也没关系。</p>
-        <!-- 【临时】震动测试区：3 种 iPhone 触感写法，等用户告诉我们哪个会震，再只留那一种（js/sfx.js 的 iosTick），然后删掉这一块 -->
-        <div class="haptic-test" id="haptic-test">
-          <div class="setting-title">📳 震动测试（临时）</div>
-          <p class="panel-note">在 iPhone 上分别点下面 3 个按钮，告诉我们哪一个会轻轻震一下。</p>
-          <div class="card-nav">
-            <button type="button" class="btn btn-light btn-small" id="haptic-1">方法 1</button>
-            <button type="button" class="btn btn-light btn-small" id="haptic-2">方法 2</button>
-            <button type="button" class="btn btn-light btn-small" id="haptic-3">方法 3</button>
-          </div>
-          <div class="haptic-diag" id="haptic-diag" role="status"></div>
-        </div>
+        <p class="panel-note">点选项、答对、答错、过关时的小音效和手机震动（安卓手机）。西语发音不受影响（发音照常读）。</p>
       </div>
       <div class="setting">
         <div class="setting-title" id="rate-title">西语朗读速度</div>
         <div class="rate-options" id="rate-options" role="radiogroup" aria-labelledby="rate-title"></div>
         <p class="panel-note">选好后会用这个速度读一句示范。关卡里点大喇叭旁边的 🐢，可以用“很慢”再听一遍。</p>
+        <p class="panel-note" id="rate-diag" aria-live="polite"></p>
       </div>
       <div class="setting">
         <div class="setting-title">单词卡片</div>
@@ -88,6 +79,58 @@
           </label>
         </div>
         <p class="panel-note">换卡片、翻到背面时自动读出西语（和单词卡片页的开关是同一个）。</p>
+      </div>
+      <!-- 阶段 15：邮箱 + 密码登录同步（js/cloud.js；Claude 版隐藏这一块，它自己有同步） -->
+      <div class="setting" id="cloud-box">
+        <div class="setting-title">☁️ 账号同步（邮箱登录）</div>
+        <p class="panel-note">用同一个邮箱在手机和电脑上登录，进度就会自动合并、同步（两边都不丢）。密码不会保存在网站里；登录信息只存在这台设备上。</p>
+        <div id="cloud-off" class="cloud-note" hidden>还没配置云同步（需要先填好 js/cloud-config.js）。网站其他功能照常能用；换设备时可以先用下面的“搬家码”。</div>
+        <form id="cloud-form" class="cloud-form" autocomplete="on" hidden>
+          <label class="field"><span>邮箱</span><input type="email" id="cloud-email" class="text-input" autocomplete="email" inputmode="email" placeholder="例如 abc@qq.com"></label>
+          <label class="field"><span>密码（至少 6 位）</span><input type="password" id="cloud-pw" class="text-input" autocomplete="current-password" minlength="6"></label>
+          <div class="cloud-actions">
+            <button type="submit" class="btn" id="cloud-login">登录</button>
+            <button type="button" class="btn btn-light" id="cloud-signup">注册</button>
+          </div>
+          <div class="cloud-actions" id="cloud-resend-row" hidden>
+            <button type="button" class="btn btn-light btn-small" id="cloud-resend">重新发送确认邮件</button>
+          </div>
+        </form>
+        <div id="cloud-user" class="cloud-user" hidden>
+          <div class="cloud-actions">
+            <button type="button" class="btn btn-light btn-small" id="cloud-sync">立即同步</button>
+            <button type="button" class="btn btn-light btn-small" id="cloud-logout">退出</button>
+          </div>
+        </div>
+        <div class="cloud-status" id="cloud-status" role="status" aria-live="polite"></div>
+      </div>
+      <!-- 阶段 15：搬家码（所有版本都有）：导出成一段文字 / 文件，在另一台设备上导入（合并，不覆盖） -->
+      <div class="setting" id="move-box">
+        <div class="setting-title">📦 搬家（换手机 / 换电脑）</div>
+        <p class="panel-note">把这台设备的进度变成一段“搬家码”，发到另一台设备上导入。可以通过微信“文件传输助手”发给自己。导入是<strong>合并</strong>：两边学过的都会保留。</p>
+        <div class="cloud-actions">
+          <button type="button" class="btn btn-light btn-small" id="move-make">生成搬家码</button>
+        </div>
+        <div id="move-out" hidden>
+          <textarea id="move-text" class="text-input move-text" readonly rows="4" aria-label="搬家码"></textarea>
+          <div class="cloud-actions">
+            <button type="button" class="btn btn-small" id="move-copy">复制</button>
+            <button type="button" class="btn btn-light btn-small" id="move-download">下载成文件</button>
+          </div>
+        </div>
+        <div class="move-in">
+          <label class="field"><span>导入：把搬家码粘贴在这里</span><textarea id="move-paste" class="text-input move-text" rows="3" placeholder="ES1:……"></textarea></label>
+          <div class="cloud-actions">
+            <button type="button" class="btn btn-light btn-small" id="move-check">导入</button>
+            <label class="btn btn-light btn-small move-file">选择文件<input type="file" id="move-file" accept=".txt,text/plain" hidden></label>
+          </div>
+          <div class="reset-confirm" id="move-confirm" hidden>
+            <span class="reset-confirm-text" id="move-summary"></span>
+            <button type="button" class="btn" id="move-yes">确定合并</button>
+            <button type="button" class="btn btn-light" id="move-no">取消</button>
+          </div>
+        </div>
+        <div class="cloud-status" id="move-status" role="status" aria-live="polite"></div>
       </div>
       <div class="setting">
         <div class="setting-title">同步</div>
@@ -120,6 +163,8 @@
   <script src="../data/levels.js"></script>
   <script src="../js/speak.js"></script>
   <script src="../js/storage.js"></script>
+  <script src="../js/cloud-config.js"></script>
+  <script src="../js/cloud.js"></script>
   <script src="../js/modules.js"></script>
   <script src="../js/world.js"></script>
   <script src="../js/pwa.js"></script>
@@ -323,6 +368,10 @@
       $("vibrate-on").parentNode.classList.toggle("active", v);
       $("sound-on").disabled = !P;
       $("vibrate-on").disabled = !P;
+      // iPhone 的网页不能震动（实测 iOS 27 也不行）：不显示这个开关，改成一行小字
+      var canVib = !(window.Sfx && window.Sfx.canVibrate) || window.Sfx.canVibrate();
+      $("vibrate-on").parentNode.hidden = !canVib;
+      $("vibrate-note").hidden = canVib;
     }
     $("sound-on").onchange = function () {
       if (!P) return;
@@ -355,7 +404,15 @@
           if (!P) return;
           P.setSpeechRate(r);
           // 示范：在点击里同步朗读（iPhone 才肯出声），用刚选的速度
-          if (window.speakSpanish) window.speakSpanish("Hola, ¿cómo estás?", false, null, { rate: r });
+          // 【临时】测一下这句读了几秒：三档秒数一样 = 这台设备没理会语速（等用户反馈后删掉）
+          var t0 = Date.now(), diag = $("rate-diag");
+          if (diag) diag.dataset.t = String(t0); // 读到一半又点了别的：旧的那次不写结果
+          if (diag) diag.textContent = "正在读（" + RATE_TEXT[r] + "）…";
+          if (window.speakSpanish) window.speakSpanish("Hola, ¿cómo estás?", false, function () {
+            var sec = (Date.now() - t0) / 1000;
+            var val = window.speakSpanish.rateValue ? window.speakSpanish.rateValue(r) : "?";
+            if (diag && diag.dataset.t === String(t0) && sec > 0.3) diag.textContent = "测量：" + RATE_TEXT[r] + "（速度值 " + val + "）这句读了 " + sec.toFixed(1) + " 秒";
+          }, { rate: r });
           renderRate();
           var again = $("rate-" + r);
           if (again) again.focus();
@@ -364,25 +421,124 @@
       });
     }
 
-    // ---------- 【临时】震动测试：3 种写法 + 诊断（等用户反馈后删掉） ----------
-    function renderHapticDiag(last) {
-      var ua = navigator.userAgent || "";
-      var ios = /iP(hone|ad|od)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      var m = /OS (\d+)[_.](\d+)/.exec(ua);
-      var sw = (function () { try { var i = document.createElement("input"); i.type = "checkbox"; i.setAttribute("switch", ""); return "switch" in i ? "是" : "不确定"; } catch (e) { return "否"; } })();
-      $("haptic-diag").textContent = "这台设备：能用网页震动：" + (typeof navigator.vibrate === "function" ? "是" : "否") +
-        "；可能是 iPhone：" + (ios ? "是" : "否") + (m ? "；系统版本：iOS " + m[1] + "." + m[2] : "") +
-        "；认识开关控件：" + sw + "；震动开关：" + (P && P.vibrateOn && !P.vibrateOn() ? "关" : "开") +
-        "；正式使用：方法 " + (window.Sfx && window.Sfx.hapticMethod ? window.Sfx.hapticMethod() : "?") + (last ? "；刚才点了：方法 " + last : "");
+    // ---------- 阶段 15：账号同步（邮箱登录，js/cloud.js）----------
+    var C = window.CloudSync, T = window.Transfer;
+    function ago(t) {
+      if (!t) return "";
+      var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      return s < 60 ? "刚刚" : s < 3600 ? Math.round(s / 60) + " 分钟前" : s < 86400 ? Math.round(s / 3600) + " 小时前" : Math.round(s / 86400) + " 天前";
     }
-    if (window.Sfx && window.Sfx.prepareResident) window.Sfx.prepareResident(); // 方法 3：页面一打开就放好常驻开关
-    [1, 2, 3].forEach(function (n) {
-      $("haptic-" + n).onclick = function () {
-        // 在点击里同步执行（iPhone 只在用户操作里给触感）
-        if (window.Sfx && window.Sfx.hapticTest) window.Sfx.hapticTest(n);
-        renderHapticDiag(n);
-      };
-    });
+    var cloudMsg = "";
+    function renderCloud() {
+      var box = $("cloud-box");
+      if (!C || !C.available()) { box.hidden = true; return; } // Claude 版：它自己有同步
+      box.hidden = false;
+      var conf = C.configured();
+      $("cloud-off").hidden = conf;
+      var u = conf ? C.user() : null;
+      $("cloud-form").hidden = !conf || !!u;
+      $("cloud-user").hidden = !u;
+      var st = C.status(), line = "";
+      if (u) {
+        var map = { syncing: "正在同步…", ok: "已同步 · " + ago(st.last), idle: st.last ? "已同步 · " + ago(st.last) : "准备同步…" };
+        line = "已登录 " + (u.email || "") + " · " + (map[st.state] || st.message || "");
+        if (st.state === "relogin") { line = st.message; $("cloud-form").hidden = false; $("cloud-email").value = u.email || ""; }
+      }
+      $("cloud-status").textContent = cloudMsg || line;
+      $("cloud-status").className = "cloud-status" + (/不对|失败|过期|连不上|出了点|太频繁|没有成功|至少|请填写/.test(cloudMsg || line) ? " is-warn" : "");
+    }
+    function cloudAct(fn) {
+      cloudMsg = "请稍等…";
+      renderCloud();
+      $("cloud-login").disabled = $("cloud-signup").disabled = true;
+      fn().then(function (r) {
+        $("cloud-login").disabled = $("cloud-signup").disabled = false;
+        $("cloud-pw").value = ""; // 密码不留在页面上
+        cloudMsg = r.ok ? (r.needConfirm ? "确认邮件已发到 " + r.email + "，请打开邮件点链接，然后回来登录（找不到就看看垃圾邮件）。" : "") : r.error;
+        $("cloud-resend-row").hidden = !(r.needConfirm || r.notConfirmed);
+        renderCloud();
+      });
+    }
+    $("cloud-form").onsubmit = function (ev) { ev.preventDefault(); cloudAct(function () { return C.signIn($("cloud-email").value, $("cloud-pw").value); }); };
+    $("cloud-signup").onclick = function () { cloudAct(function () { return C.signUp($("cloud-email").value, $("cloud-pw").value); }); };
+    $("cloud-resend").onclick = function () {
+      cloudMsg = "请稍等…";
+      renderCloud();
+      C.resend($("cloud-email").value).then(function (r) {
+        cloudMsg = r.ok ? "确认邮件已重新发到 " + r.email + "，请打开邮件点链接，然后回来登录。" : r.error;
+        renderCloud();
+      });
+    };
+    $("cloud-sync").onclick = function () { cloudMsg = ""; C.syncNow(); renderCloud(); };
+    $("cloud-logout").onclick = function () { C.signOut(); cloudMsg = "已退出。这台设备上的进度还在，只是不再同步。"; renderCloud(); };
+    window.addEventListener("cloud-status", function () { if (cloudMsg === "请稍等…") return; cloudMsg = ""; renderCloud(); });
+    setInterval(function () { if (C && C.user()) renderCloud(); }, 30000); // “2 分钟前”这类字跟着变
+
+    // ---------- 阶段 15：搬家码 ----------
+    var moveState = null;
+    function moveSay(t, warn) { $("move-status").textContent = t; $("move-status").className = "cloud-status" + (warn ? " is-warn" : ""); }
+    $("move-make").onclick = function () {
+      moveSay("正在生成…");
+      T.exportText().then(function (txt) {
+        $("move-text").value = txt;
+        $("move-out").hidden = false;
+        moveSay("搬家码已经生成（" + txt.length + " 个字符）。点“复制”或“下载成文件”，再发到另一台设备。");
+      });
+    };
+    $("move-copy").onclick = function () {
+      var ta = $("move-text");
+      var done = function () { moveSay("已复制。可以粘贴到微信“文件传输助手”发给自己。"); };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); try { document.execCommand("copy"); done(); } catch (e) { moveSay("请长按上面的文字，手动全选复制。", true); } }); return; }
+      } catch (e) {}
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (e2) { moveSay("请长按上面的文字，手动全选复制。", true); }
+    };
+    $("move-download").onclick = function () {
+      try {
+        var d = new Date(), name = "西语进度-" + d.getFullYear() + (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1) + (d.getDate() < 10 ? "0" : "") + d.getDate() + ".txt";
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([$("move-text").value], { type: "text/plain" }));
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        moveSay("已下载：" + name);
+      } catch (e) { moveSay("这个浏览器不能下载文件，请用“复制”。", true); }
+    };
+    function checkText(txt) {
+      $("move-confirm").hidden = true;
+      moveState = null;
+      T.parse(txt).then(function (r) {
+        if (!r.ok) { moveSay(r.error, true); return; }
+        var s = T.summary(r.state);
+        moveState = r.state;
+        $("move-summary").textContent = "将要合并：" + s.words + " 个单词 / 句子、" + s.levels + " 个关卡（" + s.stars + " 颗星）、" + s.days + " 天学习记录、" + s.xp + " XP、" + s.stamps + " 枚邮票。两边学过的都会保留，确定吗？";
+        $("move-confirm").hidden = false;
+        moveSay("");
+        $("move-no").focus();
+      });
+    }
+    $("move-check").onclick = function () { checkText($("move-paste").value); };
+    $("move-file").onchange = function () {
+      var f = this.files && this.files[0];
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () { $("move-paste").value = String(rd.result || ""); checkText(rd.result); };
+      rd.onerror = function () { moveSay("读不了这个文件，请换一个或改用粘贴。", true); };
+      rd.readAsText(f);
+      this.value = "";
+    };
+    $("move-yes").onclick = function () {
+      if (!moveState) return;
+      var r = T.apply(moveState);
+      moveState = null;
+      $("move-confirm").hidden = true;
+      $("move-paste").value = "";
+      moveSay(r.changed ? "合并好了！进度已经更新。" : "合并好了：这台设备已经有这些进度，没有变化。");
+      renderAll();
+    };
+    $("move-no").onclick = function () { moveState = null; $("move-confirm").hidden = true; moveSay("已取消，进度没有变。"); };
 
     // ---------- 同步状态 ----------
     var SYNC_TEXT = {
@@ -464,8 +620,8 @@
       renderGoals();
       renderAuto();
       renderSfx();
+      renderCloud();
       renderRate();
-      renderHapticDiag();
       renderSync();
     }
     renderAll();

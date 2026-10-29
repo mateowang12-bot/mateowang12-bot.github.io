@@ -9,7 +9,7 @@
 // 网站内容一变，build-web.ps1 算出的 VERSION 就变，sw.js 跟着变，
 // 浏览器联网时发现 sw.js 变了，就在后台装新版本，下次打开页面生效。
 // ============================================
-var VERSION = "74c97f56bb10";
+var VERSION = "4df5c1960590";
 var SCOPE = self.registration ? self.registration.scope : new URL("./", self.location).href;
 var PREFIX = "es-study:" + SCOPE + ":";   // 同一个 github.io 域名下可能有别的网站：缓存名带上网站地址
 var CACHE = PREFIX + VERSION;
@@ -27,6 +27,8 @@ var FILES = [
   "icons/icon-512.png",
   "index.html",
   "js/claude-bridge.js",
+  "js/cloud.js",
+  "js/cloud-config.js",
   "js/games.js",
   "js/icons.js",
   "js/map.js",

@@ -406,6 +406,8 @@
   function save(st) {
     var ok = saveLocal(st);
     sync.changed();
+    // 阶段 15：告诉其他同步方式（例如 js/cloud.js 的邮箱登录同步）“进度变了”
+    try { window.dispatchEvent(new Event("progress-changed")); } catch (e) {}
     return ok;
   }
 
@@ -1251,6 +1253,14 @@
     return false;
   }
 
+  // 一份进度是不是“空的”（什么都没学过、没改过设置、没清除过）。空进度不上传（防止读取出错时用空进度盖掉远端的进度）
+  function isEmptyState(m) {
+    return !hasKeys(m.words) && !hasKeys(m.grammar) && !hasKeys(m.dialogues) && !m.lastQuiz && !m.alphabetSeen &&
+      !hasKeys(m.games) && !hasKeys(m.days) && !hasKeys(m.xp) && !hasKeys(m.badges) && !m.settings.updatedAt && !m.resetAt &&
+      !hasKeys(m.levels) && !m.chests.opened && !hasKeys(m.owned.avatars) && !hasKeys(m.owned.skins) &&
+      !m.profile.updatedAt && !hasKeys(m.stamps) && !hasKeys(m.daily);
+  }
+
   // 固定顺序的 JSON（用来比较两份数据是不是一样）
   function stable(v) {
     if (v === null || typeof v !== "object") return JSON.stringify(v);
@@ -1353,10 +1363,7 @@
         var merged = absorb(remote);
         if (remote && same(merged, remote)) return;
         // 远端读到“没有”、本地也是空的：不写（防止读取出错时用空进度盖掉账号里的进度）
-        if (!remote && !hasKeys(merged.words) && !hasKeys(merged.grammar) && !hasKeys(merged.dialogues) && !merged.lastQuiz && !merged.alphabetSeen &&
-            !hasKeys(merged.games) && !hasKeys(merged.days) && !hasKeys(merged.xp) && !hasKeys(merged.badges) && !merged.settings.updatedAt && !merged.resetAt &&
-            !hasKeys(merged.levels) && !merged.chests.opened && !hasKeys(merged.owned.avatars) && !hasKeys(merged.owned.skins) &&
-            !merged.profile.updatedAt && !hasKeys(merged.stamps) && !hasKeys(merged.daily)) return;
+        if (!remote && isEmptyState(merged)) return;
         var body = JSON.parse(JSON.stringify(merged));
         return retryOnce(function () { return ref.set(body); });
       });
@@ -1599,6 +1606,22 @@
     stamps: stamps,
     reset: reset,
     merge: merge,       // 合并两份进度（测试用）
+    // 阶段 15：搬家（导出 / 导入）和 GitHub 同步用
+    exportState: function () { return JSON.parse(JSON.stringify(load())); },   // 整份进度（不含任何 token，token 存在别的 key 里）
+    cleanState: function (raw) { return clean(raw); },                        // 把外来的数据整理成合法的进度
+    isEmptyState: function (st) { return isEmptyState(clean(st)); },
+    sameState: function (a, b) { return same(a, b); },
+    // 把一份外来的进度合并进本地（规则和跨设备同步一样：和顺序无关、取较新、resetAt 规则……），不会覆盖
+    // → { changed: 本地有没有变化 }
+    importState: function (raw) {
+      var local = load();
+      var merged = merge(local, clean(raw));
+      if (same(merged, local)) return { changed: false };
+      saveLocal(merged);
+      sync.changed();
+      try { window.dispatchEvent(new Event("progress-synced")); } catch (e) {}
+      return { changed: true };
+    },
     sync: sync.api
   };
 })();
