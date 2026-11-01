@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>基础语法 · 我的西语学习站</title>
+  <title>基础语法 · 竹竹西语</title>
+  <!-- App 图标（竹竹）：浏览器标签页图标 + iPhone 主屏幕图标 -->
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <link rel="stylesheet" href="../css/style.css">
   <script src="../js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="../manifest.webmanifest">
-  <link rel="icon" href="../icons/icon-192.png">
-  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="apple-mobile-web-app-title" content="竹竹西语">
   <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
@@ -44,6 +46,8 @@
   <script src="../js/storage.js"></script>
   <script src="../js/cloud-config.js"></script>
   <script src="../js/cloud.js"></script>
+  <script src="../data/lexicon.js"></script>
+  <script src="../js/words-util.js"></script>
   <script src="../js/pwa.js"></script>
   <script>
     // 小工具：创建一个元素并设置文字（用 textContent，安全又简单）
@@ -358,6 +362,7 @@
           if (!ex) continue;
           var li = el("li", "gram-example");
           if (ex.es) li.appendChild(sayButton(ex.es));
+          if (ex.es && window.WordsUtil) window.WordsUtil.addGloss(li, ex.es); // 逐词意思
           var mean = el("div", "gram-example-meaning");
           if (ex.zh) mean.appendChild(el("span", "", ex.zh));
           li.appendChild(mean);
@@ -502,6 +507,8 @@
       var line = el("div", "quiz-feedback-word");
       line.appendChild(sayButton(fullSentence(ex), String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer])));
       fb.appendChild(line);
+      // 逐词意思：答完才显示（题目里不显示，免得提示答案）
+      if (window.WordsUtil) window.WordsUtil.addGloss(fb, String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer]));
       if (ex.explainZh || ex.explainEn) fb.appendChild(bilingual("gram-explain", ex.explainZh, ex.explainEn));
       fb.hidden = false;
     }

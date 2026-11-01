@@ -490,6 +490,7 @@
       card.appendChild(el("div", "learn-badge kind-" + c.kind, (bare.charAt(0) || "?").toUpperCase())).setAttribute("aria-hidden", "true");
     }
     card.appendChild(el("div", "learn-es fit-word" + (c.kind === "phrase" ? " is-phrase" : ""), c.kind === "letter" ? c.es : c.es));
+    if (c.kind !== "letter") U.addGloss(card, c.es); // 逐词意思（句子卡；单个词不显示）
     if (c.kind !== "letter") card.appendChild(el("div", "learn-zh", c.zh));
     if (c.kind === "letter" && c.src) {
       // 字母：字母名（例如 eñe）+ 读法说明
@@ -501,6 +502,7 @@
       var exBox = el("div", "learn-ex");
       exBox.appendChild(el("div", "learn-ex-label", c.kind === "letter" ? "例词" : "例句"));
       exBox.appendChild(sayBtn(ex.es, ex.es));
+      U.addGloss(exBox, ex.es);
       if (ex.zh) exBox.appendChild(el("div", "learn-ex-zh", ex.zh));
       card.appendChild(exBox);
     }
@@ -577,7 +579,7 @@
       line.appendChild(sayBtn(q.target.speak, q.target.es));
       line.appendChild(el("span", "quiz-feedback-zh", label(q.target)));
       setFoot({ kind: ok ? "correct" : "wrong", mascot: ok ? "happy" : "cheer", title: ok ? pickPraise() : "没关系，记住它：",
-        body: [line], buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { startLearnCheck(i + 1); } }] });
+        body: [line, U.gloss(q.target.es)], buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { startLearnCheck(i + 1); } }] });
       S.phase = "feedback";
       S.learnNext = i + 1;
       if (mainBtn) try { mainBtn.focus(); } catch (e) {}
@@ -593,7 +595,7 @@
     var hearts = $("p-hearts");
     if (hearts) hearts.hidden = lv.type === "learn"; // 背单词关没有心
     drawHead();
-    document.title = (lv.titleZh || "闯关") + " · 我的西语学习站";
+    document.title = (lv.titleZh || "闯关") + " · 竹竹西语";
     if (S.plan.empty) return showError();
     showIntro();
   }
@@ -645,7 +647,7 @@
     if (S.plan.speed) add("speed");
     s.appendChild(mi);
     s.appendChild(el("p", "small-tip", S.plan.learn ? "先看、先听，没有心，不会失败。" + (S.plan.learn.checks.length ? "学完做 " + S.plan.learn.checks.length + " 道小练习（答错不扣心）。" : "") + "背单词关不算星星，学完会标上 ✅。" :
-      "❤️ × " + HEARTS + "：答错一次少一颗心，心用完就要重来。错 0–1 次得 ⭐⭐⭐。"));
+      "❤️ × " + HEARTS + "：答错一次少一颗心，心用完就要重来。错 0–1 次得 ⭐⭐⭐。不会时可以点 💡 提示（用了最多 ⭐⭐）。"));
     var p = P();
     var rec = !lv.isDaily && p ? p.getLevel(lv.id) : null;
     if (rec && rec.stars) s.appendChild(el("p", "sheet-best", "最好成绩：" + stars(rec.stars) + "（正确率 " + rec.best + "%）"));
@@ -684,9 +686,14 @@
       line.appendChild(sayBtn(r.speakText || r.es, r.es));
       if (r.zh) line.appendChild(el("span", "quiz-feedback-zh", r.zh));
       body.push(line);
+      // 逐词意思：答完（对或错）才出现在反馈条里，题目进行中不显示（不提示答案）；单个词 / 字母不显示
+      var gl = r.gloss === false ? null : U.gloss(r.es);
+      if (gl) body.push(gl);
     }
     if (r.extra) body = body.concat(r.extra);
     if (r.ok) S.right++;
+    var hb = document.getElementById("hint-btn");
+    if (hb) hb.disabled = true; // 答完了：提示按钮变灰
     var dead = S.hearts <= 0;
     hit(r.ok);
     sfx(r.ok ? "correct" : (dead ? "fail" : "wrong"));
@@ -715,6 +722,48 @@
     s.appendChild(el("div", "q-kind", W.MODE_INFO[kind].icon + " " + W.MODE_INFO[kind].zh));
     var t = el("div", "q-title", zh);
     s.appendChild(t);
+    return t;
+  }
+
+  // ---------- 💡 提示按钮（各题型共用；猜单词有自己的） ----------
+  // 放在题目标题的右边（不多占一行）。每点一下调用 step()：
+  //   step 返回字符串 = 给了提示，这是下一次按钮上的字；返回 false = 给了提示，这是最后一个，按钮变灰；
+  //   返回 null = 什么都没给（已经没什么可提示的）：按钮变灰，不算用了提示。
+  // 用了提示：这一关最多 2 星（S.hintUsed）。答完题（answered）时按钮自动变灰。
+  function hintButton(title, step) {
+    var b = el("button", "btn btn-light p-hint-btn", "💡 提示");
+    b.type = "button";
+    b.id = "hint-btn";
+    b.title = "提示（用了提示，这一关最多 2 星）";
+    b.onclick = function () {
+      if (b.disabled || (S.phase !== "question" && S.phase !== "dialogue")) return;
+      var r = step();
+      if (r !== null) S.hintUsed = true;
+      if (r === false || r === null) b.disabled = true;
+      else if (r) b.textContent = r;
+    };
+    if (title.classList.contains("q-title")) {
+      var txt = el("span", "q-title-text", title.textContent);
+      title.textContent = "";
+      title.appendChild(txt);
+      title.classList.add("has-hint");
+    }
+    title.appendChild(b);
+    return b;
+  }
+  // 选择题提示：去掉一个错的选项（变灰、划掉、不能点），至少留一个错的。
+  // isWrong(i) 判断第 i 个按钮是不是错的；onDrop(i) 去掉之前调用（例如被去掉的正好是已选的，要取消选择）。
+  // 返回给 hintButton 用的值："💡 再提示" = 去掉了、还能再去；false = 去掉了、这是最后一个；null = 一个都没去掉
+  function dropOneWrong(btns, isWrong, onDrop) {
+    var left = [];
+    for (var i = 0; i < btns.length; i++) if (isWrong(i) && !btns[i].disabled) left.push(i);
+    if (left.length <= 1) return null;
+    var k = left[Math.floor(Math.random() * left.length)];
+    if (onDrop) onDrop(k);
+    btns[k].classList.remove("picked");
+    btns[k].classList.add("hint-out");
+    btns[k].disabled = true;
+    return left.length - 1 > 1 ? "💡 再提示" : false; // 按钮上的字保持很短：变宽会把题目挤多一行、页面往下跳
   }
 
   function showQuestion(q) {
@@ -771,7 +820,7 @@
   function qListen(q) {
     var s = screen();
     var t = q.target;
-    head(s, "listen", t.kind === "letter" ? "听一听，是哪个字母？" : "听一听，选出它的意思");
+    var lTitle = head(s, "listen", t.kind === "letter" ? "听一听，是哪个字母？" : "听一听，选出它的意思");
     // 大播放按钮（卡通小喇叭，图案由 js/mascot.js 装上）+ 旁边的 🐢“慢速再听”（用“很慢”档再读一遍）
     var row = el("div", "p-listen-row");
     var play = el("button", "p-listen");
@@ -795,6 +844,18 @@
       if (it.emoji) b.appendChild(el("span", "opt-emoji", it.emoji));
       b.appendChild(el("span", "", it.zh));
     }, function (it) { picked = it; enableCheck(true); }, longest(q.options, function (o) { return o.kind === "letter" ? o.letter : o.zh; }) > LONG_OPTION);
+    // 💡 提示：单词题先显示西语写法（字母题不显示，写出来就是答案），之后每点一下去掉一个错的选项
+    var written = null;
+    hintButton(lTitle, function () {
+      if (t.kind !== "letter" && !written) {
+        written = el("div", "p-hint-show", t.es);
+        row.parentNode.insertBefore(written, row.nextSibling);
+        return "💡 再提示";
+      }
+      return dropOneWrong(btns, function (i) { return q.options[i] !== t; }, function (i) {
+        if (picked === q.options[i]) { picked = null; enableCheck(false); }
+      });
+    });
     checkFoot(function () {
       if (!picked || S.phase !== "question") return;
       var ok = picked === t;
@@ -811,7 +872,7 @@
   // ---------- 2. 配对消消乐 ----------
   function qMatch(q) {
     var s = screen();
-    head(s, "match", "把西语和意思配成对");
+    var mTitle = head(s, "match", "把西语和意思配成对");
     var board = el("div", "m-board");
     var left = el("div", "m-col"), right = el("div", "m-col");
     board.appendChild(left);
@@ -820,12 +881,37 @@
     var sel = null; // { side, it, btn }
     var done = 0, missed = {}, missCount = 0;
     var L = shuffle(q.pairs), R = shuffle(q.pairs);
+    var allCards = []; // { it, side, b }（提示用）
     function card(it, side) {
       var b = el("button", "m-card" + (side === "es" ? " is-es fit-word" : ""), side === "es" ? it.es : label(it));
       b.type = "button";
       b.onclick = function () { tap(it, side, b); };
+      allCards.push({ it: it, side: side, b: b });
       return b;
     }
+    // 💡 提示：让还没配上的一对闪一下（两张卡一起亮），你自己去点；先挑没提示过的；只剩最后一对时不再提示
+    var glowed = [];
+    function pairsLeft() {
+      return q.pairs.filter(function (p) {
+        return allCards.some(function (c) { return c.it === p && !c.b.classList.contains("done"); });
+      });
+    }
+    var mHint = hintButton(mTitle, function () {
+      var left = pairsLeft();
+      if (left.length <= 1) return null;
+      var fresh = left.filter(function (p) { return glowed.indexOf(p) === -1; });
+      var from = fresh.length ? fresh : left;
+      var p = from[Math.floor(Math.random() * from.length)];
+      glowed.push(p);
+      allCards.forEach(function (c) {
+        if (c.it !== p) return;
+        c.b.classList.remove("hint-glow");
+        void c.b.offsetWidth;
+        c.b.classList.add("hint-glow");
+        setTimeout(function () { c.b.classList.remove("hint-glow"); }, 2000);
+      });
+      return left.length - 1 > 1 ? "💡 再提示" : false;
+    });
     for (var i = 0; i < L.length; i++) left.appendChild(card(L[i], "es"));
     for (var j = 0; j < R.length; j++) right.appendChild(card(R[j], "zh"));
     function tap(it, side, b) {
@@ -848,6 +934,7 @@
         a.btn.classList.add("got");
         b.classList.add("got");
         done++;
+        if (q.pairs.length - done <= 1) mHint.disabled = true; // 只剩最后一对：不用提示了
         if (done < q.pairs.length) sfx("ding");
         if (done === q.pairs.length) finishMatch();
         return;
@@ -883,62 +970,56 @@
   function qOrder(q) {
     var s = screen();
     var t = q.target;
-    head(s, "order", "用西语怎么说？把词按顺序点进来");
+    var oTitle = head(s, "order", "用西语怎么说？把词按顺序点进来");
     s.appendChild(el("div", "order-meaning", t.zh));
+    // 阶段 17：字块用 js/order-ui.js（词库位置固定、留空位、撤销 / 清空、对错标绿红、小动画）
     var ans = el("div", "order-answer");
     ans.setAttribute("aria-label", "答题区");
+    var tools = el("div", "order-tools");
     var bankBox = el("div", "order-bank");
     bankBox.setAttribute("aria-label", "可选的词");
     s.appendChild(ans);
+    s.appendChild(tools);
     s.appendChild(bankBox);
     var sh = q.tokens.slice();
     for (var x = 0; x < 12; x++) { sh = shuffle(q.tokens); if (sh.join("\u0001") !== q.tokens.join("\u0001")) break; }
-    var bank = sh.map(function (tx) { return { text: tx, used: false }; });
-    var placed = [];
-    var locked = false;
-    function draw() {
-      clear(ans);
-      if (!placed.length) ans.appendChild(el("span", "order-empty", "点下面的词，按顺序放到这里"));
-      placed.forEach(function (bi, k) {
-        var b = el("button", "order-token", bank[bi].text);
-        b.type = "button";
-        b.disabled = locked;
-        b.onclick = function () { if (locked) return; bank[placed[k]].used = false; placed.splice(k, 1); draw(); };
-        ans.appendChild(b);
-      });
-      clear(bankBox);
-      var n = 0;
-      bank.forEach(function (bb, idx) {
-        if (bb.used) return;
-        n++;
-        var b = el("button", "order-token", bb.text);
-        b.type = "button";
-        b.disabled = locked;
-        b.onclick = function () { if (locked) return; bb.used = true; placed.push(idx); draw(); };
-        bankBox.appendChild(b);
-      });
-      if (!n) bankBox.appendChild(el("span", "order-empty", locked ? "✔" : "词都用完了，点“检查”"));
-      enableCheck(!locked && placed.length === bank.length);
-    }
+    if (S.orderUI) S.orderUI.destroy();
+    var done = false;
+    var ui = S.orderUI = window.OrderUI.create({
+      answer: ans, bank: bankBox, tools: tools, tokens: q.tokens, order: sh, keys: true,
+      undoId: "order-undo", clearId: "order-clear",
+      onChange: function (u) { enableCheck(!done && u.full()); }
+    });
+    // 💡 提示：帮你放对下一个词（前面放错的先退回去），最后一个词留给你
+    hintButton(oTitle, function () {
+      if (done || q.tokens.length < 2) return null;
+      ui.returnWrong();
+      var k = ui.count();
+      if (k >= q.tokens.length - 1) return null;
+      var ok = false;
+      for (var n = 1; n <= sh.length && !ok; n++) if (sh[n - 1] === q.tokens[k]) ok = ui.keyPick(n); // keyPick 从 1 开始数
+      if (!ok) return null;
+      return k + 1 >= q.tokens.length - 1 ? false : "💡 再提示";
+    });
+    // 一次机会：拼完点“检查”，错了扣心、标出绿 / 红，下面显示正确句子
     checkFoot(function () {
-      if (locked || placed.length !== bank.length) return;
-      locked = true;
-      var mine = placed.map(function (i) { return bank[i].text; });
-      var ok = mine.join("\u0001") === q.tokens.join("\u0001");
+      if (done || !ui.full()) return;
+      done = true;
+      var r = ui.check();
+      var ok = r.ok;
+      ui.lock(true);
       speak(t.speak);
       ans.className = "order-answer " + (ok ? "is-correct" : "is-wrong");
-      draw();
       mark(t, ok);
       if (!ok) { loseHeart(); addWrong(t.es, t.zh, t.speak); }
       answered({ ok: ok, es: t.es, zh: ok ? t.zh : "", speakText: t.speak });
     });
-    draw();
   }
 
   // ---------- 4. 猜单词（阶段 12：用手机自带的键盘输入整个单词） ----------
   // 屏幕上是一个大输入框（不再是字母键盘），上面一排字母格 _ _ _ _ 显示单词有几个字母，打一个字母就填进一格。
   // 比较答案：不分大小写、去掉首尾空格；重音符号和 ñ 不打也算对（答对条上提醒正确写法）；题目本来带冠词的，冠词打不打都行。
-  // 💡 提示：显示首字母；用了提示，这一关最多 2 星。按“检查”或键盘回车提交；答错扣一颗心，显示正确答案。
+  // 💡 提示：一步一步给（听发音 → 看打乱的字母 → 一个一个给字母，见 qGuess 里的说明）；用了提示，这一关最多 2 星。按“检查”或键盘回车提交；答错扣一颗心，显示正确答案。
   // iPhone：在“开始 / 继续”的点击里同步渲染并 focus()，键盘才会弹出来；弹出后用 visualViewport 让题目、输入框、“检查”都在可见区域。
   var ARTICLES = /^(el|la|los|las|un|una|unos|unas)\s+/i;
   function plainOf(s) {
@@ -996,14 +1077,49 @@
     input.placeholder = "在这里打字";
     var row = el("div", "guess-input-row");
     row.appendChild(input);
+    // 💡 提示一步一步给（用了提示，这一关最多 2 星）：
+    //   第 1 下：读出这个词（西语怎么读基本就怎么写，听着拼）
+    //   第 2 下：显示这个词用到的字母（打乱顺序），已经打过的字母变灰
+    //   第 3 下起：每点一下，帮你写对下一个字母（前面打错的会被改对），最后一个字母留给你
     var hintBtn = el("button", "btn btn-light guess-hint-btn", "💡 提示");
     hintBtn.type = "button";
     hintBtn.id = "hint-btn";
-    hintBtn.title = "显示首字母（这一关最多 2 星）";
+    hintBtn.title = "提示：先听发音，再看字母，再一个一个给字母（这一关最多 2 星）";
     row.appendChild(hintBtn);
+    var letterBox = el("div", "guess-letters");
+    letterBox.setAttribute("aria-label", "这个词用到的字母（顺序打乱）");
+    letterBox.hidden = true;
     s.appendChild(row);
+    s.appendChild(letterBox);
     s.appendChild(el("div", "small-tip guess-tip", "iPhone：长按字母可以打出 á é í ó ú ñ"));
-    var hinted = false, over = false;
+    var hinted = false, hintLevel = 0, over = false;
+    var LETTERS = q.answer.replace(/\s/g, "").split("");
+    var mixed = shuffle(LETTERS.slice());
+    for (var mi = 0; mi < 5 && LETTERS.length > 1 && mixed.join("") === LETTERS.join(""); mi++) mixed = shuffle(LETTERS.slice());
+    // 打过的字母在乱序字母里变灰（按个数算：打了一个 o，就灰掉一个 o）
+    function drawLetters() {
+      if (letterBox.hidden) return;
+      clear(letterBox);
+      var left = {};
+      plainOf(input.value).replace(ARTICLES, "").replace(/\s/g, "").split("").forEach(function (c) { left[c] = (left[c] || 0) + 1; });
+      mixed.forEach(function (c) {
+        var k = plainOf(c), used = left[k] > 0;
+        if (used) left[k]--;
+        letterBox.appendChild(el("span", "guess-letter" + (used ? " used" : ""), c));
+      });
+    }
+    // 打的内容里，从头开始有几个字母是对的
+    function rightPrefix() {
+      var typed = plainOf(input.value).replace(ARTICLES, "").replace(/\s/g, "");
+      var k = 0;
+      while (k < typed.length && k < LETTERS.length && typed.charAt(k) === plainOf(LETTERS[k])) k++;
+      return k;
+    }
+    function hintLabel() {
+      if (hintLevel === 0) return "💡 提示";
+      if (hintLevel === 1) return "💡 看字母";
+      return "💡 给一个字母";
+    }
     function drawSlots() {
       clear(wordBox);
       var a = q.answer, n = a.length;
@@ -1013,14 +1129,15 @@
       var per = wordBox.clientWidth ? (wordBox.clientWidth - (n - 1) * 4) / n : 0;
       var fontPx = per ? Math.min(28, per * 0.95) : 0;
       for (var i = 0; i < n; i++) {
-        var ch = over ? a.charAt(i) : (raw.charAt(i) || (hinted && i === 0 ? a.charAt(0) : ""));
-        var sp = el("span", "guess-slot" + (over && typed.charAt(i) !== plainOf(a.charAt(i)) ? " missed" : "") + (!over && hinted && i === 0 && !raw.charAt(0) ? " hinted" : ""), ch);
+        var ch = over ? a.charAt(i) : raw.charAt(i);
+        var sp = el("span", "guess-slot" + (over && typed.charAt(i) !== plainOf(a.charAt(i)) ? " missed" : ""), ch);
         if (fontPx) sp.style.fontSize = fontPx.toFixed(1) + "px";
         wordBox.appendChild(sp);
       }
     }
     input.addEventListener("input", function () {
       drawSlots();
+      drawLetters();
       enableCheck(!over && !!input.value.trim());
     });
     input.addEventListener("keydown", function (ev) {
@@ -1031,12 +1148,27 @@
       }
     });
     hintBtn.onclick = function () {
-      if (over || hinted) return;
+      if (over) return;
+      if (hintLevel >= 2 && rightPrefix() >= LETTERS.length - 1) { hintBtn.disabled = true; return; } // 没东西可给：不算用了提示
       hinted = true;
       S.hintUsed = true;
-      hintBtn.disabled = true;
-      hintBtn.textContent = "💡 首字母：" + q.answer.charAt(0);
-      drawSlots();
+      if (hintLevel === 0) {
+        speak(t.speak); // 点击里同步读（iPhone 才出声）
+      } else if (hintLevel === 1) {
+        letterBox.hidden = false;
+        drawLetters();
+      } else {
+        // 帮你写对下一个字母：保留前面对的，后面打错的去掉，再补一个对的
+        var k = rightPrefix();
+        if (k >= LETTERS.length - 1) { hintBtn.disabled = true; return; }
+        input.value = LETTERS.slice(0, k + 1).join("");
+        drawSlots();
+        drawLetters();
+        enableCheck(true);
+        if (k + 1 >= LETTERS.length - 1) hintBtn.disabled = true; // 最后一个字母留给你
+      }
+      hintLevel = Math.min(hintLevel + 1, 2);
+      hintBtn.textContent = hintLabel();
       try { input.focus(); } catch (e) {}
     };
     checkFoot(function () {
@@ -1091,7 +1223,7 @@
   function qFill(q) {
     var s = screen();
     var ex = q.ex;
-    head(s, "fill", "选出空格里该填的词");
+    var fTitle = head(s, "fill", "选出空格里该填的词");
     var pr = el("div", "fill-prompt");
     var parts = String(ex.prompt).split("___");
     var blank = el("span", "gram-blank", " ");
@@ -1110,6 +1242,12 @@
       blank.className = "gram-blank filled";
       enableCheck(true);
     }, fillCol);
+    // 💡 提示：每点一下去掉一个错的选项（至少留一个错的）
+    hintButton(fTitle, function () {
+      return dropOneWrong(btns, function (i) { return opts[i] !== ex.answer; }, function (i) {
+        if (picked === opts[i]) { picked = -1; blank.textContent = " "; blank.className = "gram-blank"; enableCheck(false); }
+      });
+    });
     var full = function (oi) { return String(ex.prompt).replace("___", ex.options[oi]); };
     checkFoot(function () {
       if (picked < 0 || S.phase !== "question") return;
@@ -1153,6 +1291,7 @@
       var line = el("div", "bubble-es", es);
       line.appendChild(sayBtn(es, "听"));
       b.appendChild(line);
+      U.addGloss(b, es); // 逐词意思（“我”的气泡是选对以后才出现的；选项上不显示）
       if (zh) b.appendChild(el("div", "bubble-zh", zh));
       row.appendChild(b);
       log.appendChild(row);
@@ -1187,11 +1326,17 @@
     function showTurn(ln) {
       S.dlgLine = ln; // 当前这一轮（自动测试用）
       clear(turn);
-      turn.appendChild(el("div", "chat-who", "轮到你了 · 选错少一颗 ❤️"));
+      var who = el("div", "chat-who dlg-turn-head", "轮到你了 · 选错少一颗 ❤️");
+      turn.appendChild(who);
       if (ln.hintZh) turn.appendChild(el("div", "dlg-hint", ln.hintZh));
       var wrap = el("div", "quiz-options");
       var missedHere = false;
-      shuffle(ln.options).forEach(function (o, n) {
+      var shown = shuffle(ln.options);
+      // 💡 提示：每点一下去掉一个错的选项（至少留一个错的）
+      hintButton(who, function () {
+        return dropOneWrong(wrap.querySelectorAll("button"), function (i) { return shown[i].correct !== true; });
+      });
+      shown.forEach(function (o, n) {
         var b = el("button", "quiz-option");
         b.type = "button";
         b.appendChild(el("span", "quiz-option-num", String.fromCharCode(65 + n)));
@@ -1403,7 +1548,7 @@
     S.phase = "result";
     var lv = S.level, p = P();
     var st = starsFor(S.mistakes);
-    if (S.hintUsed) st = Math.min(st, 2); // 猜单词用了“提示”：最多 2 星
+    if (S.hintUsed) st = Math.min(st, 2); // 用了 💡 提示（任何题型）：最多 2 星
     var acc = accuracy();
     var gained = 0, extraStars = 0, stampNew = false, dailyFirst = false;
     if (p) {
@@ -1513,6 +1658,11 @@
     if (k === "Enter") {
       if (mainBtn && !mainBtn.disabled && document.activeElement !== mainBtn) { ev.preventDefault(); mainBtn.click(); }
       return;
+    }
+    // 拼句子：数字键 = 词库第几个格子里还在的词，退格 = 撤销
+    if (S.phase === "question" && S.q && S.q.mode === "order" && S.orderUI && !S.orderUI.locked()) {
+      if (/^[1-9]$/.test(k)) { if (S.orderUI.keyPick(Number(k))) ev.preventDefault(); return; }
+      if (k === "Backspace") { ev.preventDefault(); S.orderUI.undo(); return; }
     }
     if (/^[1-9]$/.test(k) && (S.phase === "question" || S.phase === "speed")) {
       var opts = main.querySelectorAll(".p-options .quiz-option");

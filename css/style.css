@@ -2746,69 +2746,161 @@ a.game-card:active {
   font-weight: 800;
   line-height: 1.4;
 }
+/* 阶段 17：字块界面见 js/order-ui.js。
+   --tok-h = 字块高度；--row = 答题区一行的高度（字块 + 上下空隙，横线画在每行底部）；--rows 由 JS 按词库行数设置 */
 .order-answer,
+.order-bank,
+.order-tools {
+  --tok-h: 52px;
+  --row: calc(var(--tok-h) + 16px);
+  max-width: 640px;
+  margin: 12px auto 0;
+}
+.order-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0 8px;
+  padding: 0 6px;
+  min-height: calc(var(--rows, 2) * var(--row) + 4px);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  background-color: transparent;
+  background-image: repeating-linear-gradient(to bottom,
+    transparent 0, transparent calc(var(--row) - 3px),
+    var(--border-strong) calc(var(--row) - 3px), var(--border-strong) calc(var(--row) - 1px),
+    transparent calc(var(--row) - 1px), transparent var(--row));
+  background-clip: padding-box;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.order-answer .order-token {
+  margin: 6px 0 10px;
+}
+.order-answer.is-correct {
+  border-color: var(--primary);
+  background-color: var(--primary-soft);
+}
+.order-answer.is-wrong {
+  border-color: var(--danger);
+  background-color: var(--danger-soft);
+}
 .order-bank {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 8px;
-  max-width: 640px;
-  margin: 12px auto 0;
-  padding: 10px 10px 14px;
-  min-height: 74px;
-  border-radius: var(--radius);
-}
-.order-answer {
-  border: 2px dashed var(--primary-soft-2);
-  background: var(--surface-2);
-}
-.order-answer.is-correct {
-  border-style: solid;
-  border-color: var(--primary);
-  background: var(--primary-soft);
-}
-.order-answer.is-wrong {
-  border-style: solid;
-  border-color: var(--danger);
-  background: var(--danger-soft);
-}
-.order-bank {
-  border: 1px solid var(--border);
-  background: var(--card);
+  justify-content: center;
+  gap: 12px 10px;
+  padding: 12px 4px 16px;
+  border: none;
+  background: transparent;
 }
 .order-empty {
   color: var(--muted);
-  align-self: center;
+}
+.order-answer .order-empty {
+  display: flex;
+  align-items: center;
+  height: calc(var(--row) - 4px);
+  padding-left: 4px;
+  font-size: var(--fs-base);
 }
 .order-token {
+  position: relative;
   font: inherit;
-  font-size: var(--fs-md);
-  font-weight: 700;
-  min-height: 48px;
-  min-width: 48px;
-  padding: 6px 14px;
-  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  min-height: var(--tok-h, 52px);
+  min-width: 52px;
+  padding: 6px 16px;
+  border-radius: 16px;
   border: 2px solid var(--border-strong);
   background: var(--card);
   color: var(--text);
-  box-shadow: 0 3px 0 var(--border-strong);
+  box-shadow: 0 4px 0 var(--border-strong);
   cursor: pointer;
-  transition: transform 0.06s, box-shadow 0.06s;
-}
-.order-token:hover {
-  background: var(--primary-soft);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: box-shadow 0.06s, background-color 0.15s, border-color 0.15s;
 }
 .order-token:active:not(:disabled) {
-  transform: translateY(3px);
+  transform: translateY(4px);
   box-shadow: 0 0 0 var(--border-strong);
-}
-.order-answer .order-token {
-  border-color: var(--primary);
-  color: var(--primary-text);
-  box-shadow: 0 3px 0 var(--primary);
 }
 .order-token:disabled {
   cursor: default;
   opacity: 1;
+}
+/* 被点走以后：原处留一个同样大小的灰色虚线空位（不能点） */
+.order-token.is-used {
+  background: var(--surface-2);
+  border: 2px dashed var(--border-strong);
+  box-shadow: none;
+  color: transparent;
+}
+/* 检查以后：位置正确的标绿，从第一个错的开始标红 */
+.order-token.is-right {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  box-shadow: 0 4px 0 var(--primary);
+}
+.order-token.is-bad {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  box-shadow: 0 4px 0 var(--danger);
+}
+/* 字块角上的小数字（电脑键盘 1–9 用）：只在电脑宽屏上显示 */
+@media (hover: hover) and (pointer: fine) and (min-width: 700px) {
+  .order-bank .order-token[data-key]:not(.is-used)::after {
+    content: attr(data-key);
+    position: absolute;
+    top: 3px;
+    right: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--muted);
+  }
+}
+/* 撤销 / 清空：小而好按，放在答题区下面靠右 */
+.order-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.order-tools[hidden],
+.order-tool[hidden] {
+  display: none;
+}
+.order-tool {
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  min-height: 44px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--border-strong);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.order-tool:hover:not(:disabled) {
+  border-color: var(--select);
+}
+.order-tool:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* 游戏大厅：拼错后反馈框里的“退回错的词”大按钮 */
+.order-fix-btn {
+  margin-top: 10px;
+  min-height: 52px;
+  font-size: 1.1rem;
 }
 
 /* 猜单词 */
@@ -3255,8 +3347,8 @@ a.game-card:active {
     width: min(1.4em, calc((100% - (var(--n, 8) - 1) * 4px) / var(--n, 8)));
   }
   .order-token {
-    font-size: 1.05rem;
-    padding: 6px 10px;
+    font-size: 1.2rem;
+    padding: 6px 12px;
   }
   .card-toast {
     padding: 8px 10px;
@@ -4193,8 +4285,11 @@ body.play-body {
   .q-big { font-size: 1.6rem; margin: 2px 0 6px; }
   .fill-prompt { font-size: 1.2rem; line-height: 1.45; }
   .order-meaning { font-size: 1.15rem; }
-  .order-answer, .order-bank { min-height: 60px; padding: 6px 6px 10px; gap: 8px 6px; margin-top: 8px; }
-  .play-main .order-token { min-height: 44px; padding: 4px 10px; }
+  .order-answer, .order-bank, .order-tools { --tok-h: 46px; }
+  .order-answer, .order-bank { margin-top: 6px; }
+  .order-bank { gap: 8px 6px; padding: 8px 2px 10px; }
+  .order-tools { margin-top: 2px; }
+  .play-main .order-token { padding: 4px 12px; font-size: 1.1rem; }
   .guess-hint { font-size: 1.15rem; }
   .play-main .guess-word { margin: 4px 0 2px; }
   .play-main .guess-slot { height: 1.6em; }
@@ -4505,10 +4600,16 @@ a.all-link:hover {
 .guess-key:active:not(:disabled) {
   transform: translateY(4px);
 }
-.guess-key:hover:not(:disabled),
-.order-token:hover {
+.guess-key:hover:not(:disabled) {
   border-color: var(--select);
   background: var(--select-soft);
+}
+/* 拼句子字块：只在有鼠标的设备上有悬停色（iPhone 点完不会“粘”着颜色；空位、标绿 / 红的不变色） */
+@media (hover: hover) {
+  .order-token:hover:not(:disabled):not(.is-right):not(.is-bad) {
+    border-color: var(--select);
+    background: var(--select-soft);
+  }
 }
 .goal-opt[aria-checked="true"],
 .pick[aria-pressed="true"] {
@@ -5678,9 +5779,13 @@ a.all-link:hover {
   .guess-hint {
     font-size: clamp(1.35rem, 3.4vh, 2rem);
   }
+  .play-main .order-answer,
+  .play-main .order-bank,
+  .play-main .order-tools {
+    --tok-h: 54px;
+  }
   .play-main .order-token {
-    min-height: clamp(48px, 7vh, 62px);
-    font-size: clamp(1.15rem, 2.4vh, 1.45rem);
+    font-size: 1.25rem;
   }
   .order-meaning,
   .fill-prompt {
@@ -5937,10 +6042,101 @@ a.all-link:hover {
   text-align: center;
   margin-top: 2px;
 }
-.guess-slot.hinted {
-  color: var(--accent-text);
+/* 💡 提示按钮（各题型共用，js/play.js 的 hintButton）：放在题目标题右边，不多占一行 */
+.q-title.has-hint,
+.dlg-turn-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.accent-note {
+.q-title.has-hint > .q-title-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.dlg-turn-head {
+  justify-content: space-between;
+  white-space: nowrap; /* 320 宽时“❤️”不要单独掉到第二行 */
+}
+@media (max-width: 340px) {
+  .dlg-turn-head { gap: 4px; font-size: 0.8rem; letter-spacing: -0.02em; }
+  .dlg-turn-head .p-hint-btn.btn { padding: 4px 8px; }
+}
+.p-hint-btn.btn {
+  flex: none;
+  min-height: 44px; /* 触控目标 ≥ 44px */
+  padding: 4px 12px;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  white-space: nowrap;
+}
+/* 听音选的提示：显示西语写法 */
+.p-hint-show {
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+/* 被提示去掉的错误选项 */
+.quiz-option.hint-out,
+.p-options .quiz-option.hint-out {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+/* 配对题的提示：这一对闪一下（暖黄色，和“选中”的蓝色区分开） */
+.m-card.hint-glow {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent);
+  animation: hint-glow 0.5s ease-in-out 4 alternate;
+}
+@keyframes hint-glow {
+  from { transform: scale(1); }
+  to { transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-card.hint-glow { animation: none; }
+}
+/* 提示第 2 步：这个词用到的字母（打乱顺序），打过的变灰 */
+.guess-letters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+.guess-letters[hidden] {
+  display: none;
+}
+.guess-letter {
+  min-width: 34px;
+  padding: 4px 8px;
+  border: 2px solid var(--select);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.3;
+}
+.guess-letter.used {
+  border-color: var(--border);
+  color: var(--muted);
+  opacity: 0.5;
+}
+/* 键盘弹出时地方很小：字母块缩小，长单词也尽量一屏看全 */
+.kb-open .guess-letters {
+  gap: 3px;
+  margin: 2px 0;
+}
+.kb-open .guess-letter {
+  min-width: 24px;
+  padding: 1px 5px;
+  border-width: 2px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}.accent-note {
   margin-top: 4px;
   font-weight: 700;
   color: var(--text);
@@ -6346,4 +6542,400 @@ a.all-link:hover {
 #move-confirm {
   border-color: var(--select);
   background: var(--select-soft);
+}
+/* ---------- 逐词意思（js/words-util.js 的 WordsUtil.gloss）：每个西语词正下方写中文 ---------- */
+/* 只用已有的颜色变量：深色模式、各主题（data-skin）自动跟着变 */
+.gloss {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 4px;
+  margin: 8px 0 4px;
+  max-width: 100%;
+  font-weight: 400;
+  text-align: left;
+}
+.gloss[hidden] {
+  display: none;
+}
+.gloss-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 100%;
+  margin: 0;
+  padding: 3px 7px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.gloss-item:hover {
+  border-color: var(--primary);
+}
+.gloss-item:active {
+  background: var(--tap);
+}
+.gloss-item:focus-visible {
+  outline: 3px solid var(--select);
+  outline-offset: 1px;
+}
+/* 词组（por favor / 请）：一个块，虚线绿边 */
+.gloss-item.is-group {
+  border: 2px dashed var(--primary);
+}
+.gloss-item.is-other {
+  cursor: default;
+  border-color: transparent;
+  background: transparent;
+  min-width: 0;
+}
+.gloss-es {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--primary-text);
+  overflow-wrap: anywhere;
+}
+.gloss-zh {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  min-height: 1em;
+  overflow-wrap: anywhere;
+}
+.gloss-item.no-zh .gloss-es {
+  color: var(--text);
+}
+/* 关卡底部反馈条、气泡、卡片里：紧凑一点 */
+.play-foot .gloss,
+.bubble .gloss {
+  margin: 6px 0 2px;
+}
+.learn-card .gloss {
+  justify-content: center;
+}
+.flash-example .gloss,
+.learn-ex .gloss,
+.gram-example .gloss {
+  margin: 6px 0;
+}
+.learn-ex .gloss {
+  justify-content: center;
+}
+@media (max-width: 420px) {
+  .gloss { gap: 4px 3px; }
+  .gloss-item { padding: 2px 5px 3px; }
+  .gloss-es { font-size: 0.95rem; }
+  .gloss-zh { font-size: 0.75rem; }
+}
+/* ---------- 阶段 17：挑战码 PK（pages/game-duel.html + js/duel.js） ---------- */
+/* 只用已有的颜色变量：深色模式、各主题（data-skin）自动跟着变 */
+.duel-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  max-width: 640px;
+  margin: 18px auto;
+}
+.btn.duel-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 96px;
+  padding: 14px 18px;
+  white-space: normal;
+  text-align: center;
+}
+.duel-big-title {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  line-height: 1.2;
+}
+.duel-big-sub {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  opacity: 0.9;
+}
+.duel-record {
+  max-width: 640px;
+  margin: 8px auto 0;
+}
+.duel-hist {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.duel-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 3px 0 var(--border);
+  cursor: pointer;
+}
+.duel-hist-item:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--border);
+}
+.duel-hist-tag {
+  flex: 0 0 auto;
+  min-width: 3.2em;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-weight: 800;
+  font-size: var(--fs-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.duel-hist-item.is-win .duel-hist-tag { background: var(--primary-soft); color: var(--primary-text); }
+.duel-hist-item.is-lose .duel-hist-tag { background: var(--danger-soft); color: var(--danger-text); }
+.duel-hist-item.is-tie .duel-hist-tag { background: var(--accent-soft); color: var(--accent-text); }
+.duel-hist-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.duel-hist-title {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.duel-hist-sub {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.duel-name-field {
+  max-width: 420px;
+  margin: 8px 0 4px;
+}
+.duel-paste {
+  min-height: 110px;
+}
+.duel-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 640px;
+  margin: 12px 0 16px;
+  padding: 14px 16px;
+  background: var(--select-soft);
+  border: 2px solid var(--select);
+  border-radius: var(--radius-lg);
+}
+.duel-preview .mascot {
+  flex: 0 0 auto;
+}
+.duel-preview-text {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.duel-preview-line {
+  margin-top: 4px;
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  color: var(--select-text);
+}
+.duel-name {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.duel-goal {
+  max-width: 640px;
+  margin: 0 auto 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--select-soft);
+  color: var(--select-text);
+  font-weight: 700;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.duel-goal[hidden] {
+  display: none;
+}
+.btn.duel-nohear {
+  display: block;
+  margin: 10px auto 0;
+}
+.duel-hint-zh {
+  margin-top: 10px;
+}
+.duel-code {
+  max-width: 640px;
+  margin: 20px auto 0;
+  display: grid;
+  gap: 8px;
+}
+.duel-code h2 {
+  margin: 0;
+}
+.duel-code-tip {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+}
+.duel-code-only {
+  margin-top: 8px;
+}
+/* 对比结果 */
+.duel-head .quiz-result-score.duel-verdict {
+  font-size: var(--fs-2xl);
+}
+.duel-head.is-lose {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  box-shadow: 0 6px 0 var(--danger-soft);
+}
+.duel-head.is-lose .duel-verdict {
+  color: var(--danger-text);
+}
+.duel-head.is-tie {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 6px 0 var(--accent-soft);
+}
+.duel-head.is-tie .duel-verdict {
+  color: var(--accent-text);
+}
+.duel-vs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.duel-vs-mid {
+  font-weight: 800;
+  font-size: var(--fs-lg);
+  color: var(--muted);
+}
+.duel-side {
+  padding: 10px 8px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 2px solid var(--border);
+  min-width: 0;
+}
+.duel-side.is-winner {
+  border-color: var(--accent-edge);
+  box-shadow: 0 4px 0 var(--accent);
+}
+.duel-side-name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 4px;
+  font-size: var(--fs-base);
+  overflow-wrap: anywhere;
+}
+.duel-me {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-weight: 700;
+}
+.duel-crown {
+  width: 24px;
+  height: 24px;
+}
+.duel-side-score {
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  color: var(--text);
+}
+.duel-side-time {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-weight: 700;
+}
+.duel-table {
+  max-width: 640px;
+  margin: 0 auto;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+}
+.duel-row {
+  display: grid;
+  grid-template-columns: 2em minmax(0, 1fr) 4.4em 4.4em;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+.duel-row:first-child {
+  border-top: 0;
+}
+.duel-row-head {
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  color: var(--muted);
+}
+.duel-cell {
+  min-width: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.duel-row-head .duel-cell:nth-child(2),
+.duel-item {
+  text-align: left;
+}
+.duel-num {
+  font-weight: 800;
+  color: var(--muted);
+}
+.duel-item-es .say {
+  margin: 0;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+.duel-item-zh {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: 2px;
+}
+.duel-mark {
+  display: inline-flex;
+}
+.duel-mark .ic {
+  width: 28px;
+  height: 28px;
+}
+@media (max-width: 380px) {
+  .duel-row { grid-template-columns: 1.4em minmax(0, 1fr) 3.4em 3.4em; gap: 4px; padding: 6px; }
+  .duel-big-title { font-size: var(--fs-lg); }
+  .duel-side-score { font-size: var(--fs-lg); }
+}
+@media (max-width: 480px) {
+  .duel-head .quiz-result-score.duel-verdict { font-size: var(--fs-xl); }
+  .duel-item-es .say { font-size: var(--fs-sm); padding: 4px 10px; }
 }

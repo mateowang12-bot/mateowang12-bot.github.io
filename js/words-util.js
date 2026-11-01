@@ -14,6 +14,9 @@
 //   WordsUtil.masteryBadge(id, newText, pop)    状态小标记 + 掌握进度 3 个小圆点（○○○ → ●●● 已掌握 ✓）
 //   WordsUtil.markMessage(before, after, known) 点“记住了 / 还不熟”后的提示文字
 //   WordsUtil.setLessonCount(span, ids)         选课按钮上的“已掌握 x / y · 学习中 n”
+//   WordsUtil.gloss(es, opts) / addGloss(parent, es, opts)  逐词意思那一行（每个词下面写中文，数据 data/lexicon.js；
+//                                               没数据 / 开关关着 / 只有一个词时返回 null）；showGloss(root) 显示先藏起来的
+//   WordsUtil.glossOn() / setGlossOn(on)        “显示逐词意思”开关（localStorage 的 es-study-gloss，"0" = 关）
 // ============================================
 (function () {
   function el(tag, className, text) {
@@ -390,7 +393,197 @@
     span.classList.toggle("all-done", ids.length > 0 && m === ids.length);
   }
 
+  // ---------- 逐词意思（每个西语词正下方写中文）：数据在 data/lexicon.js 的 window.LEXICON ----------
+  // LEXICON = { words: { 小写词: 中文 }, phrases: { "por favor": 中文（2–4 个词）}, sentence: { 句子原文: { 词或词组: 中文 } } }
+  // 查表顺序：这一句的特殊意思（sentence，可以是词组，最长优先）→ phrases 最长匹配（4 → 2 个词）→ words；查不到下面留空。
+  // 标点跟着旁边的词显示，不参与查表；词组不跨过逗号、句号等标点。
+  // 开关：localStorage 的 es-study-gloss（"0" = 关，默认开；“我的”页可以改）。window.LEXICON 不存在时不显示。
+  var GLOSS_KEY = "es-study-gloss";
+  function glossOn() {
+    try { return !(window.localStorage && window.localStorage.getItem(GLOSS_KEY) === "0"); } catch (e) { return true; }
+  }
+  function setGlossOn(on) {
+    try { if (window.localStorage) window.localStorage.setItem(GLOSS_KEY, on ? "1" : "0"); } catch (e) {}
+  }
+  var GL_WORD = /[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+/g;
+  var GL_BREAK = /[,.;:!?¿¡…"“”«»()\[\]—–]/; // 词组不能跨过的标点
+  function nfc(s) {
+    s = String(s == null ? "" : s);
+    try { if (s.normalize) s = s.normalize("NFC"); } catch (e) {}
+    return s;
+  }
+  function glKey(s) { return nfc(s).toLowerCase().replace(/\s+/g, " ").replace(/^ | $/g, ""); }
+  // 把 LEXICON 的键统一成小写（只算一次；LEXICON 换了就重算）
+  var glCache = { src: null };
+  function lowerMap(m) {
+    var out = {};
+    if (!m || typeof m !== "object") return out;
+    for (var k in m) {
+      if (Object.prototype.hasOwnProperty.call(m, k) && typeof m[k] === "string" && m[k]) out[glKey(k)] = m[k];
+    }
+    return out;
+  }
+  function lexicon() {
+    var L = window.LEXICON;
+    if (!L || typeof L !== "object") return null;
+    if (glCache.src !== L) {
+      var sent = {};
+      var sm = L.sentence && typeof L.sentence === "object" ? L.sentence : {};
+      for (var k in sm) if (Object.prototype.hasOwnProperty.call(sm, k)) sent[glKey(k)] = lowerMap(sm[k]);
+      glCache = { src: L, words: lowerMap(L.words), phrases: lowerMap(L.phrases), sentence: sent };
+    }
+    return glCache;
+  }
+  // 拆句子：→ units = [{ w: 词, pre: 前面的标点, suf: 后面的标点 } 或 { other: "3" 之类没有字母的小块 }]
+  function glossUnits(es) {
+    var s = nfc(es);
+    var units = [], m, last = 0, prevWord = null;
+    GL_WORD.lastIndex = 0;
+    function addOther(t) { t = t.replace(/^\s+|\s+$/g, ""); if (t) units.push({ other: t }); }
+    var pendingPre = "";
+    while ((m = GL_WORD.exec(s))) {
+      var gap = s.substring(last, m.index);
+      if (prevWord) {
+        var a = gap.search(/\s/);
+        if (a < 0) prevWord.suf += gap; // 没有空格（例如 qué-tal）：粘在前一个词后面
+        else {
+          var b = gap.length - 1;
+          while (b >= 0 && !/\s/.test(gap.charAt(b))) b--;
+          prevWord.suf += gap.substring(0, a);
+          addOther(gap.substring(a, b + 1));
+          pendingPre = gap.substring(b + 1);
+        }
+      } else {
+        var b0 = gap.length - 1;
+        while (b0 >= 0 && !/\s/.test(gap.charAt(b0))) b0--;
+        addOther(gap.substring(0, b0 + 1));
+        pendingPre = gap.substring(b0 + 1);
+      }
+      prevWord = { w: m[0], pre: pendingPre, suf: "" };
+      pendingPre = "";
+      units.push(prevWord);
+      last = m.index + m[0].length;
+    }
+    var tail = s.substring(last);
+    if (prevWord) {
+      var a2 = tail.search(/\s/);
+      if (a2 < 0) prevWord.suf += tail;
+      else { prevWord.suf += tail.substring(0, a2); addOther(tail.substring(a2)); }
+    } else addOther(tail);
+    return units;
+  }
+  // → [{ text: 显示的西语（带标点）, say: 朗读的词, zh: 中文（可能是空的）, group: 是不是词组, other: 是不是没有字母的小块 }]
+  function glossTokens(es) {
+    var lex = lexicon();
+    var units = glossUnits(es);
+    var out = [];
+    var sent = lex ? lex.sentence[glKey(es)] || null : null;
+    for (var i = 0; i < units.length; i++) {
+      var u = units[i];
+      if (u.other) { out.push({ text: u.other, say: "", zh: "", group: false, other: true }); continue; }
+      var hitN = 1, zh = "";
+      if (lex) {
+        // 从 i 开始最多 4 个连着的词；okBreak[n - 1] = 前 n 个词之间没有挡路的标点（词组才能用）
+        var seq = [], okBreak = [], clean = true;
+        for (var j = i; j < units.length && seq.length < 4 && !units[j].other; j++) {
+          if (seq.length && (GL_BREAK.test(units[j - 1].suf) || GL_BREAK.test(units[j].pre))) clean = false;
+          okBreak.push(clean);
+          seq.push(units[j].w);
+        }
+        var found = false, n;
+        if (sent) {
+          for (n = seq.length; n >= 1 && !found; n--) {
+            var ks = glKey(seq.slice(0, n).join(" "));
+            if (sent[ks]) { zh = sent[ks]; hitN = n; found = true; }
+          }
+        }
+        if (!found) {
+          for (n = seq.length; n >= 2 && !found; n--) {
+            if (okBreak[n - 1] === false) continue;
+            var kp = glKey(seq.slice(0, n).join(" "));
+            if (lex.phrases[kp]) { zh = lex.phrases[kp]; hitN = n; found = true; }
+          }
+        }
+        if (!found) zh = lex.words[glKey(u.w)] || "";
+      }
+      var parts = [], says = [];
+      for (var k = 0; k < hitN; k++) {
+        var uk = units[i + k];
+        parts.push(uk.pre + uk.w + uk.suf);
+        says.push(uk.w);
+      }
+      out.push({ text: parts.join(" "), say: says.join(" "), zh: zh, group: hitN > 1, other: false });
+      i += hitN - 1;
+    }
+    return out;
+  }
+  // 逐词意思那一行：<div class="gloss">，每个词（词组）一个小块（上面西语、下面中文），点一下读这个词。
+  // 开关关着、没有 LEXICON、只有一个词、一个意思都查不到 → 返回 null（调用方什么都不加）。
+  // opts.hidden = true：先藏起来（测验题答完再用 WordsUtil.showGloss 显示）；opts.className：额外的 class
+  function gloss(es, opts) {
+    opts = opts || {};
+    if (!es || !glossOn() || !lexicon()) return null;
+    var toks = glossTokens(es);
+    var words = 0, any = false;
+    for (var i = 0; i < toks.length; i++) {
+      if (!toks[i].other) words += toks[i].say.split(" ").length;
+      if (toks[i].zh) any = true;
+    }
+    if (words < 2 || !any) return null;
+    var box = el("div", "gloss" + (opts.className ? " " + opts.className : ""));
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", "逐词意思");
+    for (var j = 0; j < toks.length; j++) {
+      (function (t) {
+        if (t.other) {
+          var o = el("span", "gloss-item is-other");
+          o.appendChild(el("span", "gloss-es", t.text));
+          o.appendChild(el("span", "gloss-zh", ""));
+          box.appendChild(o);
+          return;
+        }
+        var b = el("button", "gloss-item" + (t.group ? " is-group" : "") + (t.zh ? "" : " no-zh"));
+        b.type = "button";
+        b.title = "点击朗读";
+        b.setAttribute("aria-label", "朗读 " + t.say + (t.zh ? "：" + t.zh : ""));
+        var e1 = el("span", "gloss-es", t.text);
+        e1.setAttribute("lang", "es");
+        b.appendChild(e1);
+        b.appendChild(el("span", "gloss-zh", t.zh));
+        b.onclick = function (ev) {
+          if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+          if (window.speakSpanish) window.speakSpanish(t.say); // 点击里同步朗读（iPhone 才出声）
+        };
+        box.appendChild(b);
+      })(toks[j]);
+    }
+    if (opts.hidden) box.hidden = true;
+    return box;
+  }
+  // 方便写法：gloss 不是 null 才加到 parent 里（before 可选：插到它前面）→ 返回 gloss 或 null
+  function addGloss(parent, es, opts, before) {
+    var g = gloss(es, opts);
+    if (g && parent) {
+      if (before && before.parentNode === parent) parent.insertBefore(g, before);
+      else parent.appendChild(g);
+    }
+    return g;
+  }
+  // 把 root 里先藏起来的逐词行显示出来（测验题答完以后）
+  function showGloss(root) {
+    if (!root) return;
+    if (root.classList && root.classList.contains("gloss")) { root.hidden = false; return; }
+    var list = root.querySelectorAll ? root.querySelectorAll(".gloss[hidden]") : [];
+    for (var i = 0; i < list.length; i++) list[i].hidden = false;
+  }
+
   window.WordsUtil = {
+    gloss: gloss,
+    addGloss: addGloss,
+    showGloss: showGloss,
+    glossTokens: glossTokens,
+    glossOn: glossOn,
+    setGlossOn: setGlossOn,
     masteryBadge: masteryBadge,
     markMessage: markMessage,
     setLessonCount: setLessonCount,

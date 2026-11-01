@@ -1,8 +1,8 @@
 // ============================================
 // 小游戏共用代码（games.js）—— window.GameKit
-// 游戏大厅 pages/games.html 和 4 个游戏页面都用它。要在 storage.js、words-util.js 之后引入。
+// 游戏大厅 pages/games.html 和 5 个游戏页面都用它。要在 storage.js、words-util.js 之后引入。
 //
-//   GameKit.GAMES                    4 个游戏的说明（id、名字、计分方向、最高分怎么显示）
+//   GameKit.GAMES                    5 个游戏的说明（阶段 17 加了挑战码 PK）（id、名字、计分方向、最高分怎么显示）
 //   GameKit.get(id)                  取一个游戏的说明
 //   GameKit.bestText(id)             “最高分：…”的文字（还没玩过就是“还没玩过”）
 //   GameKit.record(id, score)        记一局成绩（方向按 GAMES 里的 lowerIsBetter）→ Progress.recordGame 的结果
@@ -31,7 +31,12 @@
     { id: "guess", icon: "🔤", zh: "猜单词", en: "Guess the Word", url: "game-guess.html", lowerIsBetter: false,
       desc: ["看中文提示，一个一个字母猜出西语单词。每个词有 6 颗 ❤️，剩几颗就得几分；每轮 5 个词，满分 30。",
              "Guess the Spanish word letter by letter. 6 hearts per word, 5 words per round."],
-      best: function (b) { return "最高 " + b + " / 30 分"; } }
+      best: function (b) { return "最高 " + b + " / 30 分"; } },
+    // 阶段 17：挑战码 PK（js/duel.js）。成绩 = 答对几题；战绩（胜负）只存在本机 es-study-duel-history
+    { id: "duel", icon: "🆚", zh: "挑战码 PK", en: "Challenge a Friend", url: "game-duel.html", lowerIsBetter: false,
+      desc: ["做 10 道题，把挑战码发给朋友，看谁分高",
+             "Answer 10 questions, send the code to a friend, compare scores."],
+      best: function (b) { return "最多答对 " + b + " / 10 题"; } }
   ];
 
   function get(id) {

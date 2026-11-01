@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>西班牙旅行冒险 · 我的西语学习站</title>
+  <title>竹竹西语</title>
+  <!-- App 图标（竹竹）：浏览器标签页图标 + iPhone 主屏幕图标 -->
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="css/style.css">
   <script src="js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="apple-mobile-web-app-title" content="竹竹西语">
   <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
@@ -29,7 +31,7 @@
       <button type="button" class="notice-close" title="关闭" aria-label="关闭">×</button>
     </div>
 
-    <h1 class="sr-only">西班牙旅行冒险地图</h1>
+    <h1 class="sr-only">竹竹西语 · 西班牙旅行冒险地图</h1>
 
     <!-- 每日挑战入口 -->
     <div id="daily-box"></div>
@@ -76,7 +78,11 @@
     };
     function renderSync() {
       var s = P && P.sync ? P.sync.status() : "local";
-      document.getElementById("sync-status").textContent = SYNC_TEXT[s] || SYNC_TEXT.local;
+      var t = SYNC_TEXT[s] || SYNC_TEXT.local;
+      // 同步失败时把原因也写出来（方便查问题）
+      var why = P && P.sync && P.sync.lastError ? P.sync.lastError() : "";
+      if (why && (s === "failed" || s === "local")) t += "（原因：" + why + "）";
+      document.getElementById("sync-status").textContent = t;
     }
     renderSync();
     window.addEventListener("progress-sync-status", renderSync);

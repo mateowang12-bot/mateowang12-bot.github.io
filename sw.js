@@ -9,7 +9,7 @@
 // 网站内容一变，build-web.ps1 算出的 VERSION 就变，sw.js 跟着变，
 // 浏览器联网时发现 sw.js 变了，就在后台装新版本，下次打开页面生效。
 // ============================================
-var VERSION = "4df5c1960590";
+var VERSION = "db221cf65ee0";
 var SCOPE = self.registration ? self.registration.scope : new URL("./", self.location).href;
 var PREFIX = "es-study:" + SCOPE + ":";   // 同一个 github.io 域名下可能有别的网站：缓存名带上网站地址
 var CACHE = PREFIX + VERSION;
@@ -20,21 +20,27 @@ var FILES = [
   "data/dialogues.js",
   "data/grammar.js",
   "data/levels.js",
+  "data/lexicon.js",
   "data/phrases.js",
   "data/words.js",
   "icons/apple-touch-icon.png",
+  "icons/favicon-32.png",
+  "icons/icon.svg",
   "icons/icon-192.png",
   "icons/icon-512.png",
+  "icons/icon-maskable-512.png",
   "index.html",
   "js/claude-bridge.js",
   "js/cloud.js",
   "js/cloud-config.js",
+  "js/duel.js",
   "js/games.js",
   "js/icons.js",
   "js/map.js",
   "js/mascot.js",
   "js/modules.js",
   "js/nav.js",
+  "js/order-ui.js",
   "js/play.js",
   "js/pwa.js",
   "js/sfx.js",
@@ -50,6 +56,7 @@ var FILES = [
   "pages/chat.html",
   "pages/collection.html",
   "pages/dialogue.html",
+  "pages/game-duel.html",
   "pages/game-guess.html",
   "pages/game-match.html",
   "pages/game-order.html",
@@ -89,7 +96,7 @@ function offlinePage() {
   var html =
     '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-    '<title>离线 · 我的西语学习站</title><style>' +
+    '<title>离线 · 竹竹西语</title><style>' +
     'body{margin:0;padding:48px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;' +
     'font-size:18px;line-height:1.6;background:#f7faf4;color:#1f2a1c}' +
     'a{display:inline-block;margin-top:12px;padding:12px 24px;border-radius:16px;background:#27870f;color:#fff;' +

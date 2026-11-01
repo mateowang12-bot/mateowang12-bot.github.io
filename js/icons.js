@@ -48,6 +48,8 @@
     chat: function () { return P("s w", "M8 14a6 6 0 016-6h20a6 6 0 016 6v12a6 6 0 01-6 6H22l-8 7v-7a6 6 0 01-6-6z") + C("b", 17, 20, 2.2) + C("b", 24, 20, 2.2) + C("b", 31, 20, 2.2); },
     play: function () { return P("s g", "M14 8l26 16-26 16z"); },
     party: function () { return P("s p", "M8 41l7-22 14 14z") + L("M15 19l-3 9M19 23l-4 12") + C("s y", 33, 11, 3) + C("s r", 40, 22, 2.5) + C("s b", 24, 8, 2) + L("M28 18c3-4 7-4 9-1M31 25c4-1 7 1 8 4"); },
+    // 挑战码 PK（阶段 17）：红蓝两半的圆 + 中间一道黄色闪电（两个人比一比）
+    duel: function () { return C("r", 24, 24, 18) + P("b", "M36.7 11.3A18 18 0 0111.3 36.7z") + C("ln", 24, 24, 18) + P("s y", "M27 8l-9 15h7l-4 17 11-19h-7l5-13z") + HL(15, 16, 3.5); },
     trophy: function () { return P("s y", "M14 8h20v8a10 10 0 01-20 0z") + L("M14 11H8c0 6 3 9 7 9M34 11h6c0 6-3 9-7 9") + R("s y", 21, 25, 6, 8, 1) + R("s br", 14, 33, 20, 8, 3) + HL(19, 12, 2.5, 3.5); },
     medal: function (c) { return P("s r", "M14 5h8l4 12h-8zM34 5h-8l-4 12h8z") + C("s " + (c || "y"), 24, 30, 12) + C("ring", 24, 30, 7) + HL(19, 25, 3); },
     "medal-bronze": function () { return D.medal("br"); },
@@ -218,7 +220,7 @@
     "👀": "eye", "🔀": "shuffle", "🙂": "smile", "🧳": "suitcase", "🎯": "target", "👣": "footprints", "🌱": "sprout",
     "🌿": "leaf", "🌳": "tree", "📐": "ruler", "🎭": "masks", "🎮": "gamepad", "🤖": "robot", "🔤": "abc", "📇": "cards",
     "📚": "books", "🗺️": "map", "🗺": "map", "🎧": "headphones", "🔗": "link", "🧩": "puzzle", "⚡": "bolt", "🃏": "cards",
-    "🐼": "panda", "📦": "suitcase", "🌊": "skin-ocean", "🌅": "skin-sunset", "💜": "skin-violet", "👤": "smile"
+    "🐼": "panda", "📦": "suitcase", "🌊": "skin-ocean", "🌅": "skin-sunset", "💜": "skin-violet", "👤": "smile", "🆚": "duel"
   };
   var EMOJI_RE = /\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*|[☀-➿]️?/gu;
   var EMOJI_TEST = /\p{Extended_Pictographic}|\u2606/u; // ☆（空星）不是 emoji，但也换成同一套的空星图标，和 ⭐ 一致

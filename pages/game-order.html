@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>拼句子 · 我的西语学习站</title>
+  <title>拼句子 · 竹竹西语</title>
+  <!-- App 图标（竹竹）：浏览器标签页图标 + iPhone 主屏幕图标 -->
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <link rel="stylesheet" href="../css/style.css">
   <script src="../js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="../manifest.webmanifest">
-  <link rel="icon" href="../icons/icon-192.png">
-  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="apple-mobile-web-app-title" content="竹竹西语">
   <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
@@ -25,7 +27,7 @@
     <h1>🧩 拼句子</h1>
 
     <div id="setup-screen">
-      <p>看中文意思，把打乱的西语词按正确顺序点进答题区。点答题区里的词可以退回。每轮 5 句，看你第一次就拼对几句。</p>
+      <p>看中文意思，把打乱的西语词按正确顺序点进答题区。点答题区里的词可以退回，也可以用“撤销”“清空”。拼错了会标出从哪个词开始错，一键退回错的词再拼。每轮 5 句，看你第一次就拼对几句。</p>
       <p class="game-best" id="best-line"></p>
       <h2>选择句子</h2>
       <div class="quiz-check-list" id="scope-box"></div>
@@ -45,14 +47,14 @@
         <div class="order-meaning" id="q-zh"></div>
       </div>
       <div class="order-answer" id="answer" aria-label="答题区"></div>
+      <div class="order-tools" id="tools"></div>
       <div class="order-bank" id="bank" aria-label="可选的词"></div>
       <div class="quiz-feedback" id="feedback" hidden></div>
       <div class="card-nav">
-        <button type="button" class="btn btn-light" id="clear-btn">↺ 清空重来</button>
         <button type="button" class="btn btn-light" id="show-btn">看答案</button>
         <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一句 →</button>
       </div>
-      <p class="key-hint muted">电脑键盘：数字键 1–9 选下面第几个词，退格键退回最后一个词，回车下一句</p>
+      <p class="key-hint muted">电脑键盘：数字键 1–9 选词库里第几个格子的词，退格键撤销，回车检查 / 下一句</p>
     </div>
 
     <div id="result-screen" hidden>
@@ -83,6 +85,7 @@
   <script src="../js/cloud.js"></script>
   <script src="../js/words-util.js"></script>
   <script src="../js/games.js"></script>
+  <script src="../js/order-ui.js"></script>
   <script src="../js/pwa.js"></script>
   <script>
     var U = window.WordsUtil, K = window.GameKit;
@@ -114,8 +117,7 @@
     var scope = null;
     var round = [];      // [{ item, tokens: [文字...] }]
     var pos = 0, good = 0;
-    var bank = [];       // 这一句打乱后的词 [{ text, used }]
-    var placed = [];     // 答题区：bank 里的下标，按点的顺序
+    var ui = null;       // 这一句的字块界面（js/order-ui.js）
     var firstTry = true, solved = false;
     var results = [];    // [{ item, ok: 第一次就对 }]
     var playerSolved = 0; // 这一局自己拼对的句数（看答案的不算）
@@ -184,72 +186,30 @@
         sh = U.shuffled(r.tokens);
         if (!sameOrder(sh, r.tokens)) break;
       }
-      bank = [];
-      for (var i = 0; i < sh.length; i++) bank.push({ text: sh[i], used: false });
-      placed = [];
       firstTry = true;
       solved = false;
       $("feedback").hidden = true;
       $("next-btn").hidden = true;
       $("show-btn").hidden = false;
-      $("clear-btn").hidden = false;
-      draw();
+      $("answer").className = "order-answer";
+      if (ui) ui.destroy();
+      // 阶段 17：词库位置固定、点走留空位；撤销 / 清空；拼完自动检查
+      ui = window.OrderUI.create({
+        answer: $("answer"), bank: $("bank"), tools: $("tools"), tokens: r.tokens, order: sh, keys: true,
+        undoId: "undo-btn", clearId: "clear-btn",
+        onChange: function (u) {
+          $("feedback").hidden = true;
+          $("answer").className = "order-answer";
+          if (u.full()) check();
+        }
+      });
     }
 
-    function draw() {
-      var ans = $("answer");
-      ans.innerHTML = "";
-      ans.className = "order-answer" + (solved ? " is-correct" : "");
-      if (!placed.length) ans.appendChild(el("span", "order-empty", "点下面的词，按顺序放到这里"));
-      for (var i = 0; i < placed.length; i++) {
-        (function (k) {
-          var b = el("button", "order-token", bank[placed[k]].text);
-          b.type = "button";
-          b.title = "点一下退回";
-          b.disabled = solved;
-          b.onclick = function () { unplace(k); };
-          ans.appendChild(b);
-        })(i);
-      }
-      var bk = $("bank");
-      bk.innerHTML = "";
-      var n = 0;
-      for (var j = 0; j < bank.length; j++) {
-        if (bank[j].used) continue;
-        n++;
-        (function (idx, num) {
-          var b = el("button", "order-token", bank[idx].text);
-          b.type = "button";
-          b.setAttribute("aria-label", num + "：" + bank[idx].text);
-          b.disabled = solved;
-          b.onclick = function () { place(idx); };
-          bk.appendChild(b);
-        })(j, n);
-      }
-      if (!n) bk.appendChild(el("span", "order-empty", solved ? "✔" : "词都用完了"));
-    }
-
-    function place(idx) {
-      if (solved || !bank[idx] || bank[idx].used) return;
-      bank[idx].used = true;
-      placed.push(idx);
-      $("feedback").hidden = true;
-      draw();
-      if (placed.length === bank.length) check();
-    }
-    function unplace(k) {
-      if (solved || k < 0 || k >= placed.length) return;
-      bank[placed[k]].used = false;
-      placed.splice(k, 1);
-      $("feedback").hidden = true;
-      draw();
-    }
-
-    // 比较的是“文字的顺序”：两个一样的词（例如两个 la）谁先谁后都算对
+    // 比较的是“文字的顺序”：两个一样的词（例如两个 la）谁先谁后都算对（order-ui.js 的 check 比的是文字）
     function check() {
-      var r = round[pos];
-      var mine = placed.map(function (i) { return bank[i].text; });
-      if (sameOrder(mine, r.tokens)) {
+      if (solved || !ui || !ui.full()) return;
+      var res = ui.check();
+      if (res.ok) {
         done(true);
       } else {
         firstTry = false;
@@ -258,8 +218,18 @@
         var fb = $("feedback");
         fb.className = "quiz-feedback is-wrong";
         fb.innerHTML = "";
-        fb.appendChild(el("div", "quiz-feedback-title", "✘ 顺序不对，点答题区里的词把它退回，再试试。"));
+        fb.appendChild(el("div", "quiz-feedback-title", res.prefix > 0
+          ? "✘ 前 " + res.prefix + " 个词对了（绿色），从红色的词开始顺序不对。"
+          : "✘ 第一个词就不对，从红色的词开始重新拼。"));
+        // 大按钮放在反馈框里（紧挨着词库，手机上不用往下翻）
+        var fx = el("button", "btn btn-block order-fix-btn", "↶ 退回错的词");
+        fx.type = "button";
+        fx.id = "fix-btn";
+        fx.onclick = function () { if (!solved && ui) ui.returnWrong(); };
+        fb.appendChild(fx);
         fb.hidden = false;
+        try { fb.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {}
+        try { fx.focus({ preventScroll: true }); } catch (e) {}
       }
     }
 
@@ -269,21 +239,15 @@
       var w = r.item.word;
       if (!byPlayer) {
         firstTry = false;
-        // 把答案摆好给用户看
-        for (var i = 0; i < bank.length; i++) bank[i].used = false;
-        placed = [];
-        for (var t = 0; t < r.tokens.length; t++) {
-          for (var j = 0; j < bank.length; j++) {
-            if (!bank[j].used && bank[j].text === r.tokens[t]) { bank[j].used = true; placed.push(j); break; }
-          }
-        }
+        ui.solve(); // 把答案摆好给用户看
       }
       solved = true;
       if (byPlayer) playerSolved++;
       var ok = byPlayer && firstTry;
       if (ok) good++;
       results.push({ item: r.item, ok: ok });
-      draw();
+      ui.lock(true);
+      $("answer").className = "order-answer is-correct";
       if (window.speakSpanish) window.speakSpanish(w.es);
       if (window.Sfx && byPlayer) window.Sfx.correct();
       var fb = $("feedback");
@@ -297,7 +261,6 @@
       fb.hidden = false;
       $("h-good").textContent = String(good);
       $("show-btn").hidden = true;
-      $("clear-btn").hidden = true;
       var nb = $("next-btn");
       nb.textContent = pos + 1 < round.length ? "下一句 →" : "看结果 →";
       nb.hidden = false;
@@ -340,13 +303,6 @@
       $("again-btn").focus();
     }
 
-    $("clear-btn").onclick = function () {
-      if (solved) return;
-      for (var i = 0; i < bank.length; i++) bank[i].used = false;
-      placed = [];
-      $("feedback").hidden = true;
-      draw();
-    };
     $("show-btn").onclick = function () { if (!solved) done(false); };
     $("next-btn").onclick = next;
     $("start-btn").onclick = start;
@@ -356,19 +312,19 @@
     document.addEventListener("keydown", function (ev) {
       if ($("play-screen").hidden || ev.altKey || ev.ctrlKey || ev.metaKey || K.typing(ev)) return;
       var k = ev.key;
+      // 数字键 = 词库里第几个格子（位置固定）里还在的词；退格 = 撤销；回车 = 检查 / 下一句
+      if (!ui) return;
       if (!solved && k.length === 1 && k >= "1" && k <= "9") {
-        var n = Number(k), c = 0;
-        for (var i = 0; i < bank.length; i++) {
-          if (bank[i].used) continue;
-          c++;
-          if (c === n) { ev.preventDefault(); place(i); return; }
-        }
-      } else if (!solved && k === "Backspace" && placed.length) {
+        if (ui.keyPick(Number(k))) ev.preventDefault();
+      } else if (!solved && k === "Backspace" && ui.count()) {
         ev.preventDefault();
-        unplace(placed.length - 1);
-      } else if (solved && k === "Enter") {
+        ui.undo();
+      } else if (k === "Enter") {
+        var ae = document.activeElement;
+        if (ae && ae.tagName === "BUTTON" && ae !== $("next-btn") && !solved) return; // 焦点在按钮上：让回车按那个按钮
         ev.preventDefault();
-        next();
+        if (solved) next();
+        else if (ui.full()) check();
       }
     });
 

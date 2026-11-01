@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>挑战码 PK · 竹竹西语</title>
+  <!-- App 图标（竹竹）：浏览器标签页图标 + iPhone 主屏幕图标 -->
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/skin-early.js"></script>
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="竹竹西语">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
+</head>
+<body>
+  <div class="container">
+    <div class="game-top-links">
+      <a class="back-link" href="../index.html">‹ 返回首页</a>
+      <a class="back-link" href="games.html">🎮 游戏大厅</a>
+    </div>
+
+    <h1>🆚 挑战码 PK</h1>
+
+    <!-- 开始页 -->
+    <div id="s-home">
+      <p>做 10 道题，把挑战码发给朋友，看谁分高。<br>不用同时在线，不用登录，用微信发码就行。</p>
+      <div class="duel-actions">
+        <button type="button" class="btn duel-big" id="go-create">
+          <span class="duel-big-title">发起挑战</span>
+          <span class="duel-big-sub">做 10 道题，把成绩发给朋友</span>
+        </button>
+        <button type="button" class="btn btn-light duel-big" id="go-accept">
+          <span class="duel-big-title">接受挑战</span>
+          <span class="duel-big-sub">粘贴朋友发来的挑战码或回复码</span>
+        </button>
+      </div>
+      <div class="duel-record" id="record-box"></div>
+    </div>
+
+    <!-- 发起挑战：昵称 + 范围 -->
+    <div id="s-create" hidden>
+      <h2>发起挑战</h2>
+      <label class="field duel-name-field"><span>你的昵称（最多 8 个字）</span>
+        <input type="text" id="create-name" class="text-input" maxlength="8" autocomplete="nickname" placeholder="例如 小明">
+      </label>
+      <h2>选择范围</h2>
+      <p class="small-tip">题目从选中的单词和句子里出：看西语选中文、看中文选西语、听音选西语，三种混着来。</p>
+      <div class="quiz-check-list" id="scope-box"></div>
+      <div class="cloud-status" id="create-msg" role="status" aria-live="polite"></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="create-start">开始答题 ▶</button>
+        <button type="button" class="btn btn-light" data-go-home>返回</button>
+      </div>
+    </div>
+
+    <!-- 接受挑战：粘贴码 -->
+    <div id="s-accept" hidden>
+      <h2>接受挑战</h2>
+      <label class="field"><span>把朋友发来的挑战码（或整段消息）粘贴在这里</span>
+        <textarea id="accept-text" class="text-input move-text duel-paste" rows="4" placeholder="ZZ1:……"></textarea>
+      </label>
+      <p class="small-tip">朋友发回来的“回复码”也贴在这里，就能看到谁赢了。</p>
+      <div class="cloud-status" id="accept-msg" role="status" aria-live="polite"></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="accept-go">看看 ▶</button>
+        <button type="button" class="btn btn-light" data-go-home>返回</button>
+      </div>
+    </div>
+
+    <!-- 接受挑战：看到挑战内容，填昵称 -->
+    <div id="s-preview" hidden>
+      <div class="duel-preview" id="preview-card"></div>
+      <label class="field duel-name-field"><span>你的昵称（最多 8 个字）</span>
+        <input type="text" id="preview-name" class="text-input" maxlength="8" autocomplete="nickname" placeholder="例如 小红">
+      </label>
+      <p class="small-tip">你会做完全一样的题目（同样的顺序和选项）。答对多的赢；答对一样多，用时短的赢。</p>
+      <div class="cloud-status" id="preview-msg" role="status" aria-live="polite"></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="preview-start">接受挑战 ▶</button>
+        <button type="button" class="btn btn-light" data-go-home>返回</button>
+      </div>
+    </div>
+
+    <!-- 做题 -->
+    <div id="s-play" hidden>
+      <div class="quiz-status">
+        <span id="play-progress"></span>
+        <span>⏱ <span id="play-time"></span></span>
+      </div>
+      <p class="duel-goal" id="play-goal" hidden></p>
+      <div class="quiz-question" id="q-box"></div>
+      <div class="quiz-options" id="q-options"></div>
+      <div class="quiz-feedback" id="q-feedback" hidden></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="next-btn" hidden>下一题 →</button>
+      </div>
+      <p class="key-hint muted">只算思考的时间：从看到题目到选出答案。电脑键盘：数字键 1–4 选答案，回车键下一题</p>
+    </div>
+
+    <!-- 发起人做完：成绩 + 挑战码 -->
+    <div id="s-hostdone" hidden>
+      <div id="hostdone-box"></div>
+      <div class="card-nav">
+        <button type="button" class="btn btn-light" data-go-home>返回 PK 首页</button>
+      </div>
+    </div>
+
+    <!-- 对比结果 -->
+    <div id="s-compare" hidden>
+      <div id="compare-box"></div>
+      <div class="card-nav">
+        <button type="button" class="btn" data-go-create>发起新挑战</button>
+        <button type="button" class="btn btn-light" data-go-home>返回 PK 首页</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/mascot.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../data/phrases.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/cloud-config.js"></script>
+  <script src="../js/cloud.js"></script>
+  <script src="../js/words-util.js"></script>
+  <script src="../js/games.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script src="../js/duel.js"></script>
+</body>
+</html>

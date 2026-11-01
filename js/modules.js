@@ -58,7 +58,7 @@
     for (var i = 0; i < gs.length; i++) ids = ids.concat(idsOfLesson(gs[i], "phrases"));
     return ids;
   }
-  var GAME_IDS = ["match", "speed", "order", "guess"];
+  var GAME_IDS = ["match", "speed", "order", "guess", "duel"];
 
   // ---------- 数字 ----------
   function startOfToday() {
@@ -210,7 +210,7 @@
       lockedText: "只在 Claude 版可用",
       desc: fixed("用简单的西语和 AI 老师聊天，写错了温和地帮你改", "Chat in simple Spanish; the AI gently corrects you") },
     { id: "games",    icon: "🎮", zh: "小游戏",     en: "Games",                    url: "pages/games.html",    group: "relax", available: always, progress: gamesProgress,
-      desc: fixed("翻牌配对、60 秒快答、拼句子、猜单词", "Memory match, speed quiz, sentence builder, word guess") }
+      desc: fixed("翻牌配对、60 秒快答、拼句子、猜单词、挑战码 PK", "Memory match, speed quiz, sentence builder, word guess, challenge a friend") }
   ];
   var GROUPS = [
     { id: "learn", zh: "学习", en: "Learn", ids: ["alphabet", "words", "phrases", "grammar"] },

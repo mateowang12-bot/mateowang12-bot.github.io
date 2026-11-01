@@ -1309,7 +1309,16 @@
       status = s;
       fire("progress-sync-status");
     }
-    function fail() {
+    // 最近一次同步失败的原因（显示在首页底部的小字里，方便查问题）
+    var lastError = "";
+    function describe(err) {
+      if (!err) return "未知错误";
+      if (typeof err === "string") return err;
+      var s = (err.code ? err.code + " " : "") + (err.message || "");
+      return s.trim() || String(err);
+    }
+    function fail(err) {
+      lastError = describe(err);
       ref = null;
       if (timer) { clearTimeout(timer); timer = null; }
       if (unsub) { try { unsub(); } catch (e) {} unsub = null; }
@@ -1364,7 +1373,11 @@
         if (remote && same(merged, remote)) return;
         // 远端读到“没有”、本地也是空的：不写（防止读取出错时用空进度盖掉账号里的进度）
         if (!remote && isEmptyState(merged)) return;
-        var body = JSON.parse(JSON.stringify(merged));
+        // claude.ai 版：页面在外壳的 iframe 里，db 属于外壳（parent）。
+        // 用外壳自己的 JSON 生成要写的数据，这样它是外壳认识的“普通对象”（iframe 里造的对象可能被当成不合法的数据拒收）
+        var host = typeof window.getClaudeHost === "function" ? window.getClaudeHost() : null;
+        var J = (host && host.JSON) || JSON;
+        var body = J.parse(JSON.stringify(merged));
         return retryOnce(function () { return ref.set(body); });
       });
     }
@@ -1379,8 +1392,8 @@
       }
       writing = pushOnce().then(function () {
         if (ref) setStatus("synced");
-      }, function () {
-        fail(); // 其他错误：放弃同步，本地照常能用
+      }, function (err) {
+        fail(err); // 其他错误：放弃同步，本地照常能用
       }).then(function () {
         writing = null;
         if (again && ref) {
@@ -1427,10 +1440,13 @@
       ]), timeout]).then(function (r) {
         db = r[0];
         var user = r[1];
+        if (!db) lastError = "db 不可用";
+        else if (!user || typeof user.id !== "function") lastError = "user 不可用";
         if (!db || !user || typeof user.id !== "function") return null;
         return user.id();
       }).then(function (uid) {
         if (!uid || !db) {
+          if (db && !uid && !lastError) lastError = "没有用户 id";
           setStatus("local"); // 没登录 / 不支持：只存本机
           return;
         }
@@ -1447,8 +1463,8 @@
           // 连接期间页面又改了进度：补传一次
           if (dirty) changed();
         });
-      }).then(null, function () {
-        fail();
+      }).then(null, function (err) {
+        fail(err);
       });
     }
 
@@ -1466,7 +1482,7 @@
     // 页面先显示，同步在后台开始（window.claude 可能稍后才注入，load 时再试一次）
     function start() {
       if (typeof Promise === "undefined") return;
-      try { connect(); } catch (e) { fail(); }
+      try { connect(); } catch (e) { fail(e); }
     }
     setTimeout(start, 0);
     try { window.addEventListener("load", start); } catch (e) {}
@@ -1475,6 +1491,7 @@
       changed: changed,
       api: {
         status: function () { return status; },
+        lastError: function () { return lastError; },
         flush: flush,
         start: start
       }

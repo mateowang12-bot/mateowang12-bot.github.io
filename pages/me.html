@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>我的 · 我的西语学习站</title>
+  <title>我的 · 竹竹西语</title>
+  <!-- App 图标（竹竹）：浏览器标签页图标 + iPhone 主屏幕图标 -->
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <link rel="stylesheet" href="../css/style.css">
   <script src="../js/skin-early.js"></script>
   <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
   <link rel="manifest" href="../manifest.webmanifest">
-  <link rel="icon" href="../icons/icon-192.png">
-  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="西语学习">
+  <meta name="apple-mobile-web-app-title" content="竹竹西语">
   <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
@@ -79,6 +81,16 @@
           </label>
         </div>
         <p class="panel-note">换卡片、翻到背面时自动读出西语（和单词卡片页的开关是同一个）。</p>
+      </div>
+      <div class="setting">
+        <div class="setting-title">句子</div>
+        <div class="switch-row">
+          <label class="quiz-check" for="gloss-on">
+            <input type="checkbox" id="gloss-on">
+            <span class="quiz-check-text">显示逐词意思</span>
+          </label>
+        </div>
+        <p class="panel-note">西语句子下面，每个词的正下方写出它的中文意思（点一下那个词就读它）。测验题要答完以后才显示。只记在这台设备上。</p>
       </div>
       <!-- 阶段 15：邮箱 + 密码登录同步（js/cloud.js；Claude 版隐藏这一块，它自己有同步） -->
       <div class="setting" id="cloud-box">
@@ -359,6 +371,22 @@
       renderAuto();
     };
 
+    // ---------- 设置：显示逐词意思（localStorage 的 es-study-gloss，"0" = 关，默认开；js/words-util.js 的 WordsUtil.glossOn 读它） ----------
+    var GLOSS_KEY = "es-study-gloss";
+    function readGloss() {
+      try { return !(window.localStorage && window.localStorage.getItem(GLOSS_KEY) === "0"); } catch (e) { return true; }
+    }
+    function renderGloss() {
+      var on = readGloss();
+      $("gloss-on").checked = on;
+      $("gloss-on").parentNode.classList.toggle("active", on);
+    }
+    $("gloss-on").onchange = function () {
+      try { if (window.localStorage) window.localStorage.setItem(GLOSS_KEY, this.checked ? "1" : "0"); } catch (e) {}
+      renderGloss();
+    };
+    renderGloss();
+
     // ---------- 设置：声音、震动（阶段 12；存在进度的 settings 里，跟着同步；js/sfx.js 读它们） ----------
     function renderSfx() {
       var s = P ? P.soundOn() : true, v = P ? P.vibrateOn() : true;
@@ -496,7 +524,7 @@
     };
     $("move-download").onclick = function () {
       try {
-        var d = new Date(), name = "西语进度-" + d.getFullYear() + (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1) + (d.getDate() < 10 ? "0" : "") + d.getDate() + ".txt";
+        var d = new Date(), name = "竹竹西语进度-" + d.getFullYear() + (d.getMonth() + 1 < 10 ? "0" : "") + (d.getMonth() + 1) + (d.getDate() < 10 ? "0" : "") + d.getDate() + ".txt";
         var a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([$("move-text").value], { type: "text/plain" }));
         a.download = name;
