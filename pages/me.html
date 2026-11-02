@@ -87,10 +87,10 @@
         <div class="switch-row">
           <label class="quiz-check" for="gloss-on">
             <input type="checkbox" id="gloss-on">
-            <span class="quiz-check-text">显示逐词意思</span>
+            <span class="quiz-check-text">点单词看意思</span>
           </label>
         </div>
-        <p class="panel-note">西语句子下面，每个词的正下方写出它的中文意思（点一下那个词就读它）。测验题要答完以后才显示。只记在这台设备上。</p>
+        <p class="panel-note">点西语句子里的一个词，会弹出它的中文意思并读出来（固定搭配会整组一起显示）。测验题要答完以后才能点。只记在这台设备上。</p>
       </div>
       <!-- 阶段 15：邮箱 + 密码登录同步（js/cloud.js；Claude 版隐藏这一块，它自己有同步） -->
       <div class="setting" id="cloud-box">
@@ -371,7 +371,7 @@
       renderAuto();
     };
 
-    // ---------- 设置：显示逐词意思（localStorage 的 es-study-gloss，"0" = 关，默认开；js/words-util.js 的 WordsUtil.glossOn 读它） ----------
+    // ---------- 设置：点单词看意思（localStorage 的 es-study-gloss，"0" = 关，默认开；js/words-util.js 的 WordsUtil.glossOn 读它） ----------
     var GLOSS_KEY = "es-study-gloss";
     function readGloss() {
       try { return !(window.localStorage && window.localStorage.getItem(GLOSS_KEY) === "0"); } catch (e) { return true; }

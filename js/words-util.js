@@ -14,9 +14,9 @@
 //   WordsUtil.masteryBadge(id, newText, pop)    状态小标记 + 掌握进度 3 个小圆点（○○○ → ●●● 已掌握 ✓）
 //   WordsUtil.markMessage(before, after, known) 点“记住了 / 还不熟”后的提示文字
 //   WordsUtil.setLessonCount(span, ids)         选课按钮上的“已掌握 x / y · 学习中 n”
-//   WordsUtil.gloss(es, opts) / addGloss(parent, es, opts)  逐词意思那一行（每个词下面写中文，数据 data/lexicon.js；
-//                                               没数据 / 开关关着 / 只有一个词时返回 null）；showGloss(root) 显示先藏起来的
-//   WordsUtil.glossOn() / setGlossOn(on)        “显示逐词意思”开关（localStorage 的 es-study-gloss，"0" = 关）
+//   WordsUtil.tapText(es) / tapOrText(es) / sayLine(es, speakText)  点单词看意思：句子里的词能点，点了弹小气泡写中文 + 朗读
+//                                               （数据 data/lexicon.js；没数据 / 开关关着 / 只有一个词时 tapText 返回 null）
+//   WordsUtil.glossOn() / setGlossOn(on)        “点单词看意思”开关（localStorage 的 es-study-gloss，"0" = 关）
 // ============================================
 (function () {
   function el(tag, className, text) {
@@ -393,7 +393,7 @@
     span.classList.toggle("all-done", ids.length > 0 && m === ids.length);
   }
 
-  // ---------- 逐词意思（每个西语词正下方写中文）：数据在 data/lexicon.js 的 window.LEXICON ----------
+  // ---------- 逐词意思的查表（“点单词看意思”用）：数据在 data/lexicon.js 的 window.LEXICON ----------
   // LEXICON = { words: { 小写词: 中文 }, phrases: { "por favor": 中文（2–4 个词）}, sentence: { 句子原文: { 词或词组: 中文 } } }
   // 查表顺序：这一句的特殊意思（sentence，可以是词组，最长优先）→ phrases 最长匹配（4 → 2 个词）→ words；查不到下面留空。
   // 标点跟着旁边的词显示，不参与查表；词组不跨过逗号、句号等标点。
@@ -517,11 +517,14 @@
     }
     return out;
   }
-  // 逐词意思那一行：<div class="gloss">，每个词（词组）一个小块（上面西语、下面中文），点一下读这个词。
-  // 开关关着、没有 LEXICON、只有一个词、一个意思都查不到 → 返回 null（调用方什么都不加）。
-  // opts.hidden = true：先藏起来（测验题答完再用 WordsUtil.showGloss 显示）；opts.className：额外的 class
-  function gloss(es, opts) {
-    opts = opts || {};
+  // ---------- 点单词看意思（用户 2026-11-01：意思不要一直显示，点了才出来） ----------
+  // tapText(es)：把西语句子变成一个个能点的词（<span class="tap-text"> 里的 <span class="tw">），字体颜色跟着外面走。
+  //   点一个词：词上方（放不下就下方）弹出小气泡写中文意思，同时朗读这个词；属于词组 / 这句特殊意思的，整个词组一起高亮。
+  //   同一时间只有一个气泡：点别的词换过去；点同一个词、点空白处、滚动、改窗口大小都会关掉。
+  //   查不到意思的词是普通文字（不能点）。开关关着、没有 LEXICON、只有一个词、一个意思都查不到 → 返回 null。
+  // tapOrText(es)：能点就返回 tapText，否则返回普通文字节点。
+  // sayLine(es, speakText)：原来“整句就是朗读按钮”（sayButton(es, es)）的地方用它：能点时 = 能点的句子 + 小喇叭“听”；否则原样 sayButton(es, es)
+  function tapText(es) {
     if (!es || !glossOn() || !lexicon()) return null;
     var toks = glossTokens(es);
     var words = 0, any = false;
@@ -530,57 +533,125 @@
       if (toks[i].zh) any = true;
     }
     if (words < 2 || !any) return null;
-    var box = el("div", "gloss" + (opts.className ? " " + opts.className : ""));
-    box.setAttribute("role", "group");
-    box.setAttribute("aria-label", "逐词意思");
+    var box = el("span", "tap-text");
+    box.setAttribute("lang", "es");
     for (var j = 0; j < toks.length; j++) {
-      (function (t) {
-        if (t.other) {
-          var o = el("span", "gloss-item is-other");
-          o.appendChild(el("span", "gloss-es", t.text));
-          o.appendChild(el("span", "gloss-zh", ""));
-          box.appendChild(o);
-          return;
-        }
-        var b = el("button", "gloss-item" + (t.group ? " is-group" : "") + (t.zh ? "" : " no-zh"));
-        b.type = "button";
-        b.title = "点击朗读";
-        b.setAttribute("aria-label", "朗读 " + t.say + (t.zh ? "：" + t.zh : ""));
-        var e1 = el("span", "gloss-es", t.text);
-        e1.setAttribute("lang", "es");
-        b.appendChild(e1);
-        b.appendChild(el("span", "gloss-zh", t.zh));
-        b.onclick = function (ev) {
-          if (ev) { ev.stopPropagation(); ev.preventDefault(); }
-          if (window.speakSpanish) window.speakSpanish(t.say); // 点击里同步朗读（iPhone 才出声）
-        };
-        box.appendChild(b);
-      })(toks[j]);
+      if (j) box.appendChild(document.createTextNode(" "));
+      var t = toks[j];
+      if (t.other || !t.zh) { box.appendChild(document.createTextNode(t.text)); continue; }
+      var w = el("span", "tw" + (t.group ? " is-group" : ""), t.text);
+      w.setAttribute("role", "button");
+      w.setAttribute("tabindex", "0");
+      w.setAttribute("aria-expanded", "false");
+      w.setAttribute("aria-label", t.text + "（点一下看意思）");
+      w.setAttribute("data-say", t.say);
+      w.setAttribute("data-zh", t.zh);
+      w.onclick = onWordClick;
+      w.onkeydown = onWordKey;
+      box.appendChild(w);
     }
-    if (opts.hidden) box.hidden = true;
     return box;
   }
-  // 方便写法：gloss 不是 null 才加到 parent 里（before 可选：插到它前面）→ 返回 gloss 或 null
-  function addGloss(parent, es, opts, before) {
-    var g = gloss(es, opts);
-    if (g && parent) {
-      if (before && before.parentNode === parent) parent.insertBefore(g, before);
-      else parent.appendChild(g);
-    }
-    return g;
+  function tapOrText(es) {
+    return tapText(es) || document.createTextNode(String(es == null ? "" : es));
   }
-  // 把 root 里先藏起来的逐词行显示出来（测验题答完以后）
-  function showGloss(root) {
-    if (!root) return;
-    if (root.classList && root.classList.contains("gloss")) { root.hidden = false; return; }
-    var list = root.querySelectorAll ? root.querySelectorAll(".gloss[hidden]") : [];
-    for (var i = 0; i < list.length; i++) list[i].hidden = false;
+  function sayLine(es, speakText) {
+    var t = tapText(es);
+    if (!t) return sayButton(speakText || es, es);
+    var line = el("span", "say-line");
+    line.appendChild(t);
+    line.appendChild(document.createTextNode(" "));
+    line.appendChild(sayButton(speakText || es, "听"));
+    return line;
+  }
+  var pop = null, popFor = null, popBound = false, popTop = 0, popLeft = 0;
+  function closeWordPop() {
+    if (pop && pop.parentNode) pop.parentNode.removeChild(pop);
+    pop = null;
+    if (popFor) { popFor.classList.remove("is-on"); popFor.setAttribute("aria-expanded", "false"); }
+    popFor = null;
+  }
+  function placePop(w) {
+    if (!pop) return;
+    var vw = document.documentElement.clientWidth || window.innerWidth || 360;
+    var vh = window.innerHeight || 640;
+    var r = w.getBoundingClientRect();
+    // 词组换行时有好几个小方块：用第一个方块定位
+    var rs = w.getClientRects ? w.getClientRects() : null;
+    if (rs && rs.length > 1) r = rs[0];
+    pop.style.maxWidth = Math.max(120, Math.min(300, vw - 16)) + "px";
+    var wr = w.getBoundingClientRect();
+    popTop = wr.top;
+    popLeft = wr.left;
+    var pw = pop.offsetWidth, ph = pop.offsetHeight, gap = 10;
+    var cx = r.left + r.width / 2;
+    var left = Math.round(Math.max(8, Math.min(vw - pw - 8, cx - pw / 2)));
+    var top = r.top - ph - gap, below = false;
+    if (top < 8) { top = r.bottom + gap; below = true; }
+    if (below && top + ph > vh - 8) { top = Math.max(8, r.top - ph - gap); below = false; }
+    pop.style.left = left + "px";
+    pop.style.top = Math.round(top) + "px";
+    pop.classList.toggle("is-below", below);
+    var ax = Math.max(14, Math.min(pw - 14, cx - left));
+    pop.style.setProperty("--ax", Math.round(ax) + "px");
+  }
+  function openWordPop(w) {
+    closeWordPop();
+    bindPop();
+    popFor = w;
+    w.classList.add("is-on");
+    w.setAttribute("aria-expanded", "true");
+    pop = el("div", "tw-pop");
+    pop.setAttribute("role", "status");
+    pop.appendChild(el("span", "tw-pop-es", w.getAttribute("data-say")));
+    pop.appendChild(el("span", "tw-pop-zh", w.getAttribute("data-zh")));
+    pop.lang = "zh-CN";
+    document.body.appendChild(pop);
+    placePop(w);
+  }
+  function toggleWord(w) {
+    if (popFor === w) { closeWordPop(); return; }
+    openWordPop(w);
+    if (window.speakSpanish) window.speakSpanish(w.getAttribute("data-say")); // 点击里同步朗读（iPhone 才出声）
+  }
+  function onWordClick(ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); } // 不让外面的卡片（例如单词卡翻面）收到这次点击
+    toggleWord(this);
+  }
+  function onWordKey(ev) {
+    var k = ev.key;
+    if (k === "Enter" || k === " " || k === "Spacebar") { ev.preventDefault(); ev.stopPropagation(); toggleWord(this); }
+    else if (k === "Escape" && popFor) { ev.stopPropagation(); closeWordPop(); }
+  }
+  function bindPop() {
+    if (popBound) return;
+    popBound = true;
+    function outside(ev) {
+      if (!pop) return;
+      var t = ev.target;
+      if (t && t.closest && (t.closest(".tw") || t.closest(".tw-pop"))) return;
+      closeWordPop();
+    }
+    try {
+      document.addEventListener(window.PointerEvent ? "pointerdown" : "touchstart", outside, true);
+      if (!window.PointerEvent) document.addEventListener("mousedown", outside, true);
+      // 页面或里面的滚动区滚动：词真的移动了（超过 6px）才关掉；
+      // 不然刚点完时页面还在收尾的平滑滚动 / 1px 的小抖动会让气泡一闪就没
+      window.addEventListener("scroll", function () {
+        if (!pop || !popFor) return;
+        var r = popFor.getBoundingClientRect();
+        if (Math.abs(r.top - popTop) > 6 || Math.abs(r.left - popLeft) > 6) closeWordPop();
+      }, true);
+      window.addEventListener("resize", function () { if (pop) closeWordPop(); });
+      document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && pop) closeWordPop(); });
+    } catch (e) {}
   }
 
   window.WordsUtil = {
-    gloss: gloss,
-    addGloss: addGloss,
-    showGloss: showGloss,
+    tapText: tapText,
+    tapOrText: tapOrText,
+    sayLine: sayLine,
+    closeWordPop: closeWordPop,
     glossTokens: glossTokens,
     glossOn: glossOn,
     setGlossOn: setGlossOn,

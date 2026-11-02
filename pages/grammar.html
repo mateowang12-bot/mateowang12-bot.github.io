@@ -361,8 +361,8 @@
           var ex = exs[i];
           if (!ex) continue;
           var li = el("li", "gram-example");
-          if (ex.es) li.appendChild(sayButton(ex.es));
-          if (ex.es && window.WordsUtil) window.WordsUtil.addGloss(li, ex.es); // 逐词意思
+          // 例句：词可以点着看意思（js/words-util.js 的 sayLine；不能点时和原来一样是整句朗读按钮）
+          if (ex.es) li.appendChild(window.WordsUtil ? window.WordsUtil.sayLine(ex.es) : sayButton(ex.es));
           var mean = el("div", "gram-example-meaning");
           if (ex.zh) mean.appendChild(el("span", "", ex.zh));
           li.appendChild(mean);
@@ -505,10 +505,10 @@
         correct ? "✔ 答对了！" :
           "✘ 答错了，正确答案是 " + ex.options[ex.answer]));
       var line = el("div", "quiz-feedback-word");
-      line.appendChild(sayButton(fullSentence(ex), String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer])));
+      // 答完以后：完整句子里的词可以点着看意思（题目里的句子不能点，免得提示答案）
+      var shown = String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer]);
+      line.appendChild(window.WordsUtil ? window.WordsUtil.sayLine(shown, fullSentence(ex)) : sayButton(fullSentence(ex), shown));
       fb.appendChild(line);
-      // 逐词意思：答完才显示（题目里不显示，免得提示答案）
-      if (window.WordsUtil) window.WordsUtil.addGloss(fb, String(ex.prompt).replace(/_{3,}/g, ex.options[ex.answer]));
       if (ex.explainZh || ex.explainEn) fb.appendChild(bilingual("gram-explain", ex.explainZh, ex.explainEn));
       fb.hidden = false;
     }

@@ -166,15 +166,15 @@
       card.id = "card-" + p.id;
       var top = el("div", "phrase-top");
       var es = el("div", "phrase-es");
-      es.appendChild(document.createTextNode(p.es + " "));
+      // 句子里的词能点：点一个词弹出它的中文意思并朗读（js/words-util.js；只看西语时也只露出这个词的意思）
+      es.appendChild(U.tapOrText(p.es));
+      es.appendChild(document.createTextNode(" "));
       es.appendChild(sayButton(p.es, "听"));
       top.appendChild(es);
       var badge = el("span", "phrase-badge");
       badge.appendChild(statusBadge(p));
       top.appendChild(badge);
       card.appendChild(top);
-      // 逐词意思（js/words-util.js；“只看西语”时和中文一起遮住）
-      U.addGloss(card, p.es, { className: "phrase-hideable" });
 
       // 只看西语时：这些部分先遮住，点“看中文”再显示
       var hid = el("div", "phrase-hideable");
@@ -186,10 +186,10 @@
         var r = el("div", "phrase-reply");
         r.appendChild(el("div", "phrase-reply-label", "对方可能回答："));
         var res = el("div", "phrase-reply-es");
-        res.appendChild(document.createTextNode(p.reply.es + " "));
+        res.appendChild(U.tapOrText(p.reply.es));
+        res.appendChild(document.createTextNode(" "));
         res.appendChild(sayButton(p.reply.es, "听"));
         r.appendChild(res);
-        U.addGloss(r, p.reply.es, { className: "phrase-hideable" });
         var rh = el("div", "phrase-hideable");
         if (p.reply.zh) rh.appendChild(el("div", "", p.reply.zh));
         r.appendChild(rh);

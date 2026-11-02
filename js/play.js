@@ -335,9 +335,71 @@
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
   // 底部：反馈 + 按钮。opts = { kind: ""|"correct"|"wrong", title, body: [节点], mascot: 表情, buttons: [{ text, cls, onClick, href, disabled, id }] }
-  // 答对 / 答错时是一整条绿色 / 红色的反馈条（从下面弹上来），左边是吉祥物（开心 / 鼓励的表情）
+  // 答对 / 答错时（kind）改成屏幕中间的绿色 / 红色弹窗（showFbModal），上面是吉祥物（开心 / 鼓励的表情）
   var mainBtn = null;
+  // 答对 / 答错（opts.kind）：不再是底部的反馈条，而是屏幕正中间的卡通弹窗（阶段 18）。
+  // 弹窗挂在 body 上（.play-app 键盘弹出时有 transform，挂在里面 fixed 会跟着偏）；后面半透明遮罩，点遮罩不关，只有“继续”能继续。
+  // 底部原来的按钮（例如“检查”）留着、变灰，题目区不跳动；下一次 setFoot / 换画面时弹窗自动拿掉。
+  function closeFbModal() {
+    var old = document.getElementById("fb-modal");
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var app = document.querySelector(".play-app");
+    if (app) { app.removeAttribute("inert"); app.removeAttribute("aria-hidden"); }
+  }
+  function showFbModal(opts) {
+    closeFbModal();
+    if (U.closeWordPop) U.closeWordPop();
+    var ae = document.activeElement;
+    if (ae && ae.blur && ae !== document.body) try { ae.blur(); } catch (e0) {} // 猜单词：先让手机键盘收起来
+    var fbs = foot.querySelectorAll("button");
+    for (var k = 0; k < fbs.length; k++) fbs[k].disabled = true;
+    var kind = opts.kind === "wrong" ? "is-wrong" : "is-correct";
+    var back = el("div", "fb-back " + kind);
+    back.id = "fb-modal";
+    var card = el("div", "fb-card " + kind);
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    var sc = el("div", "fb fb-scroll");
+    var mm = opts.mascot ? mascot(opts.mascot, opts.kind === "wrong" ? "shake" : "hop") : null;
+    if (mm) sc.appendChild(mm);
+    if (opts.title) {
+      var tt = el("div", "fb-title", opts.title);
+      tt.id = "fb-modal-title";
+      sc.appendChild(tt);
+      card.setAttribute("aria-labelledby", "fb-modal-title");
+    } else card.setAttribute("aria-label", opts.kind === "wrong" ? "答错了" : "答对了");
+    if (opts.body && opts.body.length) {
+      var bd0 = el("div", "fb-body");
+      bd0.id = "fb-modal-body";
+      for (var i = 0; i < opts.body.length; i++) if (opts.body[i]) bd0.appendChild(opts.body[i]);
+      sc.appendChild(bd0);
+      card.setAttribute("aria-describedby", "fb-modal-body");
+    }
+    card.appendChild(sc);
+    var acts = el("div", "fb-card-actions");
+    mainBtn = null;
+    var btns = opts.buttons || [];
+    for (var j = 0; j < btns.length; j++) {
+      var bd = btns[j];
+      var x = el(bd.href ? "a" : "button", "btn btn-big btn-block" + (bd.cls ? " " + bd.cls : ""), bd.text);
+      if (bd.href) x.href = bd.href;
+      else x.type = "button";
+      if (bd.id) x.id = bd.id;
+      if (bd.disabled) x.disabled = true;
+      if (bd.onClick) x.onclick = bd.onClick;
+      acts.appendChild(x);
+      if (j === 0) mainBtn = x;
+    }
+    if (btns.length) card.appendChild(acts);
+    back.appendChild(card);
+    document.body.appendChild(back);
+    var app = document.querySelector(".play-app");
+    if (app) { app.setAttribute("inert", ""); app.setAttribute("aria-hidden", "true"); } // 后面的题目点不到、读屏也跳过
+    if (mainBtn) try { mainBtn.focus({ preventScroll: true }); } catch (e1) { try { mainBtn.focus(); } catch (e2) {} }
+  }
   function setFoot(opts) {
+    if (opts.kind === "correct" || opts.kind === "wrong") return showFbModal(opts);
+    closeFbModal();
     clear(foot);
     foot.className = "play-foot" + (opts.kind === "correct" ? " is-correct" : opts.kind === "wrong" ? " is-wrong" : "") +
       (!opts.title && !(opts.buttons && opts.buttons.length) ? (opts.body && opts.body.length ? " only-tip" : " is-empty") : ""); // 只有一行小提示：小屏时整条藏起来；什么都没有：藏起来
@@ -371,6 +433,8 @@
     if (btns.length) foot.appendChild(wrap);
   }
   function screen(cls) {
+    if (U.closeWordPop) U.closeWordPop(); // 换画面时关掉“点单词看意思”的小气泡
+    closeFbModal(); // 也关掉答题反馈弹窗
     clear(main);
     var s = el("div", "p-screen" + (cls ? " " + cls : ""));
     main.appendChild(s);
@@ -489,8 +553,10 @@
       var bare = String(c.es).replace(/^[¿¡\s]+/, "").replace(/^(el|la|los|las|un|una)\s+/i, "");
       card.appendChild(el("div", "learn-badge kind-" + c.kind, (bare.charAt(0) || "?").toUpperCase())).setAttribute("aria-hidden", "true");
     }
-    card.appendChild(el("div", "learn-es fit-word" + (c.kind === "phrase" ? " is-phrase" : ""), c.kind === "letter" ? c.es : c.es));
-    if (c.kind !== "letter") U.addGloss(card, c.es); // 逐词意思（句子卡；单个词不显示）
+    var esBox = el("div", "learn-es fit-word" + (c.kind === "phrase" ? " is-phrase" : ""));
+    // 句子卡：词可以点着看意思（js/words-util.js；单个词、字母不能点）
+    esBox.appendChild(c.kind === "letter" ? document.createTextNode(c.es) : U.tapOrText(c.es));
+    card.appendChild(esBox);
     if (c.kind !== "letter") card.appendChild(el("div", "learn-zh", c.zh));
     if (c.kind === "letter" && c.src) {
       // 字母：字母名（例如 eñe）+ 读法说明
@@ -501,8 +567,7 @@
     if (ex && ex.es) {
       var exBox = el("div", "learn-ex");
       exBox.appendChild(el("div", "learn-ex-label", c.kind === "letter" ? "例词" : "例句"));
-      exBox.appendChild(sayBtn(ex.es, ex.es));
-      U.addGloss(exBox, ex.es);
+      exBox.appendChild(c.kind === "letter" ? sayBtn(ex.es, ex.es) : U.sayLine(ex.es));
       if (ex.zh) exBox.appendChild(el("div", "learn-ex-zh", ex.zh));
       card.appendChild(exBox);
     }
@@ -576,10 +641,10 @@
       hit(ok);
       sfx(ok ? "correct" : "wrong");
       var line = el("div", "");
-      line.appendChild(sayBtn(q.target.speak, q.target.es));
+      line.appendChild(U.sayLine(q.target.es, q.target.speak)); // 答完以后：句子里的词可以点着看意思
       line.appendChild(el("span", "quiz-feedback-zh", label(q.target)));
       setFoot({ kind: ok ? "correct" : "wrong", mascot: ok ? "happy" : "cheer", title: ok ? pickPraise() : "没关系，记住它：",
-        body: [line, U.gloss(q.target.es)], buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { startLearnCheck(i + 1); } }] });
+        body: [line], buttons: [{ text: "继续 →", id: "continue-btn", onClick: function () { startLearnCheck(i + 1); } }] });
       S.phase = "feedback";
       S.learnNext = i + 1;
       if (mainBtn) try { mainBtn.focus(); } catch (e) {}
@@ -683,12 +748,10 @@
     var body = [];
     if (r.es) {
       var line = el("div", "");
-      line.appendChild(sayBtn(r.speakText || r.es, r.es));
+      // 答完（对或错）以后：反馈条里正确句子的词可以点着看意思（题目进行中不能点）；单个词 / 字母照旧是朗读按钮
+      line.appendChild(r.gloss === false ? sayBtn(r.speakText || r.es, r.es) : U.sayLine(r.es, r.speakText || r.es));
       if (r.zh) line.appendChild(el("span", "quiz-feedback-zh", r.zh));
       body.push(line);
-      // 逐词意思：答完（对或错）才出现在反馈条里，题目进行中不显示（不提示答案）；单个词 / 字母不显示
-      var gl = r.gloss === false ? null : U.gloss(r.es);
-      if (gl) body.push(gl);
     }
     if (r.extra) body = body.concat(r.extra);
     if (r.ok) S.right++;
@@ -1288,10 +1351,10 @@
       var row = el("div", "chat-row " + who);
       row.appendChild(el("div", "chat-who", who === "me" ? "我" : (src.partner || "对方")));
       var b = el("div", "bubble");
-      var line = el("div", "bubble-es", es);
+      var line = el("div", "bubble-es");
+      line.appendChild(U.tapOrText(es)); // 点单词看意思（“我”的气泡是选对以后才出现的；选项上的句子不能点）
       line.appendChild(sayBtn(es, "听"));
       b.appendChild(line);
-      U.addGloss(b, es); // 逐词意思（“我”的气泡是选对以后才出现的；选项上不显示）
       if (zh) b.appendChild(el("div", "bubble-zh", zh));
       row.appendChild(b);
       log.appendChild(row);

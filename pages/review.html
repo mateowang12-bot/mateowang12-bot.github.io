@@ -259,23 +259,20 @@
 
       var ans = $("rv-answer");
       ans.innerHTML = "";
-      // 逐词意思：在答案区里（点“看答案”以后才显示，不提前泄露）
-      if (window.WordsUtil) window.WordsUtil.addGloss(ans, w.es);
       ans.appendChild(el("div", "flash-zh", w.zh || ""));
       if (w.note) ans.appendChild(el("div", "flash-note", "💡 " + w.note));
       if (w.example && w.example.es) {
         var ex = el("div", "flash-example");
         ex.appendChild(el("div", "flash-example-label", "例句"));
-        ex.appendChild(sayButton(w.example.es));
-        if (window.WordsUtil) window.WordsUtil.addGloss(ex, w.example.es);
+        // 词可以点着看意思（在答案区里，看答案以后才出现）
+        ex.appendChild(window.WordsUtil ? window.WordsUtil.sayLine(w.example.es) : sayButton(w.example.es));
         ex.appendChild(el("div", "", w.example.zh || ""));
         ans.appendChild(ex);
       }
       if (w.reply && w.reply.es) {
         var rp = el("div", "flash-example");
         rp.appendChild(el("div", "flash-example-label", "对方可能回答"));
-        rp.appendChild(sayButton(w.reply.es));
-        if (window.WordsUtil) window.WordsUtil.addGloss(rp, w.reply.es);
+        rp.appendChild(window.WordsUtil ? window.WordsUtil.sayLine(w.reply.es) : sayButton(w.reply.es));
         rp.appendChild(el("div", "", w.reply.zh || ""));
         ans.appendChild(rp);
       }
@@ -288,6 +285,13 @@
     function reveal() {
       if (revealed) return;
       revealed = true;
+      // 看答案以后：上面的大字句子里的词也可以点着看意思（看答案之前不能点，免得提示）
+      var U2 = window.WordsUtil, tp = U2 ? U2.tapText(queue[pos].es) : null;
+      if (tp) {
+        $("rv-es").textContent = "";
+        $("rv-es").appendChild(tp);
+        U2.fit($("rv-es"));
+      }
       $("rv-answer").hidden = false;
       $("rv-show-row").hidden = true;
       $("rv-rate-row").hidden = false;

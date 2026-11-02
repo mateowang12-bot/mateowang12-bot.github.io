@@ -478,8 +478,8 @@ body.chatting .bottom-nav {
   font: inherit;
   font-weight: 700;
   margin-top: 10px;
-  min-height: 44px;
-  padding: 6px 20px;
+  min-height: 52px; /* 弹出动画开头会缩到 0.85 倍：52 × 0.85 ≈ 44，整个过程都 ≥ 44px */
+  padding: 6px 24px;
   border-radius: 999px;
   border: 2px solid var(--border-strong);
   background: var(--card);
@@ -6543,99 +6543,93 @@ a.all-link:hover {
   border-color: var(--select);
   background: var(--select-soft);
 }
-/* ---------- 逐词意思（js/words-util.js 的 WordsUtil.gloss）：每个西语词正下方写中文 ---------- */
-/* 只用已有的颜色变量：深色模式、各主题（data-skin）自动跟着变 */
-.gloss {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 4px;
-  margin: 8px 0 4px;
-  max-width: 100%;
-  font-weight: 400;
-  text-align: left;
-}
-.gloss[hidden] {
-  display: none;
-}
-.gloss-item {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  min-width: 44px;
-  min-height: 44px;
-  max-width: 100%;
-  margin: 0;
-  padding: 3px 7px 4px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--card);
-  color: var(--text);
-  font: inherit;
-  line-height: 1.2;
-  text-align: center;
+/* ---------- 点单词看意思（js/words-util.js 的 WordsUtil.tapText / sayLine）：句子里的词能点，点了弹小气泡 ---------- */
+/* 只用已有的颜色变量：深色模式、各主题（data-skin）自动跟着变。字体、颜色、大小跟着原来的句子走 */
+.tw {
   cursor: pointer;
-  box-shadow: none;
+  border-radius: 6px;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--border-strong);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
   -webkit-tap-highlight-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
-.gloss-item:hover {
-  border-color: var(--primary);
+.tw:hover {
+  text-decoration-color: currentColor;
 }
-.gloss-item:active {
-  background: var(--tap);
+.tw:focus-visible {
+  outline: 2px solid var(--select);
+  outline-offset: 2px;
 }
-.gloss-item:focus-visible {
-  outline: 3px solid var(--select);
-  outline-offset: 1px;
+/* 点中的词 / 词组：整组一起高亮 */
+.tw.is-on {
+  background: var(--select-soft);
+  color: var(--select-text);
+  text-decoration-color: var(--select);
+  box-shadow: 0 0 0 3px var(--select-soft);
 }
-/* 词组（por favor / 请）：一个块，虚线绿边 */
-.gloss-item.is-group {
-  border: 2px dashed var(--primary);
+/* 小气泡：深底浅字（深色模式里自动变成浅底深字），position: fixed，由 JS 放在词的上方（放不下就下方），不超出屏幕左右 */
+.tw-pop {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2000;
+  max-width: calc(100vw - 16px);
+  padding: 7px 12px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  animation: tw-pop-in 0.14s ease-out;
 }
-.gloss-item.is-other {
-  cursor: default;
-  border-color: transparent;
-  background: transparent;
-  min-width: 0;
+.tw-pop-es {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 700;
 }
-.gloss-es {
-  font-size: var(--fs-base);
+.tw-pop-zh {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: 800;
+}
+.tw-pop::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--ax, 50%);
+  margin-left: -7px;
+  border: 7px solid transparent;
+  border-top-color: var(--text);
+}
+.tw-pop.is-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--text);
+}
+@keyframes tw-pop-in {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-pop { animation: none; }
+}
+/* 原来“整句就是朗读按钮”的地方（例句、反馈里的正确句子）：现在是能点的句子 + 小喇叭“听” */
+.say-line {
   font-weight: 700;
   color: var(--primary-text);
-  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
-.gloss-zh {
-  margin-top: 2px;
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--muted);
-  min-height: 1em;
-  overflow-wrap: anywhere;
-}
-.gloss-item.no-zh .gloss-es {
-  color: var(--text);
-}
-/* 关卡底部反馈条、气泡、卡片里：紧凑一点 */
-.play-foot .gloss,
-.bubble .gloss {
-  margin: 6px 0 2px;
-}
-.learn-card .gloss {
-  justify-content: center;
-}
-.flash-example .gloss,
-.learn-ex .gloss,
-.gram-example .gloss {
-  margin: 6px 0;
-}
-.learn-ex .gloss {
-  justify-content: center;
-}
-@media (max-width: 420px) {
-  .gloss { gap: 4px 3px; }
-  .gloss-item { padding: 2px 5px 3px; }
-  .gloss-es { font-size: 0.95rem; }
-  .gloss-zh { font-size: 0.75rem; }
+.say-line .say {
+  margin: 2px 0 2px 4px;
+  vertical-align: middle;
+  font-size: var(--fs-sm);
 }
 /* ---------- 阶段 17：挑战码 PK（pages/game-duel.html + js/duel.js） ---------- */
 /* 只用已有的颜色变量：深色模式、各主题（data-skin）自动跟着变 */
@@ -6935,7 +6929,159 @@ a.all-link:hover {
   .duel-big-title { font-size: var(--fs-lg); }
   .duel-side-score { font-size: var(--fs-lg); }
 }
+.duel-head.is-neutral {
+  background: var(--select-soft);
+  border-color: var(--select);
+  box-shadow: 0 6px 0 var(--select-soft);
+}
+.duel-head.is-neutral .duel-verdict {
+  color: var(--select-text);
+}
+.duel-mark {
+  flex-direction: column;
+  align-items: center;
+}
+.duel-side-score,
+.duel-side-time {
+  white-space: nowrap;
+}
+.duel-hinted {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--accent-text);
+}
+.duel-hint-note {
+  text-align: center;
+  color: var(--accent-text);
+}
+.duel-home-tip {
+  max-width: 640px;
+  margin: 0 auto 8px;
+  text-align: center;
+}
 @media (max-width: 480px) {
   .duel-head .quiz-result-score.duel-verdict { font-size: var(--fs-xl); }
   .duel-item-es .say { font-size: var(--fs-sm); padding: 4px 10px; }
+}
+/* ---------- 阶段 18：闯关答题反馈改成屏幕中间的卡通弹窗（js/play.js 的 showFbModal，#fb-modal） ---------- */
+/* 半透明遮罩（点了不关）+ 居中卡片：答对绿边 / 答错红边 + 底部立体边。内容太长时卡片里面滚动，“继续”一直看得见。
+   只用已有颜色变量：深色模式、各主题自动跟着变。z-index 75：在退出确认（.sheet-back 80）和点词小气泡（.tw-pop 2000）下面 */
+.fb-back {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--scrim);
+  animation: fb-back-in 0.16s ease-out;
+}
+/* 手机键盘还没完全收起时：跟着可见区域（js/play.js 写的 --vvh / --vvt） */
+.vv-set .fb-back {
+  top: var(--vvt, 0px);
+  bottom: auto;
+  height: var(--vvh, 100%);
+}
+.fb-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100% - 7px); /* 留出底部立体边 */
+  margin-bottom: 7px;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--primary-soft);
+  border: 3px solid var(--primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 7px 0 var(--primary-edge), var(--shadow-lg);
+  animation: fb-card-pop 0.2s cubic-bezier(0.2, 1.35, 0.4, 1);
+}
+.fb-card.is-wrong {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  box-shadow: 0 7px 0 var(--danger-edge), var(--shadow-lg);
+}
+.fb-card .fb-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 22px 4px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.fb-card .fb-scroll > .mascot {
+  display: block;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 6px;
+}
+.fb-card .fb-title {
+  font-size: var(--fs-xl);
+  font-weight: 900;
+  line-height: 1.25;
+  color: var(--primary-text);
+}
+.fb-card.is-wrong .fb-title { color: var(--danger-text); }
+.fb-card .fb-body {
+  margin: 10px 0 6px;
+  line-height: 1.45;
+  font-size: var(--fs-md);
+}
+.fb-card .fb-body .say-line { font-size: var(--fs-lg); }
+.fb-card .fb-body .quiz-feedback-zh {
+  display: block;
+  margin: 4px 0 0;
+}
+.fb-card .fb-body > * + * { margin-top: 8px; }
+.fb-card .fb-body > * + *:not(.accent-note) { text-align: left; } /* 语法填空等较长的说明：靠左更好读 */
+.fb-card-actions {
+  flex: none;
+  padding: 10px 22px 18px;
+}
+.fb-card-actions .btn {
+  font-size: var(--fs-md);
+  min-height: 56px;
+}
+.fb-card.is-correct .fb-card-actions .btn {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 var(--edge) 0 var(--primary-edge);
+}
+.fb-card.is-wrong .fb-card-actions .btn {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+  box-shadow: 0 var(--edge) 0 var(--danger-edge);
+}
+@keyframes fb-back-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fb-card-pop {
+  0% { opacity: 0; transform: scale(0.82); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (max-width: 480px) {
+  .fb-card .fb-scroll { padding: 14px 16px 2px; }
+  .fb-card .fb-scroll > .mascot { width: 72px; height: 72px; margin-bottom: 4px; }
+  .fb-card .fb-title { font-size: var(--fs-lg); }
+  .fb-card .fb-body .say-line { font-size: var(--fs-md); }
+  .fb-card-actions { padding: 8px 16px 14px; }
+}
+@media (max-height: 600px) {
+  .fb-card .fb-scroll { padding-top: 10px; }
+  .fb-card .fb-scroll > .mascot { width: 54px; height: 54px; margin-bottom: 2px; }
+  .fb-card .fb-body { margin: 6px 0 4px; }
+  .fb-card-actions { padding: 6px 14px 12px; }
+  .fb-card-actions .btn { min-height: 50px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-back,
+  .fb-card { animation: none; }
 }

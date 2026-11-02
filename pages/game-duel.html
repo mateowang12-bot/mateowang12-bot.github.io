@@ -39,6 +39,7 @@
           <span class="duel-big-sub">粘贴朋友发来的挑战码或回复码</span>
         </button>
       </div>
+      <p class="small-tip duel-home-tip">链接打不开（比如在微信里）就复制整段话，到“接受挑战”里粘贴。</p>
       <div class="duel-record" id="record-box"></div>
     </div>
 
@@ -64,7 +65,7 @@
       <label class="field"><span>把朋友发来的挑战码（或整段消息）粘贴在这里</span>
         <textarea id="accept-text" class="text-input move-text duel-paste" rows="4" placeholder="ZZ1:……"></textarea>
       </label>
-      <p class="small-tip">朋友发回来的“回复码”也贴在这里，就能看到谁赢了。</p>
+      <p class="small-tip">朋友发回来的“回复码”也贴在这里，就能看到谁赢了。链接打不开（比如在微信里）时，也是把整段话贴在这里。</p>
       <div class="cloud-status" id="accept-msg" role="status" aria-live="polite"></div>
       <div class="card-nav">
         <button type="button" class="btn quiz-big-btn" id="accept-go">看看 ▶</button>
@@ -78,10 +79,19 @@
       <label class="field duel-name-field"><span>你的昵称（最多 8 个字）</span>
         <input type="text" id="preview-name" class="text-input" maxlength="8" autocomplete="nickname" placeholder="例如 小红">
       </label>
-      <p class="small-tip">你会做完全一样的题目（同样的顺序和选项）。答对多的赢；答对一样多，用时短的赢。</p>
+      <p class="small-tip">你会做完全一样的题目（同样的顺序和选项）。答对多的赢；答对一样多，用时短的赢。点了“接受挑战”就算开始，中途退出不能重做。</p>
       <div class="cloud-status" id="preview-msg" role="status" aria-live="polite"></div>
       <div class="card-nav">
         <button type="button" class="btn quiz-big-btn" id="preview-start">接受挑战 ▶</button>
+        <button type="button" class="btn btn-light" data-go-home>返回</button>
+      </div>
+    </div>
+
+    <!-- 接受过但中途退出：只能交卷 -->
+    <div id="s-resume" hidden>
+      <div class="duel-preview" id="resume-box"></div>
+      <div class="card-nav">
+        <button type="button" class="btn quiz-big-btn" id="resume-submit">交卷，看结果 ▶</button>
         <button type="button" class="btn btn-light" data-go-home>返回</button>
       </div>
     </div>

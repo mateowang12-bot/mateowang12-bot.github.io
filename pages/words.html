@@ -386,8 +386,8 @@
       if (w.example && w.example.es) {
         var ex = el("div", "flash-example");
         ex.appendChild(el("div", "flash-example-label", "例句"));
-        ex.appendChild(sayButton(w.example.es));
-        if (U) U.addGloss(ex, w.example.es); // 逐词意思（在背面，翻过来才看得到）
+        // 例句（在背面）：词可以点着看意思，点词不会让卡片翻面（js/words-util.js 的 sayLine）
+        ex.appendChild(U ? U.sayLine(w.example.es) : sayButton(w.example.es));
         ex.appendChild(el("div", "", w.example.zh || ""));
         backBox.appendChild(ex);
       }

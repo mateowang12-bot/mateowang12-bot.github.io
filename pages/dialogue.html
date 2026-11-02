@@ -333,11 +333,11 @@
     // 气泡：西语（大字 + 🔊）、中文（阶段 12 起不显示英文）
     function bubble(es, zh) {
       var b = el("div", "bubble");
-      var line = el("div", "bubble-es", es);
+      var line = el("div", "bubble-es");
+      // 点单词看意思（js/words-util.js）：“我”的气泡是选对以后才出现的；选项上的句子不能点
+      line.appendChild(window.WordsUtil ? window.WordsUtil.tapOrText(es) : document.createTextNode(es));
       line.appendChild(sayButton(es));
       b.appendChild(line);
-      // 逐词意思（js/words-util.js）：气泡里本来就有中文，不会泄露答案（“我”的气泡是选对以后才出现的）
-      if (window.WordsUtil) window.WordsUtil.addGloss(b, es);
       if (zh) b.appendChild(el("div", "bubble-zh", zh));
       return b;
     }
@@ -482,10 +482,10 @@
         if (r.wrongOption && r.wrongOption.whyZh) fb.appendChild(el("p", "dlg-why", "✘ " + r.wrongOption.whyZh));
         fb.appendChild(el("div", "quiz-feedback-title", "✘ 不太对。正确答案是："));
         var line = el("div", "quiz-feedback-word");
-        line.appendChild(sayButton(r.option.es, r.option.es));
+        // 打错以后：正确答案的词可以点着看意思（js/words-util.js 的 sayLine；不能点时和原来一样是整句朗读按钮）
+        line.appendChild(window.WordsUtil ? window.WordsUtil.sayLine(r.option.es) : sayButton(r.option.es, r.option.es));
         if (r.option.zh) line.appendChild(el("span", "quiz-feedback-zh", r.option.zh));
         fb.appendChild(line);
-        if (window.WordsUtil) window.WordsUtil.addGloss(fb, r.option.es); // 打错以后：正确答案下面显示逐词意思
         fb.appendChild(el("p", "small-tip", "可以照着再打一次，或者点“看选项”。"));
         var show = el("button", "btn btn-light", "看选项");
         show.type = "button";
