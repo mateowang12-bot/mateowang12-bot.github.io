@@ -9,7 +9,7 @@
 // 网站内容一变，build-web.ps1 算出的 VERSION 就变，sw.js 跟着变，
 // 浏览器联网时发现 sw.js 变了，就在后台装新版本，下次打开页面生效。
 // ============================================
-var VERSION = "b75d6a3525f3";
+var VERSION = "07065fd75f9d";
 var SCOPE = self.registration ? self.registration.scope : new URL("./", self.location).href;
 var PREFIX = "es-study:" + SCOPE + ":";   // 同一个 github.io 域名下可能有别的网站：缓存名带上网站地址
 var CACHE = PREFIX + VERSION;
@@ -38,6 +38,7 @@ var FILES = [
   "js/icons.js",
   "js/map.js",
   "js/mascot.js",
+  "js/memorize.js",
   "js/modules.js",
   "js/nav.js",
   "js/order-ui.js",
@@ -65,6 +66,7 @@ var FILES = [
   "pages/grammar.html",
   "pages/learn.html",
   "pages/me.html",
+  "pages/memorize.html",
   "pages/phrases.html",
   "pages/play.html",
   "pages/quiz.html",

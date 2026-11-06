@@ -14,6 +14,8 @@
 //     每个区域两个：开头（第一个 learn 关之前）复习上一个区域 id 为 "区域-review-start"；
 //     结尾（Boss 关之前）复习本区域 id 为 "区域-review-end"。机场没有开头复习。
 // tasks[]：新写的对话任务，格式和 data/dialogues.js 完全一样。
+// 阶段 19 新增 4 个地区（restaurant / supermarket / school / beach，放在 party 后面）：只写中文，
+//   没有 titleEn / storyEn / roleEn / stampEn / introEn；它们的对话任务写在 data/dialogues.js（id 见各地区 -5 关）。
 // 学习者在对话里叫 Lin，来自中国，是学生（不分性别）。
 window.WORLD = {
   regions: [
@@ -25,6 +27,9 @@ window.WORLD = {
       storyEn: "Your plane has landed in Madrid! As you step off, airport officer Carmen waves at you: \"¡Hola!\" Learn the 27 letters of the Spanish alphabet and how to say hello, so you can get through passport control.",
       npc: { name: "Carmen", emoji: "👩‍💼", roleZh: "机场工作人员", roleEn: "airport staff" },
       stampZh: "马德里机场邮票", stampEn: "Madrid Airport stamp",
+      // memo：只给背诵模式用（阶段 19 补充），不影响关卡和解锁
+      memo: { phrases: ["ph-que-tal-el-viaje", "ph-el-pasaporte", "ph-aqui-tiene", "ph-de-donde-viene", "ph-vengo-de-china",
+                        "ph-vengo-de-vacaciones", "ph-donde-esta-mi-maleta", "ph-donde-esta-la-salida", "ph-bienvenidos-a-espana", "ph-buen-viaje"] },
       levels: [
         {
           id: "airport-learn-1", type: "learn",
@@ -411,6 +416,9 @@ window.WORLD = {
       storyEn: "Full and happy, you stroll through the park and the square. Blue sky, red flowers, green trees: colors everywhere! Little Sofía runs up with a picture book: \"¡Mira!\" (Look!) Learn colors, weather and seasons.",
       npc: { name: "Sofía", emoji: "👧", roleZh: "公园里认识的小朋友", roleEn: "a girl you meet in the park" },
       stampZh: "公园广场邮票", stampEn: "Park & Square stamp",
+      // memo：只给背诵模式用（阶段 19 补充），不影响关卡和解锁
+      memo: { phrases: ["ph-que-tiempo-hace", "ph-hace-buen-tiempo", "ph-hace-mal-tiempo", "ph-esta-lloviendo", "ph-color-favorito",
+                        "ph-me-gusta-el-verde", "ph-el-cielo-es-azul", "ph-que-flores-tan-bonitas", "ph-damos-un-paseo", "ph-me-gusta-la-primavera"] },
       levels: [
         {
           id: "park-review-start", type: "review",
@@ -1102,6 +1110,9 @@ window.WORLD = {
       storyEn: "You're feeling better! Lucía's uncle Paco invites you to stay on his farm in the countryside. Dogs bark, cows graze, and Paco chats with you while he works. Learn animals, common verbs and regular verb endings (I speak, you eat, he lives…).",
       npc: { name: "Paco", emoji: "👨‍🌾", roleZh: "农场主", roleEn: "farmer" },
       stampZh: "农场邮票", stampEn: "Farm stamp",
+      // memo：只给背诵模式用（阶段 19 补充），不影响关卡和解锁
+      memo: { phrases: ["ph-tienes-animales", "ph-tengo-un-perro-y-un-gato", "ph-el-caballo-es-grande", "ph-la-vaca-come-hierba", "ph-el-gato-bebe-leche",
+                        "ph-abuelo-granja", "ph-vivo-en-el-campo", "ph-muerde-el-perro", "ph-que-animal-te-gusta", "ph-me-gustan-los-caballos"] },
       levels: [
         {
           id: "farm-review-start", type: "review",
@@ -1288,6 +1299,616 @@ window.WORLD = {
             ]
           },
           modes: ["listen", "match", "guess", "order", "fill", "speed"],
+          count: 12
+        }
+      ]
+    },
+
+    // ===== 11 餐厅（阶段 19 新增）=====
+    {
+      id: "restaurant",
+      titleZh: "餐厅", emoji: "🍴",
+      storyZh: "告别派对结束了，可你舍不得走——你决定在西班牙再多待一段时间！第二天中午，你走进一家小餐厅，服务员 Manuel 热情地说：“¡Buenas tardes! ¿Cuántos son?” 学会饮料、三餐、水果蔬菜和点今日套餐，再学几句打电话订座的话吧。",
+      npc: { name: "Manuel", emoji: "🤵", roleZh: "餐厅服务员" },
+      stampZh: "餐厅邮票",
+      levels: [
+        {
+          id: "restaurant-review-start", type: "review",
+          titleZh: "复习：告别派对",
+          introZh: "新的一站开始前，先把告别派对那一站（整个旅行）学过的内容复习一下。以前答错过的会优先出现。",
+          reviewOf: ["party"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "restaurant-learn-1", type: "learn",
+          titleZh: "背单词：饮料和三餐",
+          introZh: "果汁、啤酒、葡萄酒、茶、汽水，还有早饭、午饭、晚饭。一张张看卡片、听发音，这一关不考试。",
+          items: { words: ["zumo", "cerveza", "vino", "te", "refresco", "desayuno", "comida", "cena"] },
+          count: 8
+        },
+        {
+          id: "restaurant-learn-2", type: "learn",
+          titleZh: "背一背：汤和甜点",
+          introZh: "汤、沙拉、甜点、服务员，再学 4 句点今日套餐的话。先听熟，下一关再考。",
+          items: {
+            words: ["sopa", "ensalada", "postre", "camarero"],
+            phrases: ["ph-menu-del-dia", "ph-que-me-recomienda", "ph-de-primero", "ph-de-segundo"]
+          },
+          count: 8
+        },
+        {
+          id: "restaurant-1", type: "normal",
+          titleZh: "今天吃什么？",
+          introZh: "饮料、三餐，还有“有今日套餐吗”“第一道菜要……”这几句点菜的话。",
+          items: {
+            words: ["zumo", "cerveza", "vino", "te", "refresco", "desayuno", "comida", "cena", "sopa", "ensalada", "postre", "camarero"],
+            phrases: ["ph-menu-del-dia", "ph-que-me-recomienda", "ph-de-primero", "ph-de-segundo"]
+          },
+          modes: ["listen", "match"],
+          count: 8
+        },
+        {
+          id: "restaurant-learn-3", type: "learn",
+          titleZh: "背单词：水果和土豆",
+          introZh: "香蕉、草莓、梨、柠檬、西瓜、桃子、西红柿、土豆。这一关不考试。",
+          items: { words: ["platano", "fresa", "pera", "limon", "sandia", "melocoton", "tomate", "patata"] },
+          count: 8
+        },
+        {
+          id: "restaurant-learn-4", type: "learn",
+          titleZh: "背一背：蔬菜和忌口",
+          introZh: "胡萝卜、洋葱、生菜、蔬菜，还有“我吃素”“不要放洋葱”等 4 句话。这一关不考试。",
+          items: {
+            words: ["zanahoria", "cebolla", "lechuga", "verduras"],
+            phrases: ["ph-de-postre", "ph-soy-vegetariano", "ph-sin-cebolla", "ph-la-sopa-esta-fria"]
+          },
+          count: 8
+        },
+        {
+          id: "restaurant-2", type: "normal",
+          titleZh: "水果蔬菜，不要洋葱",
+          introZh: "认水果和蔬菜，告诉服务员你要什么、不要什么。会拼单词了吗？",
+          items: {
+            words: ["platano", "fresa", "pera", "limon", "sandia", "melocoton", "tomate", "patata", "zanahoria", "cebolla", "lechuga", "verduras"],
+            phrases: ["ph-de-postre", "ph-soy-vegetariano", "ph-sin-cebolla", "ph-la-sopa-esta-fria"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "restaurant-learn-5", type: "learn",
+          titleZh: "背单词：冷热高矮",
+          introZh: "热的、冷的、高的、矮的、长的、短的、快的、慢的。这一关不考试。",
+          items: { words: ["caliente", "frio", "alto", "bajo", "largo", "corto", "rapido", "lento"] },
+          count: 8
+        },
+        {
+          id: "restaurant-learn-6", type: "learn",
+          titleZh: "背一背：难易和接电话",
+          introZh: "容易、难、干净、脏，加上“祝您胃口好”和接电话的两句话。这一关不考试。",
+          items: {
+            words: ["facil", "dificil", "limpio", "sucio"],
+            phrases: ["ph-otra-cerveza", "ph-que-aproveche", "ph-de-parte-de-quien", "ph-hola-soy-lin"]
+          },
+          count: 8
+        },
+        {
+          id: "restaurant-3", type: "normal",
+          titleZh: "热汤和冰啤酒",
+          introZh: "说东西冷热、快慢、难易，再试试电话里的开场白。",
+          items: {
+            words: ["caliente", "frio", "alto", "bajo", "largo", "corto", "rapido", "lento", "facil", "dificil", "limpio", "sucio"],
+            phrases: ["ph-otra-cerveza", "ph-que-aproveche", "ph-de-parte-de-quien", "ph-hola-soy-lin"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "restaurant-learn-7", type: "learn",
+          titleZh: "背句子：打电话订座",
+          introZh: "我想订一张桌子、几位、用谁的名字、八点你方便吗……先听熟，下一关再考。",
+          items: {
+            phrases: ["ph-quiero-reservar", "ph-para-cuantas-personas", "ph-para-cuatro-personas", "ph-a-que-nombre", "ph-te-llamo-luego", "ph-mas-alto", "ph-te-va-bien", "ph-nos-vemos"]
+          },
+          count: 8
+        },
+        {
+          id: "restaurant-4", type: "normal",
+          titleZh: "会拼又会说：订座",
+          introZh: "拼一拼这一站的单词，排一排打电话订座的句子。",
+          items: {
+            words: ["zumo", "cerveza", "sopa", "ensalada", "fresa", "patata", "caliente", "rapido"],
+            phrases: ["ph-de-parte-de-quien", "ph-hola-soy-lin", "ph-quiero-reservar", "ph-para-cuantas-personas", "ph-para-cuatro-personas", "ph-a-que-nombre", "ph-te-llamo-luego", "ph-mas-alto", "ph-te-va-bien", "ph-nos-vemos"]
+          },
+          modes: ["guess", "order", "match"],
+          count: 8
+        },
+        {
+          id: "restaurant-5", type: "task",
+          titleZh: "点今日套餐",
+          introZh: "和朋友走进餐厅，Manuel 来招呼你们。点第一道菜、第二道菜和饮料吧！",
+          items: { dialogue: "restaurant-menu" },
+          modes: ["dialogue"],
+          count: 6
+        },
+        {
+          id: "restaurant-review-end", type: "review",
+          titleZh: "总复习：餐厅",
+          introZh: "大关之前热热身：饮料、水果蔬菜、形容词和点菜、订座的句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["restaurant"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "restaurant-6", type: "boss",
+          titleZh: "大关：满满一桌菜",
+          introZh: "饮料、水果蔬菜、冷热快慢，加上点菜和订座的句子，还有限时快答！闯过去就能拿到餐厅邮票。",
+          items: {
+            words: ["zumo", "cerveza", "vino", "te", "desayuno", "comida", "cena", "sopa", "postre", "camarero", "platano", "fresa", "limon", "patata", "cebolla", "caliente", "frio", "largo", "rapido", "dificil"],
+            phrases: ["ph-menu-del-dia", "ph-que-me-recomienda", "ph-de-primero", "ph-sin-cebolla", "ph-la-sopa-esta-fria", "ph-que-aproveche", "ph-quiero-reservar", "ph-para-cuantas-personas", "ph-te-va-bien", "ph-nos-vemos"]
+          },
+          modes: ["listen", "match", "guess", "order", "speed"],
+          count: 12
+        }
+      ]
+    },
+
+    // ===== 12 超市（阶段 19 新增）=====
+    {
+      id: "supermarket",
+      titleZh: "超市", emoji: "🛒",
+      storyZh: "你在马德里租了一套小公寓，要去超市把冰箱填满！收银员 Rosa 认识每一位老顾客。学会钱和付款、超市里的东西、疑问词，还有房子里的家具和在家天天说的话。",
+      npc: { name: "Rosa", emoji: "👩‍🦰", roleZh: "超市收银员" },
+      stampZh: "超市邮票",
+      levels: [
+        {
+          id: "supermarket-review-start", type: "review",
+          titleZh: "复习：餐厅",
+          introZh: "去超市之前，先把餐厅学过的饮料、水果蔬菜和点菜的话复习一下。以前答错过的会优先出现。",
+          reviewOf: ["restaurant"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "supermarket-learn-1", type: "learn",
+          titleZh: "背单词：钱和付款",
+          introZh: "钱、欧元、价格、收银台、袋子、银行卡、现金、零钱。一张张看、听一听，这一关不考试。",
+          items: { words: ["dinero", "euro", "precio", "caja", "bolsa", "tarjeta", "efectivo", "cambio"] },
+          count: 8
+        },
+        {
+          id: "supermarket-learn-2", type: "learn",
+          titleZh: "背一背：鸡蛋和奶酪",
+          introZh: "瓶子、鸡蛋、奶酪、火腿，再学 4 句在超市买东西的话。这一关不考试。",
+          items: {
+            words: ["botella", "huevo", "queso", "jamon"],
+            phrases: ["ph-donde-estan-los-huevos", "ph-un-kilo-de-tomates", "ph-medio-kilo", "ph-nada-mas"]
+          },
+          count: 8
+        },
+        {
+          id: "supermarket-1", type: "normal",
+          titleZh: "付钱和阴阳性",
+          introZh: "认钱和付款的词，还有超市里的东西；再练练 el 和 la 怎么用。",
+          items: {
+            words: ["dinero", "euro", "precio", "caja", "bolsa", "tarjeta", "efectivo", "cambio", "botella", "huevo", "queso", "jamon"],
+            phrases: ["ph-donde-estan-los-huevos", "ph-un-kilo-de-tomates", "ph-medio-kilo", "ph-nada-mas"],
+            grammar: [{ lesson: "gender-articles", ex: [0, 1, 2, 3, 4, 5, 6, 7] }]
+          },
+          modes: ["listen", "match", "fill"],
+          count: 8
+        },
+        {
+          id: "supermarket-learn-3", type: "learn",
+          titleZh: "背单词：疑问词",
+          introZh: "什么、谁、哪里、什么时候、怎么、多少、为什么、也。问问题全靠它们！这一关不考试。",
+          items: {
+            words: ["q-que", "q-quien", "q-donde", "q-cuando", "q-como", "q-cuanto", "q-por-que", "tambien"]
+          },
+          count: 8
+        },
+        {
+          id: "supermarket-learn-4", type: "learn",
+          titleZh: "背一背：排队和付现金",
+          introZh: "总是、从不、这里、那里，加上“谁是最后一位”“我付现金”等 4 句话。这一关不考试。",
+          items: {
+            words: ["siempre", "nunca", "aqui", "alli"],
+            phrases: ["ph-quien-es-el-ultimo", "ph-necesita-bolsa", "ph-pago-en-efectivo", "ph-aqui-tiene-el-cambio"]
+          },
+          count: 8
+        },
+        {
+          id: "supermarket-2", type: "normal",
+          titleZh: "谁？哪里？多少？",
+          introZh: "疑问词和小词，再加上排队、付钱的几句话。",
+          items: {
+            words: ["q-que", "q-quien", "q-donde", "q-cuando", "q-como", "q-cuanto", "q-por-que", "tambien", "siempre", "nunca", "aqui", "alli"],
+            phrases: ["ph-quien-es-el-ultimo", "ph-necesita-bolsa", "ph-pago-en-efectivo", "ph-aqui-tiene-el-cambio"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "supermarket-learn-5", type: "learn",
+          titleZh: "背单词：房间和家具",
+          introZh: "公寓、厨房、卧室、客厅、床、沙发、桌子、椅子。这一关不考试。",
+          items: { words: ["piso", "cocina", "dormitorio", "salon", "cama", "sofa", "mesa", "silla"] },
+          count: 8
+        },
+        {
+          id: "supermarket-learn-6", type: "learn",
+          titleZh: "背一背：门窗和起床",
+          introZh: "门、窗户、钥匙、冰箱，加上打折、关门时间，还有“我七点起床”“我困了”。这一关不考试。",
+          items: {
+            words: ["puerta", "ventana", "llave", "nevera"],
+            phrases: ["ph-esta-en-oferta", "ph-a-que-hora-cierran", "ph-me-levanto", "ph-tengo-sueno"]
+          },
+          count: 8
+        },
+        {
+          id: "supermarket-3", type: "normal",
+          titleZh: "我的新公寓",
+          introZh: "认房间和家具，说说起床、犯困，再问问超市几点关门。",
+          items: {
+            words: ["piso", "cocina", "dormitorio", "salon", "cama", "sofa", "mesa", "silla", "puerta", "ventana", "llave", "nevera"],
+            phrases: ["ph-esta-en-oferta", "ph-a-que-hora-cierran", "ph-me-levanto", "ph-tengo-sueno"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "supermarket-learn-7", type: "learn",
+          titleZh: "背句子：在家里",
+          introZh: "我去睡觉了、晚饭吃什么、晚饭做好了、我的钥匙在哪儿……先听熟，下一关再考。",
+          items: {
+            phrases: ["ph-me-voy-a-dormir", "ph-que-hay-para-cenar", "ph-la-cena-esta-lista", "ph-cerrar-la-ventana", "ph-donde-estan-mis-llaves", "ph-voy-a-ducharme", "ph-ya-estoy-en-casa", "ph-tengo-que-irme"]
+          },
+          count: 8
+        },
+        {
+          id: "supermarket-4", type: "normal",
+          titleZh: "会拼又会说：在家",
+          introZh: "拼一拼这一站的单词，排一排在家天天说的句子。",
+          items: {
+            words: ["dinero", "huevo", "queso", "siempre", "nunca", "cocina", "cama", "llave"],
+            phrases: ["ph-me-levanto", "ph-tengo-sueno", "ph-me-voy-a-dormir", "ph-que-hay-para-cenar", "ph-la-cena-esta-lista", "ph-cerrar-la-ventana", "ph-donde-estan-mis-llaves", "ph-voy-a-ducharme", "ph-ya-estoy-en-casa", "ph-tengo-que-irme"]
+          },
+          modes: ["guess", "order", "match"],
+          count: 8
+        },
+        {
+          id: "supermarket-5", type: "task",
+          titleZh: "在超市付钱",
+          introZh: "买好东西来到收银台。Rosa 问你要不要袋子——可是刷卡机坏了！",
+          items: { dialogue: "supermarket-pay" },
+          modes: ["dialogue"],
+          count: 4
+        },
+        {
+          id: "supermarket-review-end", type: "review",
+          titleZh: "总复习：超市",
+          introZh: "大关之前热热身：钱、疑问词、家具和超市、在家的句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["supermarket"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
+          id: "supermarket-6", type: "boss",
+          titleZh: "大关：把冰箱填满",
+          introZh: "钱和付款、疑问词、房子和家具，加上超市和在家的句子、阴阳性和限时快答！闯过去就能拿到超市邮票。",
+          items: {
+            words: ["dinero", "euro", "precio", "caja", "tarjeta", "cambio", "botella", "huevo", "queso", "jamon", "q-que", "q-quien", "q-donde", "q-cuando", "siempre", "piso", "cocina", "cama", "silla", "nevera"],
+            phrases: ["ph-donde-estan-los-huevos", "ph-un-kilo-de-tomates", "ph-nada-mas", "ph-quien-es-el-ultimo", "ph-pago-en-efectivo", "ph-a-que-hora-cierran", "ph-tengo-sueno", "ph-que-hay-para-cenar", "ph-donde-estan-mis-llaves", "ph-ya-estoy-en-casa"],
+            grammar: [{ lesson: "gender-articles", ex: [1, 2, 5, 6] }]
+          },
+          modes: ["listen", "match", "guess", "order", "fill", "speed"],
+          count: 12
+        }
+      ]
+    },
+
+    // ===== 13 语言学校（阶段 19 新增）=====
+    {
+      id: "school",
+      titleZh: "语言学校", emoji: "🏫",
+      storyZh: "想把西语学得更好，你报名了马德里的一所语言学校！老师 Marisa 说话又慢又清楚。在这里学文具、常用动词和十二个月；万一上课时身体不舒服，也要会告诉老师和医生。",
+      npc: { name: "Marisa", emoji: "👩‍🏫", roleZh: "西语老师" },
+      stampZh: "语言学校邮票",
+      levels: [
+        {
+          id: "school-review-start", type: "review",
+          titleZh: "复习：超市",
+          introZh: "上学之前，先把超市学过的钱、疑问词、家具和在家的句子复习一下。以前答错过的会优先出现。",
+          reviewOf: ["supermarket"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "school-learn-1", type: "learn",
+          titleZh: "背单词：教室里",
+          introZh: "课、男老师、女老师、书、本子、圆珠笔、铅笔、书包。一张张看、听一听，这一关不考试。",
+          items: {
+            words: ["clase", "profesor", "profesora", "libro", "cuaderno", "boligrafo", "lapiz", "mochila"]
+          },
+          count: 8
+        },
+        {
+          id: "school-learn-2", type: "learn",
+          titleZh: "背一背：黑板和作业",
+          introZh: "黑板、电脑、考试、作业，再学 4 句课堂上的话。这一关不考试。",
+          items: {
+            words: ["pizarra", "ordenador", "examen", "deberes"],
+            phrases: ["ph-puedo-entrar", "ph-abrid-los-libros", "ph-como-se-escribe", "ph-no-lo-se"]
+          },
+          count: 8
+        },
+        {
+          id: "school-1", type: "normal",
+          titleZh: "第一天上学",
+          introZh: "认教室里的东西，再练练“我可以进来吗”“我不知道”这几句。",
+          items: {
+            words: ["clase", "profesor", "profesora", "libro", "cuaderno", "boligrafo", "lapiz", "mochila", "pizarra", "ordenador", "examen", "deberes"],
+            phrases: ["ph-puedo-entrar", "ph-abrid-los-libros", "ph-como-se-escribe", "ph-no-lo-se"]
+          },
+          modes: ["listen", "match"],
+          count: 8
+        },
+        {
+          id: "school-learn-3", type: "learn",
+          titleZh: "背单词：常用动词 2",
+          introZh: "是、在、做、能、看见、听、读、写。这一关不考试。",
+          items: { words: ["ser", "estar", "hacer", "poder", "ver", "escuchar", "leer", "escribir"] },
+          count: 8
+        },
+        {
+          id: "school-learn-4", type: "learn",
+          titleZh: "背一背：学习和借笔",
+          introZh: "学习、买、睡觉、游泳，加上“第几页”“借我一支笔”“我做完了”“这样对吗”。这一关不考试。",
+          items: {
+            words: ["estudiar", "comprar", "dormir", "nadar"],
+            phrases: ["ph-en-que-pagina", "ph-me-prestas-un-boli", "ph-ya-he-terminado", "ph-esta-bien-asi"]
+          },
+          count: 8
+        },
+        {
+          id: "school-2", type: "normal",
+          titleZh: "读读写写和变位",
+          introZh: "常用动词和课堂用语，再练练规则动词怎么变位。",
+          items: {
+            words: ["ser", "estar", "hacer", "poder", "ver", "escuchar", "leer", "escribir", "estudiar", "comprar", "dormir", "nadar"],
+            phrases: ["ph-en-que-pagina", "ph-me-prestas-un-boli", "ph-ya-he-terminado", "ph-esta-bien-asi"],
+            grammar: [{ lesson: "regular-verbs", ex: [0, 1, 2, 3, 4, 5, 6, 7] }]
+          },
+          modes: ["listen", "match", "fill"],
+          count: 8
+        },
+        {
+          id: "school-learn-5", type: "learn",
+          titleZh: "背单词：一月到八月",
+          introZh: "enero 到 agosto。西语的月份用小写字母开头。这一关不考试。",
+          items: { words: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto"] },
+          count: 8
+        },
+        {
+          id: "school-learn-6", type: "learn",
+          titleZh: "背一背：九月到十二月",
+          introZh: "九月到十二月，加上“明天有作业吗”“考试在星期一”，还有“我不舒服”“我肚子疼”。这一关不考试。",
+          items: {
+            words: ["septiembre", "octubre", "noviembre", "diciembre"],
+            phrases: ["ph-hay-deberes", "ph-el-examen-es-el-lunes", "ph-no-me-encuentro-bien", "ph-me-duele-el-estomago"]
+          },
+          count: 8
+        },
+        {
+          id: "school-3", type: "normal",
+          titleZh: "十二个月",
+          introZh: "一年的十二个月，再说说作业、考试和身体不舒服。",
+          items: {
+            words: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+            phrases: ["ph-hay-deberes", "ph-el-examen-es-el-lunes", "ph-no-me-encuentro-bien", "ph-me-duele-el-estomago"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "school-learn-7", type: "learn",
+          titleZh: "背句子：看医生",
+          introZh: "嗓子疼、发烧、咳嗽、从什么时候开始、我要预约……先听熟，下一关再考。",
+          items: {
+            phrases: ["ph-me-duele-la-garganta", "ph-tengo-fiebre", "ph-tengo-tos", "ph-desde-cuando", "ph-desde-ayer", "ph-necesito-una-cita", "ph-soy-alergico", "ph-donde-hay-una-farmacia"]
+          },
+          count: 8
+        },
+        {
+          id: "school-4", type: "normal",
+          titleZh: "会拼又会说：看病",
+          introZh: "拼一拼这一站的单词，排一排看病时用的句子。",
+          items: {
+            words: ["libro", "cuaderno", "mochila", "examen", "leer", "escribir", "enero", "agosto"],
+            phrases: ["ph-no-me-encuentro-bien", "ph-me-duele-el-estomago", "ph-me-duele-la-garganta", "ph-tengo-fiebre", "ph-tengo-tos", "ph-desde-cuando", "ph-desde-ayer", "ph-necesito-una-cita", "ph-soy-alergico", "ph-donde-hay-una-farmacia"]
+          },
+          modes: ["guess", "order", "match"],
+          count: 8
+        },
+        {
+          id: "school-5", type: "task",
+          titleZh: "第一节西语课",
+          introZh: "老师 Marisa 走进教室。听清第几页、借一支笔、问问作业吧！",
+          items: { dialogue: "school-class" },
+          modes: ["dialogue"],
+          count: 6
+        },
+        {
+          id: "school-review-end", type: "review",
+          titleZh: "总复习：语言学校",
+          introZh: "大关之前热热身：文具、动词、月份和课堂、看病的句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["school"],
+          modes: ["listen", "match", "guess", "order", "fill"],
+          count: 8
+        },
+        {
+          id: "school-6", type: "boss",
+          titleZh: "大关：期末考试",
+          introZh: "文具、常用动词、十二个月，加上课堂和看病的句子、动词变位和限时快答！闯过去就能拿到语言学校邮票。",
+          items: {
+            words: ["clase", "profesora", "libro", "cuaderno", "boligrafo", "lapiz", "mochila", "examen", "deberes", "ser", "estar", "hacer", "leer", "escribir", "estudiar", "dormir", "enero", "marzo", "julio", "diciembre"],
+            phrases: ["ph-puedo-entrar", "ph-no-lo-se", "ph-en-que-pagina", "ph-me-prestas-un-boli", "ph-hay-deberes", "ph-el-examen-es-el-lunes", "ph-no-me-encuentro-bien", "ph-me-duele-la-garganta", "ph-tengo-fiebre", "ph-desde-ayer"],
+            grammar: [{ lesson: "regular-verbs", ex: [0, 2, 3, 6] }]
+          },
+          modes: ["listen", "match", "guess", "order", "fill", "speed"],
+          count: 12
+        }
+      ]
+    },
+
+    // ===== 14 海滩（阶段 19 新增）=====
+    {
+      id: "beach",
+      titleZh: "海滩", emoji: "🏖️",
+      storyZh: "放暑假啦！你坐火车来到海边。救生员 Álex 坐在高高的椅子上冲你挥手。学会海滩和大自然、交通工具、心情感受，还有出门旅行的实用句子，痛痛快快地玩一场吧！",
+      npc: { name: "Álex", emoji: "🏄", roleZh: "海滩救生员" },
+      stampZh: "海滩邮票",
+      levels: [
+        {
+          id: "beach-review-start", type: "review",
+          titleZh: "复习：语言学校",
+          introZh: "去海边之前，先把语言学校学过的文具、动词、月份和看病的句子复习一下。以前答错过的会优先出现。",
+          reviewOf: ["school"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "beach-learn-1", type: "learn",
+          titleZh: "背单词：海滩和大自然",
+          introZh: "海滩、大海、沙子、太阳、山、河、树、花。一张张看、听一听，这一关不考试。",
+          items: { words: ["playa", "mar", "arena", "sol", "montana", "rio", "arbol", "flor"] },
+          count: 8
+        },
+        {
+          id: "beach-learn-2", type: "learn",
+          titleZh: "背一背：游泳池和天气",
+          introZh: "云、游泳池、毛巾、泳衣，再学 4 句海边说天气的话。这一关不考试。",
+          items: {
+            words: ["nube", "piscina", "toalla", "banador"],
+            phrases: ["ph-hace-mucho-calor", "ph-vamos-a-la-playa", "ph-el-agua-esta-fria", "ph-crema-solar"]
+          },
+          count: 8
+        },
+        {
+          id: "beach-1", type: "normal",
+          titleZh: "阳光和沙滩",
+          introZh: "认海边和大自然的词，说说“今天很热”“我们去海滩吧”。",
+          items: {
+            words: ["playa", "mar", "arena", "sol", "montana", "rio", "arbol", "flor", "nube", "piscina", "toalla", "banador"],
+            phrases: ["ph-hace-mucho-calor", "ph-vamos-a-la-playa", "ph-el-agua-esta-fria", "ph-crema-solar"]
+          },
+          modes: ["listen", "match"],
+          count: 8
+        },
+        {
+          id: "beach-learn-3", type: "learn",
+          titleZh: "背单词：交通工具",
+          introZh: "汽车、摩托车、自行车、地铁、飞机、船、火车、公交车。这一关不考试。",
+          items: { words: ["coche", "moto", "bicicleta", "metro", "avion", "barco", "tren", "autobus"] },
+          count: 8
+        },
+        {
+          id: "beach-learn-4", type: "learn",
+          titleZh: "背一背：车票和行李",
+          introZh: "出租车、车票、行李箱、机场，加上“你会游泳吗”“要下雨了”等 4 句话。这一关不考试。",
+          items: {
+            words: ["taxi", "billete", "maleta", "aeropuerto"],
+            phrases: ["ph-sabes-nadar", "ph-esta-nublado", "ph-va-a-llover", "ph-que-dia-tan-bonito"]
+          },
+          count: 8
+        },
+        {
+          id: "beach-2", type: "normal",
+          titleZh: "坐什么去？",
+          introZh: "交通工具和行李，再说说天气：阴天、下雨、好天气。",
+          items: {
+            words: ["coche", "moto", "bicicleta", "metro", "avion", "barco", "tren", "autobus", "taxi", "billete", "maleta", "aeropuerto"],
+            phrases: ["ph-sabes-nadar", "ph-esta-nublado", "ph-va-a-llover", "ph-que-dia-tan-bonito"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "beach-learn-5", type: "learn",
+          titleZh: "背单词：心情",
+          introZh: "开心、高兴、难过、累、紧张、生气、无聊、平静。这一关不考试。",
+          items: {
+            words: ["feliz", "contento", "triste", "cansado", "nervioso", "enfadado", "aburrido", "tranquilo"]
+          },
+          count: 8
+        },
+        {
+          id: "beach-learn-6", type: "learn",
+          titleZh: "背一背：担心和旅游",
+          introZh: "担心、忙、生病、吃惊，加上“刮风了”“小心别晒伤”，还有旅游咨询处、博物馆几点开门。这一关不考试。",
+          items: {
+            words: ["preocupado", "ocupado", "enfermo", "sorprendido"],
+            phrases: ["ph-hace-viento", "ph-cuidado-con-el-sol", "ph-oficina-de-turismo", "ph-a-que-hora-abre"]
+          },
+          count: 8
+        },
+        {
+          id: "beach-3", type: "normal",
+          titleZh: "今天心情怎么样？",
+          introZh: "说说自己的心情，再练练风、太阳和旅游问路的句子。",
+          items: {
+            words: ["feliz", "contento", "triste", "cansado", "nervioso", "enfadado", "aburrido", "tranquilo", "preocupado", "ocupado", "enfermo", "sorprendido"],
+            phrases: ["ph-hace-viento", "ph-cuidado-con-el-sol", "ph-oficina-de-turismo", "ph-a-que-hora-abre"]
+          },
+          modes: ["listen", "match", "guess"],
+          count: 8
+        },
+        {
+          id: "beach-learn-7", type: "learn",
+          titleZh: "背句子：出门旅行",
+          introZh: "门票多少钱、帮我们拍张照、我有预订、我想租自行车……先听熟，下一关再考。",
+          items: {
+            phrases: ["ph-cuanto-cuesta-la-entrada", "ph-nos-hace-una-foto", "ph-esta-a-cinco-minutos", "ph-tengo-una-reserva", "ph-alquilar-una-bicicleta", "ph-coger-un-taxi", "ph-primera-vez", "ph-me-encanta-esta-ciudad"]
+          },
+          count: 8
+        },
+        {
+          id: "beach-4", type: "normal",
+          titleZh: "会拼又会说：旅行",
+          introZh: "拼一拼这一站的单词，排一排出门旅行的句子。",
+          items: {
+            words: ["playa", "arena", "piscina", "toalla", "coche", "maleta", "feliz", "cansado"],
+            phrases: ["ph-oficina-de-turismo", "ph-a-que-hora-abre", "ph-cuanto-cuesta-la-entrada", "ph-nos-hace-una-foto", "ph-esta-a-cinco-minutos", "ph-tengo-una-reserva", "ph-alquilar-una-bicicleta", "ph-coger-un-taxi", "ph-primera-vez", "ph-me-encanta-esta-ciudad"]
+          },
+          modes: ["guess", "order", "match"],
+          count: 8
+        },
+        {
+          id: "beach-5", type: "task",
+          titleZh: "海边的一天",
+          introZh: "大热天来到海滩，救生员 Álex 提醒你水很凉、太阳很毒。和他聊几句吧！",
+          items: { dialogue: "beach-day" },
+          modes: ["dialogue"],
+          count: 5
+        },
+        {
+          id: "beach-review-end", type: "review",
+          titleZh: "总复习：海滩",
+          introZh: "大关之前热热身：大自然、交通、心情和海滩、旅行的句子再练一遍，还不熟的会多出几次。",
+          reviewOf: ["beach"],
+          modes: ["listen", "match", "guess", "order"],
+          count: 8
+        },
+        {
+          id: "beach-6", type: "boss",
+          titleZh: "大关：快乐的暑假",
+          introZh: "海滩和大自然、交通工具、心情，加上天气和旅行的句子，还有限时快答！闯过去就能拿到海滩邮票。",
+          items: {
+            words: ["playa", "mar", "arena", "sol", "montana", "arbol", "nube", "piscina", "coche", "bicicleta", "avion", "barco", "tren", "billete", "maleta", "feliz", "triste", "nervioso", "aburrido", "ocupado"],
+            phrases: ["ph-hace-mucho-calor", "ph-vamos-a-la-playa", "ph-crema-solar", "ph-sabes-nadar", "ph-va-a-llover", "ph-a-que-hora-abre", "ph-cuanto-cuesta-la-entrada", "ph-nos-hace-una-foto", "ph-tengo-una-reserva", "ph-me-encanta-esta-ciudad"]
+          },
+          modes: ["listen", "match", "guess", "order", "speed"],
           count: 12
         }
       ]

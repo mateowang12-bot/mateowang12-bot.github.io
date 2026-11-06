@@ -192,12 +192,27 @@
     var n = stats().gamesPlays;
     return n ? "玩过 " + n + " 局" : "还没玩过";
   }
+  // 背诵模式：有错题时写“错题 n 个”（答错过、还没掌握的单词和句子；和 js/memorize.js 的“我的错题”一样）
+  function memorizeProgress() {
+    var p = P();
+    if (!p || !p.load) return "";
+    var st = p.load().words || {};
+    var ids = allWordIds().concat(allPhraseIds()), n = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var r = Object.prototype.hasOwnProperty.call(st, ids[i]) ? st[ids[i]] : null;
+      if (r && r.wrong > 0 && r.box < (p.MASTERED_BOX || 3)) n++;
+    }
+    return n ? "错题 " + n + " 个" : "";
+  }
   function always() { return true; }
   function claudeOnly() { return !!(window.getClaude && window.getClaude()); }
   function fixed(zh, en) { return function () { return [zh, en]; }; }
 
   var LIST = [
     { id: "alphabet", icon: "🔤", zh: "字母与发音", en: "Alphabet & Pronunciation", url: "pages/alphabet.html", group: "learn", available: always, progress: alphabetProgress, desc: alphabetDesc },
+    // 阶段 22：背诵模式（图标 🧠 由 js/icons.js 换成“卡片 + 小脑袋”的卡通图）
+    { id: "memorize", icon: "🧠", zh: "背诵模式",   en: "Memorize",                 url: "pages/memorize.html", group: "learn", available: always, progress: memorizeProgress,
+      desc: fixed("按地图单元背单词和句子，不扣心、不计时", "Memorize words and phrases by map unit") },
     { id: "words",    icon: "📇", zh: "单词卡片",   en: "Word Cards",               url: "pages/words.html",    group: "learn", available: always, progress: wordsProgress,    desc: wordsDesc },
     { id: "phrases",  icon: "💬", zh: "日常句子",   en: "Everyday Phrases",         url: "pages/phrases.html",  group: "learn", available: always, progress: phrasesProgress,  desc: phrasesDesc },
     { id: "grammar",  icon: "📐", zh: "基础语法",   en: "Basic Grammar",            url: "pages/grammar.html",  group: "learn", available: always, progress: grammarProgress,  desc: grammarDesc },
@@ -213,7 +228,7 @@
       desc: fixed("翻牌配对、60 秒快答、拼句子、猜单词、挑战码 PK", "Memory match, speed quiz, sentence builder, word guess, challenge a friend") }
   ];
   var GROUPS = [
-    { id: "learn", zh: "学习", en: "Learn", ids: ["alphabet", "words", "phrases", "grammar"] },
+    { id: "learn", zh: "学习", en: "Learn", ids: ["alphabet", "memorize", "words", "phrases", "grammar"] },
     { id: "practice", zh: "练习", en: "Practice", ids: ["review", "quiz", "dialogue", "chat"] },
     { id: "relax", zh: "放松一下", en: "Take a break", ids: ["games"] }
   ];

@@ -95,7 +95,12 @@
     ["ph-un-billete-para", "ph-ida-y-vuelta"],    // 一张去马德里的票 / 要往返票
     ["ph-me-gusta-mucho", "ph-esta-muy-bueno"],   // 我很喜欢 / 很好吃
     ["ph-estoy-enfermo", "ph-me-duele-la-cabeza"], // 我生病了 / 我头疼
-    ["ph-que-significa", "ph-como-se-dice"]       // 这是什么意思？ / 这个用西语怎么说？
+    ["ph-que-significa", "ph-como-se-dice"],      // 这是什么意思？ / 这个用西语怎么说？
+    // 阶段 20 新内容
+    ["ph-no-me-encuentro-bien", "ph-estoy-enfermo"], // 我不太舒服 / 我生病了
+    ["ph-pago-en-efectivo", "ph-pagar-con-tarjeta"], // 付现金 / 刷卡：都是付钱方式的句子
+    ["ph-hace-mucho-calor", "hace-calor"],           // 很热（句子） / 天热（词）
+    ["q-por-que", "porque"]                           // 为什么 / 因为（拼写很像；“porque”还没收录时这一行不起作用）
   ];
   function exclusive(a, b) {
     if (!a.id || !b.id) return false;

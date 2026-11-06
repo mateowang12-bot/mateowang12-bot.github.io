@@ -1,6 +1,7 @@
 // ============================================
 // 地图地形背景（terrain.js）—— window.Terrain（阶段 14）
-// 每个区域一种地形，按旅行路线：机场蓝天白云 → 城市楼房 → 西班牙广场 → 森林公园 → 红瓦小镇 → 集市 → 沙漠荒原 → 山区小镇 → 田野风车 → 海边派对。
+// 每个区域一种地形，按旅行路线：机场蓝天白云 → 城市楼房 → 西班牙广场 → 森林公园 → 红瓦小镇 → 集市 → 沙漠荒原 → 山区小镇 → 田野风车 → 海边派对
+//   → （阶段 20 新单元）餐厅街道广场 → 超市小镇 → 学校操场 → 沙滩大海。不认识的区域 id 按顺序轮流用已有地形，不会出错。
 // 画法（为了 126 个节点的长地图也不卡）：
 //   1. 景物都画成 <symbol>（树丛、楼群、沙丘里的仙人掌……），整页只放一次（隐藏的 SVG 精灵图）；每个区域用 <use> 引用。
 //      很多景物本身就是“一丛 / 一排”（例如一个 symbol 里有 3 棵树），所以引用的数量不多。
@@ -75,7 +76,28 @@
     boat: '<path class="tc-boat" d="M14 70h72l-12 18H26z"/><path class="tc-sail" d="M48 66V14l30 52z"/><path class="tc-sail2" d="M44 66V24L22 66z"/><rect class="tc-metal" x="45" y="12" width="3" height="58"/>',
     gull: '<path class="tc-birdline" d="M14 52q18-18 36 0q18-18 36 0"/>',
     shell: '<path class="tc-shell" d="M20 80a30 30 0 0160 0z"/><path class="tc-shellline" d="M50 80V52M50 80L34 56M50 80l16-24"/>',
-    starfish: '<path class="tc-starfish" d="M50 14l8 26 28 2-22 16 8 28-22-16-22 16 8-28-22-16 28-2z"/>'
+    starfish: '<path class="tc-starfish" d="M50 14l8 26 28 2-22 16 8 28-22-16-22 16 8-28-22-16 28-2z"/>',
+    // ---------- 阶段 20：新单元的景物 ----------
+    // 餐厅：带条纹遮阳篷的小餐馆门面、街边小圆桌
+    awningShop: '<rect class="tc-wall" x="6" y="30" width="88" height="68" rx="3"/><path class="tc-awning1" d="M2 42l6-16h84l6 16z"/><path class="tc-awning2" d="M20 26l-4 16M36 26l-2 16M52 26v16M68 26l2 16M84 26l4 16"/>' +
+      '<rect class="tc-window" x="14" y="52" width="30" height="22" rx="3"/><rect class="tc-door" x="58" y="56" width="22" height="42" rx="2"/><circle class="tc-light" cx="29" cy="63" r="4"/>',
+    bistro: '<rect class="tc-metal" x="48" y="58" width="4" height="38"/><ellipse class="tc-wall2" cx="50" cy="58" rx="30" ry="6"/><path class="tc-awning1" d="M10 96V66h6v12h12v18h-4V84h-8v12zM90 96V66h-6v12H72v18h4V84h8v12z"/>' +
+      '<circle class="tc-fruit1" cx="42" cy="51" r="5"/><rect class="tc-window" x="54" y="42" width="7" height="13" rx="2"/>',
+    // 超市：大楼 + 招牌、购物车
+    store: '<rect class="tc-wall2" x="4" y="34" width="92" height="64" rx="3"/><rect class="tc-awning1" x="14" y="16" width="72" height="18" rx="5"/><rect class="tc-wall" x="26" y="22" width="48" height="6" rx="3"/>' +
+      '<rect class="tc-window" x="10" y="46" width="30" height="30" rx="2"/><rect class="tc-window" x="60" y="46" width="30" height="30" rx="2"/><rect class="tc-door" x="42" y="58" width="16" height="40" rx="2"/>',
+    cart: '<path class="tc-birdline" d="M8 24h12l10 44h50"/><path class="tc-awning2" d="M22 34h68l-8 26H30z"/><circle class="tc-metal" cx="36" cy="80" r="7"/><circle class="tc-metal" cx="74" cy="80" r="7"/>',
+    // 学校：红屋顶的教学楼（钟 + 小旗）、秋千、滑梯、皮球
+    school: '<rect class="tc-wall" x="10" y="40" width="80" height="58" rx="3"/><path class="tc-roof" d="M4 44L50 14l46 30z"/><circle class="tc-wall" cx="50" cy="34" r="7"/>' +
+      '<rect class="tc-window" x="18" y="52" width="14" height="12" rx="2"/><rect class="tc-window" x="68" y="52" width="14" height="12" rx="2"/><rect class="tc-window" x="18" y="74" width="14" height="12" rx="2"/><rect class="tc-window" x="68" y="74" width="14" height="12" rx="2"/>' +
+      '<rect class="tc-door" x="40" y="66" width="20" height="32" rx="2"/><rect class="tc-metal" x="49" y="2" width="2.5" height="14"/><path class="tc-awning1" d="M51 2h16l-4 5 4 5H51z"/>',
+    swing: '<path class="tc-fence" d="M14 98L28 20M86 98L72 20M24 22h52"/><path class="tc-birdline" d="M40 22v48M60 22v48"/><rect class="tc-awning1" x="34" y="68" width="32" height="7" rx="3"/>',
+    slide: '<rect class="tc-metal" x="18" y="34" width="6" height="64"/><path class="tc-fence" d="M21 46h16M21 60h16M21 74h16M38 34v64"/><path class="tc-awning2" d="M40 34c20 0 24 20 34 42 4 10 10 16 22 18v6c-16-2-22-10-28-22-8-20-12-38-28-38z"/>',
+    ball: '<circle class="tc-awning1" cx="50" cy="72" r="16"/><path class="tc-wall" d="M35 68q15-9 30 0v5q-15-9-30 0z"/>',
+    // 海滩：沙堡、救生员小塔、救生圈
+    sandcastle: '<path class="tc-sand2" d="M10 96V62h10v-8h8v8h12V46h-6v-8h8v-6h8v6h8v8h-6v16h12v-8h8v8h10v34z"/><rect class="tc-door" x="44" y="78" width="12" height="18" rx="6"/><path class="tc-birdline" d="M50 32V16"/><path class="tc-awning1" d="M50 14h14l-4 5 4 5H50z"/>',
+    lifeguard: '<path class="tc-fence" d="M28 98l8-46M72 98l-8-46M32 78h36"/><rect class="tc-awning1" x="28" y="38" width="44" height="16" rx="3"/><path class="tc-wall" d="M24 40l26-22 26 22z"/>',
+    lifebuoy: '<circle class="tc-awning1" cx="50" cy="62" r="22"/><circle class="tc-sand" cx="50" cy="62" r="10"/><path class="tc-wall" d="M45 40h10v11H45zM45 73h10v11H45zM28 57h11v10H28zM61 57h11v10H61z"/>'
   };
   // ---------- 每种地形 ----------
   //   ground：地形带（弯弯的边）怎么画；back / front：两侧后排 / 前排的景物；small：中间零星的小东西；extra：特别的景物
@@ -89,9 +111,14 @@
     train: { back: ["mesa", "mesa"], front: ["cactusGroup", "cactus", "rock", "cactusGroup"], small: ["rock", "cactus", "skull"], band: "dunes", sun: true, rails: true },
     pharmacy: { back: ["mountains", "mountains"], front: ["pine", "house", "pine"], small: ["rock", "flower"], band: "hills" },
     farm: { back: ["olive", "windmill"], front: ["olive", "hay", "fence", "windmill"], small: ["hay", "flower"], band: "fields", anim: ["blades"] },
-    party: { back: ["palm"], front: ["palm", "beachUmbrella"], small: ["shell", "starfish", "shell"], band: "sea", critter: ["boat", "gull", "gull"], anim: ["wave"] }
+    party: { back: ["palm"], front: ["palm", "beachUmbrella"], small: ["shell", "starfish", "shell"], band: "sea", critter: ["boat", "gull", "gull"], anim: ["wave"] },
+    // 阶段 20：新单元（id 固定；data/levels.js 里还没有这些区域时，这几行只是不会被用到）
+    restaurant: { back: ["houseRow", "church"], front: ["awningShop", "bistro", "lamp", "bistro"], small: ["pot", "flower"], band: "tiles" },          // 小镇街道 / 广场
+    supermarket: { back: ["skyline", "houseRow"], front: ["store", "car", "cart", "lamp"], small: ["cart", "lamp"], band: "street" },               // 小镇（超市）
+    school: { back: ["tree", "houseRow"], front: ["school", "swing", "tree", "slide"], small: ["ball", "flower", "grass"], band: "meadow", critter: ["bird"] }, // 有树和操场的小镇
+    beach: { back: ["palm"], front: ["sandcastle", "beachUmbrella", "lifeguard", "palm"], small: ["shell", "starfish", "lifebuoy"], band: "beach", sun: true, critter: ["boat", "gull", "gull"], anim: ["waveR"] } // 沙滩 + 大海（海在右边，和“海边派对”反过来）
   };
-  var ORDER = ["airport", "hotel", "cafe", "park", "home", "shop", "train", "pharmacy", "farm", "party"];
+  var ORDER = ["airport", "hotel", "cafe", "park", "home", "shop", "train", "pharmacy", "farm", "party", "restaurant", "supermarket", "school", "beach"];
 
   function ensureSprite() {
     if (document.getElementById("terrain-sprite")) return;
@@ -157,6 +184,13 @@
       s += band("l", w, h, side * 0.45, 8, 50, ph + 1, "tc-sea2");
       s += bandLines("l", w, h, side * 0.7, 10, 60, ph, "tc-waveline", 34);
       s += band("r", w, h, side * 0.5, 8, 80, ph + 2, "tc-sand");
+    } else if (T.band === "beach") {
+      // 海滩：右边是海（沙滩 → 浅海 → 深海），左边一条沙滩
+      s += band("r", w, h, side * 1.05, 12, 70, ph, "tc-sand");
+      s += band("r", w, h, side * 0.72, 10, 60, ph, "tc-sea");
+      s += band("r", w, h, side * 0.45, 8, 50, ph + 1, "tc-sea2");
+      s += bandLines("r", w, h, side * 0.7, 10, 60, ph, "tc-waveline", 34);
+      s += band("l", w, h, side * 0.9, 10, 80, ph + 2, "tc-sand");
     } else if (T.band === "dunes") {
       s += band("l", w, h, side * 0.95, 18, 55, ph, "tc-dune2");
       s += band("l", w, h, side * 0.6, 14, 45, ph + 1, "tc-dune");
@@ -197,7 +231,7 @@
     for (var yy = 10, n = 0; yy < h - 30; yy += stepY, n++) {
       for (var sd = 0; sd < 2; sd++) {
         var left = sd === 0;
-        if (T.band === "sea" && left) { // 海那一侧：只放船和海鸥（下面）
+        if ((T.band === "sea" && left) || (T.band === "beach" && !left)) { // 海那一侧：只放船和海鸥（下面）
           continue;
         }
         if ((n + sd) % 2 === 0) { // 后排景物：两侧轮流放（数量减半，地图更省）
@@ -224,11 +258,11 @@
     var cr = T.critter || [];
     for (var c = 0; c < cr.length; c++) {
       var cy = 60 + (c + 0.5) * (h - 120) / cr.length;
-      var cx = T.band === "sea" ? side * (0.15 + 0.2 * (c % 2)) : (c % 2 ? w - side * 0.9 : side * 0.4);
+      var cx = T.band === "sea" ? side * (0.15 + 0.2 * (c % 2)) : T.band === "beach" ? w - side * (0.95 - 0.2 * (c % 2)) : (c % 2 ? w - side * 0.9 : side * 0.4);
       s += use(cr[c], cx, cy, cr[c] === "boat" ? (narrow ? 58 : 80) : 40, cr[c] === "boat" || cr[c] === "gull" ? "" : "t-small");
     }
     for (var st = 0; st < Math.floor(h / 260); st++) s += use("star", (st % 2 ? w - side * 0.6 : side * 0.4) + R() * 30, 30 + st * 260 + R() * 40, 14 + R() * 8, "t-night");
-    if (k === "airport" || k === "party" || k === "train") s += use("moon", w - (narrow ? 64 : 100), 8, narrow ? 44 : 60, "t-night");
+    if (k === "airport" || k === "party" || k === "train" || k === "beach") s += use("moon", w - (narrow ? 64 : 100), 8, narrow ? 44 : 60, "t-night");
 
     var svg = document.createElementNS(NS, "svg");
     svg.setAttribute("class", "terrain-layer");
@@ -250,6 +284,7 @@
       anims.push({ sym: "blades", x: -wsz * 0.1 + wsz * 0.16, y: wy - wsz * 0.12, size: wsz * 0.68 });
     }
     if (T.anim && T.anim.indexOf("wave") !== -1) { anims.push({ sym: "boat", x: side * 0.1, y: h * 0.5, size: narrow ? 56 : 76, cls: "anim-wave" }); }
+    if (T.anim && T.anim.indexOf("waveR") !== -1) { anims.push({ sym: "boat", x: w - side * 0.1 - (narrow ? 56 : 76), y: h * 0.45, size: narrow ? 56 : 76, cls: "anim-wave" }); }
     for (var j = 0; j < anims.length; j++) {
       var it = anims[j];
       var s2 = document.createElementNS(NS, "svg");

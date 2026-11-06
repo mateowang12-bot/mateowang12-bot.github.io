@@ -18,85 +18,85 @@
   <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
 </head>
 <body>
-  <div class="container">
+  <!-- 阶段 21：“我的”页整理成 4 块：我的卡片 / 本周 / 徽章 / 设置，账号与数据默认收起。
+       所有 id 沿用原来的（cloud.js、storage.js 和下面的脚本都按 id 找） -->
+  <div class="container me-page">
     <a class="back-link" href="../index.html">‹ 返回首页</a>
 
-    <h1>我的</h1>
+    <h1 class="me-title">我的</h1>
 
-    <!-- 头像 + 段位（阶段 11） -->
-    <div class="me-hero" id="me-hero"></div>
+    <!-- 1. 我的卡片：头像 + 段位、3 个数字、今日目标 -->
+    <section class="me-card" aria-label="我的学习">
+      <div class="me-hero" id="me-hero"></div>
+      <div class="me-nums" id="stats"></div>
+      <div class="me-today" id="me-today"></div>
+    </section>
 
-    <!-- 统计卡片 -->
-    <div class="stat-grid" id="stats"></div>
-
-    <h2>最近 7 天</h2>
-    <div class="panel">
+    <!-- 2. 本周：7 天柱状图；学习日历默认收起 -->
+    <h2 class="me-h">本周</h2>
+    <section class="me-box">
       <div class="week-chart" id="week-chart" role="img"></div>
-      <p class="panel-note" id="week-note"></p>
-    </div>
+      <p class="me-note" id="week-note"></p>
+      <button type="button" class="me-more" id="cal-toggle" aria-expanded="false" aria-controls="cal-box"><span>查看学习日历</span><span class="me-chev" aria-hidden="true"></span></button>
+      <div class="me-fold-body" id="cal-box" hidden>
+        <div class="cal" id="cal" role="img"></div>
+        <p class="me-note">绿色 = 那天学过，黄框 = 今天</p>
+      </div>
+    </section>
 
-    <h2>学习日历</h2>
-    <div class="panel">
-      <div class="cal" id="cal" role="img"></div>
-      <p class="panel-note">绿色 = 那天学过；黄框 = 今天。</p>
-    </div>
+    <!-- 3. 徽章：一行已得到的（最新的几个），点开看全部 -->
+    <h2 class="me-h">徽章</h2>
+    <section class="me-box">
+      <div class="me-badge-row" id="badge-row"></div>
+      <button type="button" class="me-more" id="badges-toggle" aria-expanded="false" aria-controls="badges"><span id="badges-count">全部徽章</span><span class="me-chev" aria-hidden="true"></span></button>
+      <div class="badge-grid me-fold-body" id="badges" hidden></div>
+    </section>
 
-    <h2>成就徽章</h2>
-    <div class="badge-grid" id="badges"></div>
+    <!-- 4. 设置：一行一项，左边名字、右边开关 / 选项 -->
+    <h2 class="me-h">设置</h2>
+    <section class="me-list">
+      <div class="me-row me-row-wrap">
+        <div class="me-row-label"><span class="me-row-ic" data-ic="target"></span><span id="goal-title">每日目标<small>每天要得的经验值</small></span></div>
+        <div class="me-seg" id="goal-options" role="radiogroup" aria-labelledby="goal-title"></div>
+      </div>
+      <div class="me-row me-row-wrap">
+        <div class="me-row-label"><span class="me-row-ic" data-ic="turtle"></span><span id="rate-title">朗读速度<small>选了会读一句示范</small></span></div>
+        <div class="me-seg" id="rate-options" role="radiogroup" aria-labelledby="rate-title"></div>
+      </div>
+      <label class="me-row" for="sound-on">
+        <span class="me-row-label"><span class="me-row-ic" data-ic="bell"></span><span>音效<small>答对、答错的提示音</small></span></span>
+        <input type="checkbox" class="me-switch" id="sound-on" role="switch">
+      </label>
+      <!-- 只在能震动的设备（安卓手机）显示；iPhone 的网页不能震动 -->
+      <label class="me-row" for="vibrate-on" id="vibrate-row" hidden>
+        <span class="me-row-label"><span class="me-row-ic" data-ic="vibrate"></span><span>震动</span></span>
+        <input type="checkbox" class="me-switch" id="vibrate-on" role="switch">
+      </label>
+      <label class="me-row" for="autoplay">
+        <span class="me-row-label"><span class="me-row-ic" data-ic="speaker"></span><span>自动发音<small>单词卡片自动读</small></span></span>
+        <input type="checkbox" class="me-switch" id="autoplay" role="switch">
+      </label>
+      <label class="me-row" for="gloss-on">
+        <span class="me-row-label"><span class="me-row-ic" data-ic="chat"></span><span>点单词看意思<small>点句子里的词看中文</small></span></span>
+        <input type="checkbox" class="me-switch" id="gloss-on" role="switch">
+      </label>
+    </section>
 
-    <h2>设置</h2>
-    <div class="panel">
-      <div class="setting">
-        <div class="setting-title" id="goal-title">每日目标</div>
-        <div class="goal-options" id="goal-options" role="radiogroup" aria-labelledby="goal-title"></div>
-        <p class="panel-note">每天得到这么多经验值（XP）就算完成目标。</p>
-      </div>
-      <div class="setting">
-        <div class="setting-title">声音和震动</div>
-        <div class="switch-row">
-          <label class="quiz-check" for="sound-on">
-            <input type="checkbox" id="sound-on">
-            <span class="quiz-check-text">🔔 声音</span>
-          </label>
-          <span class="small-tip" id="vibrate-note" hidden>📳 iPhone 的网页不支持震动</span>
-          <label class="quiz-check" for="vibrate-on">
-            <input type="checkbox" id="vibrate-on">
-            <span class="quiz-check-text">📳 震动</span>
-          </label>
-        </div>
-        <p class="panel-note">点选项、答对、答错、过关时的小音效和手机震动（安卓手机）。西语发音不受影响（发音照常读）。</p>
-      </div>
-      <div class="setting">
-        <div class="setting-title" id="rate-title">西语朗读速度</div>
-        <div class="rate-options" id="rate-options" role="radiogroup" aria-labelledby="rate-title"></div>
-        <p class="panel-note">选好后会用这个速度读一句示范。关卡里点大喇叭旁边的 🐢，可以用“很慢”再听一遍。</p>
-        <p class="panel-note" id="rate-diag" aria-live="polite"></p>
-      </div>
-      <div class="setting">
-        <div class="setting-title">单词卡片</div>
-        <div class="switch-row">
-          <label class="quiz-check" for="autoplay">
-            <input type="checkbox" id="autoplay">
-            <span class="quiz-check-text">🔊 自动发音</span>
-          </label>
-        </div>
-        <p class="panel-note">换卡片、翻到背面时自动读出西语（和单词卡片页的开关是同一个）。</p>
-      </div>
-      <div class="setting">
-        <div class="setting-title">句子</div>
-        <div class="switch-row">
-          <label class="quiz-check" for="gloss-on">
-            <input type="checkbox" id="gloss-on">
-            <span class="quiz-check-text">点单词看意思</span>
-          </label>
-        </div>
-        <p class="panel-note">点西语句子里的一个词，会弹出它的中文意思并读出来（固定搭配会整组一起显示）。测验题要答完以后才能点。只记在这台设备上。</p>
-      </div>
+    <!-- 5. 账号与数据：默认收起 -->
+    <section class="me-list me-data">
+      <button type="button" class="me-row me-fold" id="data-toggle" aria-expanded="false" aria-controls="data-body">
+        <span class="me-row-label"><span class="me-row-ic" data-ic="cloud"></span><span>账号与数据<small id="data-sub">同步、搬家码、清除记录</small></span></span>
+        <span class="me-chev" aria-hidden="true"></span>
+      </button>
+      <div class="me-data-body" id="data-body" hidden>
       <!-- 阶段 15：邮箱 + 密码登录同步（js/cloud.js；Claude 版隐藏这一块，它自己有同步） -->
-      <div class="setting" id="cloud-box">
-        <div class="setting-title">☁️ 账号同步（邮箱登录）</div>
-        <p class="panel-note">用同一个邮箱在手机和电脑上登录，进度就会自动合并、同步（两边都不丢）。密码不会保存在网站里；登录信息只存在这台设备上。</p>
-        <div id="cloud-off" class="cloud-note" hidden>还没配置云同步（需要先填好 js/cloud-config.js）。网站其他功能照常能用；换设备时可以先用下面的“搬家码”。</div>
+      <div class="me-block" id="cloud-box">
+        <div class="me-block-title">邮箱同步</div>
+        <p class="me-note">手机和电脑用同一个邮箱登录，进度会自动合并。</p>
+        <div id="cloud-off" class="cloud-note" hidden>还没配置云同步。换设备时可以先用下面的“搬家码”。</div>
+        <div class="cloud-actions" id="cloud-open-row" hidden>
+          <button type="button" class="btn btn-light btn-small" id="cloud-open" aria-expanded="false" aria-controls="cloud-form">登录 / 注册</button>
+        </div>
         <form id="cloud-form" class="cloud-form" autocomplete="on" hidden>
           <label class="field"><span>邮箱</span><input type="email" id="cloud-email" class="text-input" autocomplete="email" inputmode="email" placeholder="例如 abc@qq.com"></label>
           <label class="field"><span>密码（至少 6 位）</span><input type="password" id="cloud-pw" class="text-input" autocomplete="current-password" minlength="6"></label>
@@ -116,12 +116,18 @@
         </div>
         <div class="cloud-status" id="cloud-status" role="status" aria-live="polite"></div>
       </div>
+      <!-- Claude 版：显示 Claude 账号的同步状态（其他版本这块藏起来） -->
+      <div class="me-block" id="sync-box" hidden>
+        <div class="me-block-title">同步</div>
+        <div class="sync-status" id="sync-status" role="status"></div>
+      </div>
       <!-- 阶段 15：搬家码（所有版本都有）：导出成一段文字 / 文件，在另一台设备上导入（合并，不覆盖） -->
-      <div class="setting" id="move-box">
-        <div class="setting-title">📦 搬家（换手机 / 换电脑）</div>
-        <p class="panel-note">把这台设备的进度变成一段“搬家码”，发到另一台设备上导入。可以通过微信“文件传输助手”发给自己。导入是<strong>合并</strong>：两边学过的都会保留。</p>
+      <div class="me-block" id="move-box">
+        <div class="me-block-title">搬家码</div>
+        <p class="me-note">换手机 / 电脑时用。导入是合并，两边学过的都保留。</p>
         <div class="cloud-actions">
           <button type="button" class="btn btn-light btn-small" id="move-make">生成搬家码</button>
+          <button type="button" class="btn btn-light btn-small" id="move-in-toggle" aria-expanded="false" aria-controls="move-in">导入搬家码</button>
         </div>
         <div id="move-out" hidden>
           <textarea id="move-text" class="text-input move-text" readonly rows="4" aria-label="搬家码"></textarea>
@@ -130,10 +136,10 @@
             <button type="button" class="btn btn-light btn-small" id="move-download">下载成文件</button>
           </div>
         </div>
-        <div class="move-in">
-          <label class="field"><span>导入：把搬家码粘贴在这里</span><textarea id="move-paste" class="text-input move-text" rows="3" placeholder="ES1:……"></textarea></label>
+        <div class="move-in" id="move-in" hidden>
+          <label class="field"><span>把搬家码粘贴在这里</span><textarea id="move-paste" class="text-input move-text" rows="3" placeholder="ES1:……"></textarea></label>
           <div class="cloud-actions">
-            <button type="button" class="btn btn-light btn-small" id="move-check">导入</button>
+            <button type="button" class="btn btn-small" id="move-check">导入</button>
             <label class="btn btn-light btn-small move-file">选择文件<input type="file" id="move-file" accept=".txt,text/plain" hidden></label>
           </div>
           <div class="reset-confirm" id="move-confirm" hidden>
@@ -144,22 +150,21 @@
         </div>
         <div class="cloud-status" id="move-status" role="status" aria-live="polite"></div>
       </div>
-      <div class="setting">
-        <div class="setting-title">同步</div>
-        <div class="sync-status" id="sync-status" role="status"></div>
-      </div>
-      <div class="setting reset-row">
-        <div class="setting-title">学习记录</div>
-        <p class="panel-note">清除后从头开始（每日目标等设置会保留）。</p>
-        <button type="button" class="btn btn-light btn-small" id="reset-btn" aria-expanded="false" aria-controls="reset-confirm">清除学习记录</button>
+      <div class="me-block reset-row">
+        <div class="me-block-title">清除学习记录</div>
+        <p class="me-note">从头开始（设置会保留）。</p>
+        <div class="cloud-actions">
+          <button type="button" class="btn btn-light btn-small me-danger-text" id="reset-btn" aria-expanded="false" aria-controls="reset-confirm">清除学习记录</button>
+        </div>
         <div class="reset-confirm" id="reset-confirm" hidden>
-          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="muted">已掌握的单词和句子、语法和情景对话的成绩、游戏最高分、连续学习天数、经验值，以及冒险关卡的星星、宝箱、头像、主题、护照邮票、每日挑战都会清空（头像回到 🧳），不能恢复。请在所有设备都联网时再清除（否则还没同步的设备可能把旧记录带回来）。</span></span>
+          <span class="reset-confirm-text">确定要清除全部学习记录吗？<br><span class="muted">单词、句子、关卡星星、宝箱、头像、主题、邮票、经验值、连续天数都会清空，不能恢复。请在所有设备都联网时再清除（否则没同步的设备可能把旧记录带回来）。</span></span>
           <button type="button" class="btn btn-danger" id="reset-yes">确定清除</button>
           <button type="button" class="btn btn-light" id="reset-no">取消</button>
         </div>
         <div class="muted reset-msg" id="reset-msg" role="status"></div>
       </div>
-    </div>
+      </div>
+    </section>
   </div>
 
   <script src="../js/claude-bridge.js"></script>
@@ -192,14 +197,35 @@
     }
     var WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 
-    // ---------- 统计 ----------
-    function statCard(icon, num, total, label, strong) {
-      var c = el("div", "stat-card" + (strong ? " is-strong" : ""));
-      c.appendChild(el("div", "stat-icon", icon)).setAttribute("aria-hidden", "true");
-      var n = el("div", "stat-num", num);
-      if (total !== null) n.appendChild(el("small", "", " / " + total));
+    // 卡通图标（js/icons.js）；没有 Icons 时什么都不画
+    function ic(name, cls) {
+      if (window.Icons) return window.Icons.el(name, cls);
+      return el("span", cls || "");
+    }
+    // 设置行左边的小图标：<span data-ic="名字">
+    (function () {
+      var list = document.querySelectorAll("[data-ic]");
+      for (var i = 0; i < list.length; i++) list[i].appendChild(ic(list[i].getAttribute("data-ic")));
+    })();
+    // 展开 / 收起（按钮的 aria-expanded + 内容的 hidden）
+    function foldable(btnId, bodyId, onOpen) {
+      var b = $(btnId), body = $(bodyId);
+      b.onclick = function () {
+        var open = body.hidden;
+        body.hidden = !open;
+        b.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open && onOpen) onOpen();
+      };
+    }
+
+    // ---------- 我的卡片：3 个数字 ----------
+    function statCard(icon, num, total, label) {
+      var c = el("div", "me-num");
+      c.appendChild(ic(icon, "me-num-ic"));
+      var n = el("div", "me-num-val", num);
+      if (total !== null) n.appendChild(el("small", "", "/" + total));
       c.appendChild(n);
-      c.appendChild(el("div", "stat-label", label));
+      c.appendChild(el("div", "me-num-label", label));
       return c;
     }
     // 最长连续学习天数（从学过的日期算）
@@ -230,13 +256,31 @@
     function renderStats(s) {
       var box = $("stats");
       box.innerHTML = "";
-      box.appendChild(statCard("⭐", P ? P.xpTotal() : 0, null, "总经验值", true));
-      box.appendChild(statCard("🔥", (P ? P.streak() : 0) + " 天", null, "连续学习", true));
-      box.appendChild(statCard("📅", (P ? P.studyDays() : 0) + " 天", null, "一共学过"));
-      box.appendChild(statCard("📇", s.wordsMastered, s.wordsTotal, "已掌握单词"));
-      box.appendChild(statCard("💬", s.phrasesMastered, s.phrasesTotal, "已掌握句子"));
-      box.appendChild(statCard("📐", s.grammarDone, s.grammarTotal, "语法完成"));
-      box.appendChild(statCard("🎭", s.dialoguesDone, s.dialoguesTotal, "情景对话完成"));
+      box.appendChild(statCard("fire", P ? P.streak() : 0, null, "连续天数"));
+      box.appendChild(statCard("xp", P ? P.xpTotal() : 0, null, "总经验"));
+      box.appendChild(statCard("cards", s.wordsMastered, null, "掌握单词"));
+    }
+
+    // ---------- 我的卡片：今日目标（细进度条） ----------
+    function renderToday() {
+      var box = $("me-today");
+      box.innerHTML = "";
+      var xp = P ? P.xpToday() : 0, goal = P ? P.dailyGoal() : 20;
+      var done = xp >= goal;
+      var top = el("div", "me-today-top");
+      top.appendChild(el("span", "me-today-t", "今日目标"));
+      top.appendChild(el("span", "me-today-v" + (done ? " is-done" : ""), done ? "完成了！" + xp + " / " + goal + " XP" : xp + " / " + goal + " XP"));
+      box.appendChild(top);
+      var bar = el("div", "me-thin" + (done ? " is-done" : ""));
+      bar.setAttribute("role", "progressbar");
+      bar.setAttribute("aria-label", "今日目标");
+      bar.setAttribute("aria-valuemin", "0");
+      bar.setAttribute("aria-valuemax", String(goal));
+      bar.setAttribute("aria-valuenow", String(Math.min(xp, goal)));
+      var f = el("span");
+      f.style.width = Math.min(100, goal ? 100 * xp / goal : 0).toFixed(1) + "%";
+      bar.appendChild(f);
+      box.appendChild(bar);
     }
 
     // ---------- 最近 7 天柱状图 ----------
@@ -261,7 +305,9 @@
         words.push((d.today ? "今天" : "星期" + WEEK[d.weekday]) + " " + d.xp);
       }
       box.setAttribute("aria-label", "最近 7 天的经验值：" + words.join("，"));
-      $("week-note").textContent = "7 天一共 " + sum + " XP，每日目标 " + goal + " XP。";
+      var active = 0;
+      for (var a = 0; a < days.length; a++) if (days[a].xp > 0) active++;
+      $("week-note").textContent = "最近 7 天学了 " + active + " 天，一共 " + sum + " XP";
     }
 
     // ---------- 学习日历：最近 5 周（周一开头） ----------
@@ -296,34 +342,49 @@
       var best = longestStreak();
       var plays = s.gamesPlays;
       var list = [
-        { id: "firstStep", icon: "👣", name: "第一步", how: "第一次学会一个词或句子（记住了 / 答对 / 复习认识都算）", ok: s.firstGotIt },
-        { id: "streak3", icon: "🔥", name: "连续 3 天", how: "连续 3 天都学一点", ok: best >= 3 },
-        { id: "streak7", icon: "🏅", name: "连续 7 天", how: "连续 7 天都学一点", ok: best >= 7 },
-        { id: "words25", icon: "🌱", name: "掌握 25 词", how: "掌握 25 个单词", ok: s.wordsMastered >= 25 },
-        { id: "words50", icon: "🌿", name: "掌握 50 词", how: "掌握 50 个单词", ok: s.wordsMastered >= 50 },
-        { id: "words100", icon: "🌳", name: "掌握 100 词", how: "掌握 100 个单词", ok: s.wordsMastered >= 100 },
-        { id: "grammarAll", icon: "📐", name: "语法全通", how: "完成全部 " + s.grammarTotal + " 课语法", ok: s.grammarTotal > 0 && s.grammarDone >= s.grammarTotal },
-        { id: "dialoguesAll", icon: "🎭", name: "对话达人", how: "完成全部 " + s.dialoguesTotal + " 个情景对话", ok: s.dialoguesTotal > 0 && s.dialoguesDone >= s.dialoguesTotal },
-        { id: "games10", icon: "🎮", name: "游戏 10 局", how: "小游戏一共玩 10 局（现在 " + plays + " 局）", ok: plays >= 10 },
-        { id: "goalDay", icon: "🎯", name: "完成目标", how: "有一天完成每日目标", ok: goalDays() > 0 }
+        { id: "firstStep", icon: "footprints", name: "第一步", how: "第一次学会一个词或句子", ok: s.firstGotIt },
+        { id: "streak3", icon: "fire", name: "连续 3 天", how: "连续 3 天都学一点", ok: best >= 3 },
+        { id: "streak7", icon: "medal-gold", name: "连续 7 天", how: "连续 7 天都学一点", ok: best >= 7 },
+        { id: "words25", icon: "sprout", name: "掌握 25 词", how: "掌握 25 个单词", ok: s.wordsMastered >= 25 },
+        { id: "words50", icon: "leaf", name: "掌握 50 词", how: "掌握 50 个单词", ok: s.wordsMastered >= 50 },
+        { id: "words100", icon: "tree", name: "掌握 100 词", how: "掌握 100 个单词", ok: s.wordsMastered >= 100 },
+        { id: "grammarAll", icon: "ruler", name: "语法全通", how: "完成全部 " + s.grammarTotal + " 课语法", ok: s.grammarTotal > 0 && s.grammarDone >= s.grammarTotal },
+        { id: "dialoguesAll", icon: "masks", name: "对话达人", how: "完成全部 " + s.dialoguesTotal + " 个情景对话", ok: s.dialoguesTotal > 0 && s.dialoguesDone >= s.dialoguesTotal },
+        { id: "games10", icon: "gamepad", name: "游戏 10 局", how: "小游戏玩 10 局（现在 " + plays + " 局）", ok: plays >= 10 },
+        { id: "goalDay", icon: "target", name: "完成目标", how: "有一天完成每日目标", ok: goalDays() > 0 }
       ];
       // 解锁过的徽章永久记住（存在进度里，跟着同步）：以后数字变了（例如改了每日目标）也不会变回锁着
       var saved = P && P.badges ? P.badges() : {};
       for (var u = 0; u < list.length; u++) {
-        if (list[u].ok && !saved[list[u].id] && P && P.unlockBadge) P.unlockBadge(list[u].id);
+        if (list[u].ok && !saved[list[u].id] && P && P.unlockBadge && P.unlockBadge(list[u].id)) saved[list[u].id] = Date.now();
         if (saved[list[u].id]) list[u].ok = true;
       }
+      // 完整列表（点“全部徽章”才展开）
       var box = $("badges");
       box.innerHTML = "";
+      var got = [];
       for (var i = 0; i < list.length; i++) {
         var b = list[i];
+        if (b.ok) got.push(b);
         var c = el("div", "badge " + (b.ok ? "unlocked" : "locked"));
-        c.appendChild(el("div", "badge-icon", b.icon)).setAttribute("aria-hidden", "true");
+        c.appendChild(el("div", "badge-icon")).appendChild(ic(b.icon));
         c.appendChild(el("div", "badge-name", b.name));
-        c.appendChild(el("div", "badge-how", b.ok ? "✓ 已解锁" : "解锁方法：" + b.how));
-        c.setAttribute("aria-label", b.name + "：" + (b.ok ? "已解锁" : "未解锁，" + b.how));
+        c.appendChild(el("div", "badge-how", b.ok ? "已得到" : b.how));
+        c.setAttribute("aria-label", b.name + "：" + (b.ok ? "已得到" : "还没得到，" + b.how));
         box.appendChild(c);
       }
+      // 一行：最新得到的几个
+      got.sort(function (x, y) { return (saved[y.id] || 0) - (saved[x.id] || 0); });
+      var row = $("badge-row");
+      row.innerHTML = "";
+      if (!got.length) row.appendChild(el("p", "me-note me-badge-empty", "还没有徽章。连续学 3 天、掌握 25 个单词……都能得到！"));
+      for (var g = 0; g < got.length && g < 5; g++) {
+        var chip = el("div", "me-badge-chip");
+        chip.appendChild(el("span", "me-badge-ic")).appendChild(ic(got[g].icon));
+        chip.appendChild(el("span", "me-badge-name", got[g].name));
+        row.appendChild(chip);
+      }
+      $("badges-count").textContent = "全部徽章（" + got.length + "/" + list.length + "）";
     }
 
     // ---------- 设置：每日目标 ----------
@@ -335,11 +396,12 @@
       var cur = P ? P.dailyGoal() : 20;
       for (var i = 0; i < goals.length; i++) {
         (function (g) {
-          var b = el("button", "goal-opt", g + " XP");
+          var b = el("button", "me-seg-btn", String(g));
           b.type = "button";
           b.setAttribute("role", "radio");
           b.setAttribute("aria-checked", g === cur ? "true" : "false");
-          b.appendChild(el("small", "", GOAL_TEXT[g] || ""));
+          b.setAttribute("aria-label", g + " XP（" + (GOAL_TEXT[g] || "") + "）");
+          b.title = GOAL_TEXT[g] || "";
           b.onclick = function () {
             if (!P) return;
             P.setDailyGoal(g);
@@ -362,9 +424,7 @@
       try { return !(window.localStorage && window.localStorage.getItem(AUTO_KEY) === "0"); } catch (e) { return true; }
     }
     function renderAuto() {
-      var on = readAuto();
-      $("autoplay").checked = on;
-      $("autoplay").parentNode.classList.toggle("active", on);
+      $("autoplay").checked = readAuto();
     }
     $("autoplay").onchange = function () {
       try { if (window.localStorage) window.localStorage.setItem(AUTO_KEY, this.checked ? "1" : "0"); } catch (e) {}
@@ -377,9 +437,7 @@
       try { return !(window.localStorage && window.localStorage.getItem(GLOSS_KEY) === "0"); } catch (e) { return true; }
     }
     function renderGloss() {
-      var on = readGloss();
-      $("gloss-on").checked = on;
-      $("gloss-on").parentNode.classList.toggle("active", on);
+      $("gloss-on").checked = readGloss();
     }
     $("gloss-on").onchange = function () {
       try { if (window.localStorage) window.localStorage.setItem(GLOSS_KEY, this.checked ? "1" : "0"); } catch (e) {}
@@ -391,15 +449,21 @@
     function renderSfx() {
       var s = P ? P.soundOn() : true, v = P ? P.vibrateOn() : true;
       $("sound-on").checked = s;
-      $("sound-on").parentNode.classList.toggle("active", s);
       $("vibrate-on").checked = v;
-      $("vibrate-on").parentNode.classList.toggle("active", v);
       $("sound-on").disabled = !P;
       $("vibrate-on").disabled = !P;
-      // iPhone 的网页不能震动（实测 iOS 27 也不行）：不显示这个开关，改成一行小字
-      var canVib = !(window.Sfx && window.Sfx.canVibrate) || window.Sfx.canVibrate();
-      $("vibrate-on").parentNode.hidden = !canVib;
-      $("vibrate-note").hidden = canVib;
+      // 震动开关只在真的能震的设备上显示：有 navigator.vibrate、不是 iPhone / iPad（iOS 的网页不能震，实测 iOS 27 也不行）、
+      // 而且是触屏手机（电脑的浏览器也有 navigator.vibrate，但不会震）
+      $("vibrate-row").hidden = !canVibrate();
+    }
+    function canVibrate() {
+      try {
+        if (window.Sfx && window.Sfx.canVibrate && !window.Sfx.canVibrate()) return false;
+        if (typeof navigator.vibrate !== "function") return false;
+        var ua = navigator.userAgent || "";
+        if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return false;
+        return !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+      } catch (e) { return false; }
     }
     $("sound-on").onchange = function () {
       if (!P) return;
@@ -421,26 +485,18 @@
       box.innerHTML = "";
       var cur = P && P.speechRate ? P.speechRate() : "slow";
       ["slower", "slow", "normal"].forEach(function (r) {
-        var b = el("button", "goal-opt", RATE_TEXT[r]);
-        if (r === "slow") b.appendChild(el("small", "", "默认")); // 小字放第二行，360 宽也不会把“慢（默认）”折开
+        var b = el("button", "me-seg-btn", RATE_TEXT[r]);
         b.type = "button";
         b.id = "rate-" + r;
         b.setAttribute("role", "radio");
         b.setAttribute("aria-checked", r === cur ? "true" : "false");
+        if (r === "slow") b.title = "默认";
         b.disabled = !P;
         b.onclick = function () {
           if (!P) return;
           P.setSpeechRate(r);
           // 示范：在点击里同步朗读（iPhone 才肯出声），用刚选的速度
-          // 【临时】测一下这句读了几秒：三档秒数一样 = 这台设备没理会语速（等用户反馈后删掉）
-          var t0 = Date.now(), diag = $("rate-diag");
-          if (diag) diag.dataset.t = String(t0); // 读到一半又点了别的：旧的那次不写结果
-          if (diag) diag.textContent = "正在读（" + RATE_TEXT[r] + "）…";
-          if (window.speakSpanish) window.speakSpanish("Hola, ¿cómo estás?", false, function () {
-            var sec = (Date.now() - t0) / 1000;
-            var val = window.speakSpanish.rateValue ? window.speakSpanish.rateValue(r) : "?";
-            if (diag && diag.dataset.t === String(t0) && sec > 0.3) diag.textContent = "测量：" + RATE_TEXT[r] + "（速度值 " + val + "）这句读了 " + sec.toFixed(1) + " 秒";
-          }, { rate: r });
+          if (window.speakSpanish) window.speakSpanish("Hola, ¿cómo estás?", false, null, { rate: r });
           renderRate();
           var again = $("rate-" + r);
           if (again) again.focus();
@@ -456,25 +512,41 @@
       var s = Math.max(0, Math.round((Date.now() - t) / 1000));
       return s < 60 ? "刚刚" : s < 3600 ? Math.round(s / 60) + " 分钟前" : s < 86400 ? Math.round(s / 3600) + " 小时前" : Math.round(s / 86400) + " 天前";
     }
-    var cloudMsg = "";
+    var cloudMsg = "", cloudFormOpen = false;
     function renderCloud() {
       var box = $("cloud-box");
-      if (!C || !C.available()) { box.hidden = true; return; } // Claude 版：它自己有同步
+      if (!C || !C.available()) { // Claude 版：它自己有同步
+        box.hidden = true;
+        $("sync-box").hidden = false;
+        $("data-sub").textContent = "搬家码、清除记录";
+        return;
+      }
       box.hidden = false;
+      $("sync-box").hidden = true;
       var conf = C.configured();
       $("cloud-off").hidden = conf;
       var u = conf ? C.user() : null;
-      $("cloud-form").hidden = !conf || !!u;
+      // 没登录：先只显示“登录 / 注册”按钮，点了才展开表单
+      var showForm = conf && !u && cloudFormOpen;
+      $("cloud-open-row").hidden = !conf || !!u || cloudFormOpen;
+      $("cloud-open").setAttribute("aria-expanded", showForm ? "true" : "false");
       $("cloud-user").hidden = !u;
       var st = C.status(), line = "";
       if (u) {
         var map = { syncing: "正在同步…", ok: "已同步 · " + ago(st.last), idle: st.last ? "已同步 · " + ago(st.last) : "准备同步…" };
         line = "已登录 " + (u.email || "") + " · " + (map[st.state] || st.message || "");
-        if (st.state === "relogin") { line = st.message; $("cloud-form").hidden = false; $("cloud-email").value = u.email || ""; }
+        if (st.state === "relogin") { line = st.message; showForm = true; $("cloud-email").value = u.email || ""; }
       }
+      $("cloud-form").hidden = !showForm;
+      $("data-sub").textContent = u ? "已登录 " + (u.email || "") : "未登录 · 搬家码 · 清除记录";
       $("cloud-status").textContent = cloudMsg || line;
       $("cloud-status").className = "cloud-status" + (/不对|失败|过期|连不上|出了点|太频繁|没有成功|至少|请填写/.test(cloudMsg || line) ? " is-warn" : "");
     }
+    $("cloud-open").onclick = function () {
+      cloudFormOpen = true;
+      renderCloud();
+      $("cloud-email").focus();
+    };
     function cloudAct(fn) {
       cloudMsg = "请稍等…";
       renderCloud();
@@ -632,9 +704,7 @@
       fill.style.width = (rk.ratio * 100).toFixed(1) + "%";
       bar.appendChild(fill);
       info.appendChild(bar);
-      info.appendChild(el("div", "rank-next", rk.next ? "总经验值 " + rk.xp + " XP · 再得 " + (rk.next.min - rk.xp) + " XP 升到 " + rk.next.emoji + " " + rk.next.zh :
-        "总经验值 " + rk.xp + " XP · 已经是最高段位！"));
-      info.appendChild(el("div", "rank-next", "⭐ " + (P ? P.starsTotal() : 0) + " 颗星 · 护照邮票 " + (P ? Object.keys(P.stamps()).length : 0) + " 枚"));
+      info.appendChild(el("div", "rank-next", rk.next ? "再得 " + (rk.next.min - rk.xp) + " XP 升到" + rk.next.zh : "已经是最高段位！"));
       box.appendChild(info);
     }
 
@@ -642,6 +712,7 @@
       var s = M.stats();
       renderHero();
       renderStats(s);
+      renderToday();
       renderWeek();
       renderCal();
       renderBadges(s);
@@ -653,6 +724,11 @@
       renderSync();
     }
     renderAll();
+    // 收起的几块：学习日历、全部徽章、账号与数据、导入搬家码
+    foldable("cal-toggle", "cal-box");
+    foldable("badges-toggle", "badges");
+    foldable("data-toggle", "data-body");
+    foldable("move-in-toggle", "move-in", function () { $("move-paste").focus(); });
     // 页面里所有数字：另一台设备同步过来、加了经验值、后退回来、隔夜切回来时自动刷新
     window.addEventListener("progress-synced", renderAll);
     window.addEventListener("progress-xp", renderAll);

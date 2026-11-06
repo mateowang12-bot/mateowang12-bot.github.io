@@ -678,49 +678,202 @@
     setFoot({ buttons: [{ text: "回到地图", href: mapUrl() }] });
   }
 
+  // ---------- 开始页（阶段 20 简化）：一行标题 + “这一关要学的内容”卡片（可点读）+ 一行小图标规则（? 看说明）+ 底部大“开始” ----------
+  // 内容列表就用这一关真正出题的条目（S.plan：背单词关的卡片、复习关选出来的弱项、普通 / 大关的单词句子、对话关“我”要说的句子），
+  // 这一关会考到的排在前面。
+  function introShow() { var h = window.innerHeight || 800; return h < 640 ? 5 : h < 900 ? 6 : 8; } // 先显示几个，其余点“展开”（屏幕矮就少一点，“开始”上面的规则行也看得见）
+  function introItems() {
+    var pl = S.plan, out = [], seen = {};
+    function push(it) {
+      if (!it || !it.es) return;
+      var k = U.norm(it.es);
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push(it);
+    }
+    function asItem(x) {
+      return { es: x.es, zh: x.kind === "letter" ? (x.src && x.src.name ? "读作 “" + x.src.name + "”" : "") : (x.zh || ""),
+        speak: x.speak || x.es, emoji: x.emoji || "", kind: x.kind };
+    }
+    if (pl.learn) {
+      for (var a = 0; a < pl.learn.cards.length; a++) push(asItem(pl.learn.cards[a]));
+      return out;
+    }
+    // 先放这一关出题会用到的（顺序跟着内容），再放其余的
+    var used = {};
+    var qs = pl.questions || [];
+    for (var i = 0; i < qs.length; i++) {
+      var q = qs[i];
+      if (q.target) used[q.target.markId || q.target.id] = 1;
+      if (q.pairs) for (var j = 0; j < q.pairs.length; j++) used[q.pairs[j].id] = 1;
+    }
+    var pool = pl.pools ? pl.pools.words.concat(pl.pools.phrases, pl.pools.letters) : [];
+    var first = [], rest = [];
+    for (var b = 0; b < pool.length; b++) (used[pool[b].markId || pool[b].id] || (pool[b].letter && used[pool[b].id]) ? first : rest).push(pool[b]);
+    // 对话关：“我”要说的句子（选对的那一句）
+    if (pl.dialogue) {
+      for (var d = 0; d < pl.dialogue.lines.length; d++) {
+        var ln = pl.dialogue.lines[d];
+        if (ln.who !== "me") continue;
+        for (var o = 0; o < ln.options.length; o++) {
+          var op = ln.options[o];
+          if (op.correct === true) { push({ es: op.es, zh: op.zh || ln.hintZh || "", speak: op.es, emoji: "", kind: "phrase" }); break; }
+        }
+      }
+    }
+    for (var f = 0; f < first.length; f++) push(asItem(first[f]));
+    if (!pl.dialogue || !out.length) for (var r = 0; r < rest.length; r++) push(asItem(rest[r]));
+    return out;
+  }
+  function introRow(it) {
+    var b = el("button", "lv-item speaker-btn" + (it.kind === "phrase" || it.kind === "sentence" ? " is-phrase" : ""));
+    b.type = "button";
+    b.setAttribute("aria-label", "听：" + it.es + (it.zh ? "，" + it.zh : ""));
+    var sp = el("span", "sp-ico lv-sp");
+    sp.setAttribute("aria-hidden", "true");
+    if (window.Mascot && window.Mascot.speakerSvg) sp.innerHTML = window.Mascot.speakerSvg(true);
+    else sp.textContent = "🔊";
+    b.appendChild(sp);
+    var tx = el("span", "lv-text");
+    var es = el("span", "lv-es", it.es);
+    es.setAttribute("lang", "es");
+    tx.appendChild(es);
+    if (it.zh) tx.appendChild(el("span", "lv-zh", it.zh));
+    b.appendChild(tx);
+    if (it.emoji) b.appendChild(el("span", "lv-emoji", it.emoji)).setAttribute("aria-hidden", "true");
+    b.onclick = function () { speak(it.speak); }; // 点击里同步朗读（iPhone 才肯出声）
+    return b;
+  }
+  function icon(name, fallback) {
+    return window.Icons ? window.Icons.el(name) : document.createTextNode(fallback);
+  }
   function showIntro() {
     var lv = S.level;
     S.phase = "intro";
-    var s = screen("p-center");
+    var s = screen("p-intro");
     var reg = lv.region;
-    var badge = lv.isDaily ? "📅" : lv.type === "boss" ? "👑" : lv.type === "task" ? "💬" : lv.type === "learn" ? "📖" : lv.type === "review" ? "🔁" : (reg && reg.emoji) || "🗺️";
-    if (reg) s.appendChild(el("div", "sheet-kicker", reg.titleZh || ""));
-    var t = el("div", "p-head-title");
-    var pb = el("span", "p-badge", (lv.isDaily || lv.type !== "normal" || !reg || !window.Icons) ? badge : "");
-    if (!pb.textContent && reg && window.Icons) pb.appendChild(window.Icons.el(window.Icons.region(reg.id)));
-    t.appendChild(pb).setAttribute("aria-hidden", "true");
-    t.appendChild(document.createTextNode(" " + (lv.titleZh || "")));
-    s.appendChild(t);
-    // 吉祥物 + 说话气泡（关卡简介）
-    var say = lv.introZh || (lv.type === "boss" ? "大关！把这一站学的都用上，加油！" : "准备好了吗？我们出发吧！");
-    var hero = el("div", "p-intro-hero");
-    var m1 = mascot("hello", "bob");
-    if (m1) hero.appendChild(m1);
-    hero.appendChild(el("div", "speech", say));
-    s.appendChild(hero);
-    var mi = el("div", "mode-icons");
-    mi.style.justifyContent = "center";
-    var shown = {};
-    var add = function (m) {
-      if (shown[m] || !W.MODE_INFO[m]) return;
-      shown[m] = 1;
-      mi.appendChild(el("span", "mode-icon", W.MODE_INFO[m].icon + " " + W.MODE_INFO[m].zh));
-    };
-    if (S.plan.learn) mi.appendChild(el("span", "mode-icon", "📖 背单词 " + S.plan.learn.cards.length + " 个"));
-    for (var i = 0; i < S.plan.questions.length; i++) add(S.plan.questions[i].mode);
-    if (S.plan.dialogue) add("dialogue");
-    if (S.plan.speed) add("speed");
-    s.appendChild(mi);
-    s.appendChild(el("p", "small-tip", S.plan.learn ? "先看、先听，没有心，不会失败。" + (S.plan.learn.checks.length ? "学完做 " + S.plan.learn.checks.length + " 道小练习（答错不扣心）。" : "") + "背单词关不算星星，学完会标上 ✅。" :
-      "❤️ × " + HEARTS + "：答错一次少一颗心，心用完就要重来。错 0–1 次得 ⭐⭐⭐。不会时可以点 💡 提示（用了最多 ⭐⭐）。"));
+    // 1) 一行标题：图标 + 区域 · 关卡名
+    var hd = el("div", "lv-head");
+    var ic = el("span", "lv-head-ic");
+    ic.setAttribute("aria-hidden", "true");
+    var icName = lv.isDaily ? "calendar" : lv.type === "boss" ? "crown" : lv.type === "task" ? "chat" : lv.type === "learn" ? "book" : lv.type === "review" ? "loop" : reg ? (window.Icons ? window.Icons.region(reg.id) : "pin") : "map";
+    ic.appendChild(icon(icName, ""));
+    hd.appendChild(ic);
+    var ht = el("h1", "lv-title");
+    if (reg && !lv.isDaily) ht.appendChild(el("span", "lv-region", (reg.titleZh || "") + " · "));
+    ht.appendChild(document.createTextNode(lv.titleZh || (lv.isDaily ? "每日挑战" : "")));
+    hd.appendChild(ht);
+    s.appendChild(hd);
+    // 2) 主角：这一关要学的内容
+    var items = introItems();
+    var card = el("section", "lv-card");
+    var cardTitle = lv.type === "review" ? "要复习的内容" :
+      (S.plan.dialogue && !S.plan.questions.length && !S.plan.learn) ? "关键句子" : lv.isDaily ? "今天的内容" : "要学的内容";
+    var ch = el("div", "lv-card-head");
+    var ct = el("h2", "lv-card-title", cardTitle);
+    ct.id = "lv-card-title";
+    ch.appendChild(ct);
+    if (items.length) ch.appendChild(el("span", "lv-count", items.length + " 个"));
+    card.appendChild(ch);
+    // “先背一背”：去背诵模式（pages/memorize.html）背这个单元的单词和句子
+    if (reg && reg.id && !lv.isDaily) {
+      var memo = el("a", "lv-memo", "先背一背 ›");
+      var n0 = nav();
+      memo.href = (n0 ? n0.href("pages/memorize.html") : "memorize.html") + "#region=" + encodeURIComponent(reg.id) + "&kind=all";
+      memo.id = "lv-memo";
+      memo.setAttribute("aria-label", "先背一背：" + (reg.titleZh || "") + "这个单元的单词和句子");
+      ch.appendChild(memo);
+    }
+    card.setAttribute("aria-labelledby", "lv-card-title");
+    if (lv.type === "review") card.appendChild(el("div", "lv-note", "以前答错、还不熟的排在前面"));
+    var list = el("div", "lv-items");
+    list.id = "lv-items";
+    var INTRO_SHOW = introShow();
+    if (items.length === INTRO_SHOW + 1) INTRO_SHOW++; // 只多一个：直接都显示，不要“还有 1 个”
+    for (var i = 0; i < items.length; i++) {
+      var row = introRow(items[i]);
+      if (i >= INTRO_SHOW) { row.hidden = true; row.classList.add("is-more"); }
+      list.appendChild(row);
+    }
+    card.appendChild(list);
+    if (items.length > INTRO_SHOW) {
+      var more = el("button", "lv-more", "展开全部（还有 " + (items.length - INTRO_SHOW) + " 个）");
+      more.type = "button";
+      more.id = "lv-more";
+      more.setAttribute("aria-expanded", "false");
+      more.setAttribute("aria-controls", "lv-items");
+      more.onclick = function () {
+        var open = more.getAttribute("aria-expanded") !== "true";
+        var rows = list.querySelectorAll(".is-more");
+        for (var k = 0; k < rows.length; k++) rows[k].hidden = !open;
+        more.setAttribute("aria-expanded", open ? "true" : "false");
+        more.textContent = open ? "收起" : "展开全部（还有 " + (items.length - INTRO_SHOW) + " 个）";
+      };
+      card.appendChild(more);
+    }
+    // 语法填空题：列出语法课名（小字）
+    var gram = {}, gl = [];
+    for (var g = 0; g < S.plan.questions.length; g++) {
+      var qq = S.plan.questions[g];
+      if (qq.mode === "fill" && qq.lesson && !gram[qq.lesson.id]) { gram[qq.lesson.id] = 1; gl.push(qq.lesson.titleZh || qq.lesson.title || ""); }
+    }
+    if (gl.length) card.appendChild(el("div", "lv-note", "还有语法填空：" + gl.join("、")));
+    if (!items.length && !gl.length) card.appendChild(el("div", "lv-note", lv.introZh || "准备好了吗？我们出发吧！"));
+    s.appendChild(card);
+    // 3) 一行小图标：❤5 · ★★★ · 💡（背单词关：没有心、不算星星）+ “?” 看完整说明
+    var stat = el("div", "lv-stats");
+    var rules = el("div", "lv-rules");
+    rules.id = "lv-rules";
+    rules.hidden = true;
+    if (S.plan.learn) {
+      var sb = el("span", "lv-stat");
+      sb.appendChild(icon("book", ""));
+      sb.appendChild(document.createTextNode(" " + S.plan.learn.cards.length + " 个"));
+      stat.appendChild(sb);
+      stat.appendChild(el("span", "lv-stat is-muted", "不扣心 · 不计星"));
+      rules.textContent = "先看、先听，没有心，不会失败。" + (S.plan.learn.checks.length ? "学完做 " + S.plan.learn.checks.length + " 道小练习（答错不扣心）。" : "") + "背单词关不算星星，学完会标上“学过了”。";
+    } else {
+      var sh = el("span", "lv-stat");
+      sh.setAttribute("aria-label", HEARTS + " 颗心");
+      sh.appendChild(icon("heart", "❤"));
+      sh.appendChild(document.createTextNode(String(HEARTS)));
+      stat.appendChild(sh);
+      var ss = el("span", "lv-stat lv-stars");
+      ss.setAttribute("aria-label", "最多 3 颗星");
+      for (var k3 = 0; k3 < 3; k3++) ss.appendChild(icon("star", "★"));
+      stat.appendChild(ss);
+      var sl = el("span", "lv-stat");
+      sl.setAttribute("aria-label", "可以用提示");
+      sl.appendChild(icon("bulb", "?"));
+      stat.appendChild(sl);
+      rules.textContent = HEARTS + " 颗心：答错一次少一颗，心用完就要重来。错 0–1 次得 3 颗星，2–3 次得 2 颗星，更多得 1 颗星。不会时可以点“提示”（用了这一关最多 2 颗星）。";
+    }
     var p = P();
     var rec = !lv.isDaily && p ? p.getLevel(lv.id) : null;
-    if (rec && rec.stars) s.appendChild(el("p", "sheet-best", "最好成绩：" + stars(rec.stars) + "（正确率 " + rec.best + "%）"));
+    if (rec && rec.stars && !S.plan.learn) {
+      var bs = el("span", "lv-stat lv-best", "最好 ");
+      for (var k4 = 0; k4 < 3; k4++) bs.appendChild(icon(k4 < rec.stars ? "star" : "star-empty", k4 < rec.stars ? "★" : "☆"));
+      bs.setAttribute("aria-label", "最好成绩 " + rec.stars + " 颗星，正确率 " + rec.best + "%");
+      stat.appendChild(bs);
+    } else if (rec && rec.plays && S.plan.learn) stat.appendChild(el("span", "lv-stat lv-best", "学过 " + rec.plays + " 次"));
     if (lv.isDaily && p) {
-      var d = p.getDaily(lv.day);
-      if (d && d.done) s.appendChild(el("p", "sheet-best", "✓ 今天的奖励已经领过了，还可以再练。"));
+      var dd = p.getDaily(lv.day);
+      if (dd && dd.done) stat.appendChild(el("span", "lv-stat lv-best", "今天已领奖"));
     }
-    setFoot({ buttons: [{ text: "开始 ▶", id: "start-btn", onClick: function () { next(); } }] });
+    var qb = el("button", "lv-help", "?");
+    qb.type = "button";
+    qb.id = "lv-help";
+    qb.setAttribute("aria-label", "规则说明");
+    qb.setAttribute("aria-expanded", "false");
+    qb.setAttribute("aria-controls", "lv-rules");
+    qb.onclick = function () {
+      rules.hidden = !rules.hidden;
+      qb.setAttribute("aria-expanded", rules.hidden ? "false" : "true");
+    };
+    stat.appendChild(qb);
+    s.appendChild(stat);
+    s.appendChild(rules);
+    setFoot({ buttons: [{ text: S.plan.learn ? "开始学" : "开始", id: "start-btn", onClick: function () { next(); } }] });
   }
 
   function stars(n) {
@@ -781,9 +934,19 @@
   }
   function enableCheck(on) { if (mainBtn && mainBtn.id === "check-btn") mainBtn.disabled = !on; }
 
+  // 题目标题（阶段 20：一行）：小题型图标 + 说明文字（+ 右边的 💡 提示按钮，见 hintButton）。原来单独一行的题型小标签去掉了
   function head(s, kind, zh) {
-    s.appendChild(el("div", "q-kind", W.MODE_INFO[kind].icon + " " + W.MODE_INFO[kind].zh));
-    var t = el("div", "q-title", zh);
+    var info = W.MODE_INFO[kind];
+    var t = el("div", "q-title q-title-row");
+    var k = el("span", "q-kicon");
+    k.setAttribute("role", "img");
+    k.setAttribute("aria-label", info.zh);
+    k.title = info.zh;
+    var nm = window.Icons && window.Icons.EMOJI ? window.Icons.EMOJI[info.icon] || window.Icons.EMOJI[info.icon.replace(/️/g, "")] : null;
+    if (nm) k.appendChild(window.Icons.el(nm));
+    else k.textContent = info.icon;
+    t.appendChild(k);
+    t.appendChild(el("span", "q-title-text", zh));
     s.appendChild(t);
     return t;
   }
@@ -805,7 +968,8 @@
       if (r === false || r === null) b.disabled = true;
       else if (r) b.textContent = r;
     };
-    if (title.classList.contains("q-title")) {
+    if (title.classList.contains("q-title-row")) title.classList.add("has-hint"); // head() 已经分好图标和文字
+    else if (title.classList.contains("q-title")) {
       var txt = el("span", "q-title-text", title.textContent);
       title.textContent = "";
       title.appendChild(txt);

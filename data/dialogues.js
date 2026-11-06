@@ -533,5 +533,294 @@ window.DIALOGUES = [
       { who: "them", es: "¡Genial! ¡Hasta mañana, Lin!", zh: "太好了！明天见，Lin！", en: "Great! See you tomorrow, Lin!",
         note: "新词：¡Genial! = 太好了！太棒了！，西班牙口语很常用。" }
     ]
+  },
+
+  // ===== 阶段 19 新增（只写西语 + 中文；配合冒险地图的 4 个新地区）=====
+  // 9 —— 餐厅点今日套餐
+  {
+    id: "restaurant-menu",
+    titleZh: "点今日套餐",
+    sceneZh: "中午，你和朋友走进一家小餐厅。服务员 Manuel 过来招呼你们。",
+    partner: "Manuel",
+    lines: [
+      { who: "them", es: "¡Buenas tardes! ¿Cuántos son?", zh: "下午好！你们几位？",
+        note: "¿Cuántos son? = 你们是几个人？" },
+      { who: "me",
+        hintZh: "你们两个人，要一张两人桌。",
+        options: [
+          { es: "La cuenta, por favor.", zh: "请买单。", correct: false, whyZh: "还没吃饭呢！la cuenta 是吃完饭买单时说的。" },
+          { es: "Una mesa para dos, por favor.", zh: "请给我们一张两人桌。", correct: true },
+          { es: "Son dos euros.", zh: "一共两欧元。", correct: false, whyZh: "他问你们几位，不是问价钱。" }
+        ],
+        alsoOk: ["Para dos, por favor.", "Somos dos.", "Una mesa para dos."],
+        note: ""
+      },
+      { who: "them", es: "Muy bien. Aquí tienen la carta. Hoy tenemos menú del día.", zh: "好的。这是菜单。今天有今日套餐。",
+        note: "aquí tienen = 给你们（对两个人以上说）。menú del día = 今日套餐，西班牙午饭时很常见。" },
+      { who: "me",
+        hintZh: "请他推荐一下。",
+        options: [
+          { es: "¿Dónde está la estación?", zh: "车站在哪儿？", correct: false, whyZh: "这是问路的话；现在要点菜。" },
+          { es: "¡Hasta luego!", zh: "回头见！", correct: false, whyZh: "刚坐下，还不是告别的时候。" },
+          { es: "¿Qué me recomienda?", zh: "您推荐什么？", correct: true }
+        ],
+        alsoOk: ["¿Qué recomienda?", "¿Qué hay de primero?"],
+        note: "recomienda = 您推荐（来自 recomendar）。"
+      },
+      { who: "them", es: "De primero, sopa o ensalada. De segundo, pollo o pescado.", zh: "第一道菜有汤或沙拉。第二道菜有鸡肉或鱼。",
+        note: "o = 或者。" },
+      { who: "me",
+        hintZh: "第一道菜要沙拉。",
+        options: [
+          { es: "De primero, una ensalada.", zh: "第一道菜我要沙拉。", correct: true },
+          { es: "De postre, una ensalada.", zh: "甜点我要沙拉。", correct: false, whyZh: "de postre 是甜点；沙拉是第一道菜，要说 de primero。" },
+          { es: "La ensalada está fría.", zh: "沙拉是凉的。", correct: false, whyZh: "菜还没上呢；现在要说你点什么。" }
+        ],
+        alsoOk: ["Una ensalada, por favor.", "De primero, ensalada.", "De primero, la ensalada."],
+        note: ""
+      },
+      { who: "them", es: "¿Y de segundo?", zh: "第二道菜呢？" },
+      { who: "me",
+        hintZh: "第二道菜要鱼。",
+        options: [
+          { es: "De segundo, pez.", zh: "（错误说法）", correct: false, whyZh: "pez 是水里活的鱼；做成菜的鱼要说 pescado。" },
+          { es: "Sin cebolla, por favor.", zh: "请不要放洋葱。", correct: false, whyZh: "他在问第二道菜要什么。" },
+          { es: "De segundo, pescado.", zh: "第二道菜我要鱼。", correct: true }
+        ],
+        alsoOk: ["Pescado, por favor.", "De segundo, el pescado."],
+        note: ""
+      },
+      { who: "them", es: "¿Y para beber?", zh: "喝点什么？" },
+      { who: "me",
+        hintZh: "要一杯橙汁。",
+        options: [
+          { es: "Un zumo de naranja, por favor.", zh: "请来一杯橙汁。", correct: true },
+          { es: "Un zumo de patata, por favor.", zh: "请来一杯土豆汁。", correct: false, whyZh: "patata 是土豆，可没有土豆汁！橙子是 naranja。" },
+          { es: "Tengo sed.", zh: "我渴了。", correct: false, whyZh: "他问你喝什么，要直接说出饮料的名字。" }
+        ],
+        alsoOk: ["Un zumo, por favor.", "Un zumo de naranja."],
+        note: "zumo（果汁）是西班牙的说法；拉美说 jugo。"
+      },
+      { who: "them", es: "Muy bien. ¡Que aproveche!", zh: "好的。祝您胃口好！" },
+      { who: "me",
+        hintZh: "谢谢他。",
+        options: [
+          { es: "De nada.", zh: "不客气。", correct: false, whyZh: "de nada 是回答“谢谢”的；他祝你吃好，你要说谢谢。" },
+          { es: "Muchas gracias.", zh: "非常感谢。", correct: true },
+          { es: "Lo siento.", zh: "对不起。", correct: false, whyZh: "你没做错事，不用道歉。" }
+        ],
+        alsoOk: ["Gracias.", "¡Gracias!"],
+        note: ""
+      }
+    ]
+  },
+
+  // 10 —— 超市付钱
+  {
+    id: "supermarket-pay",
+    titleZh: "在超市付钱",
+    sceneZh: "你在超市买好了东西，来到收银台。收银员 Rosa 笑着跟你打招呼。",
+    partner: "Rosa",
+    lines: [
+      { who: "them", es: "¡Buenos días! ¿Necesita bolsa?", zh: "早上好！您要袋子吗？" },
+      { who: "me",
+        hintZh: "说要，请她给你一个袋子。",
+        options: [
+          { es: "Sí, una botella, por favor.", zh: "要，请给我一个瓶子。", correct: false, whyZh: "botella 是瓶子；她问的是袋子 bolsa。" },
+          { es: "Sí, una bolsa, por favor.", zh: "要，请给我一个袋子。", correct: true },
+          { es: "¿Quién es el último?", zh: "谁是最后一位？", correct: false, whyZh: "你已经排到收银台了，不用再问谁是最后一个。" }
+        ],
+        alsoOk: ["Sí, por favor.", "Sí, gracias.", "Una bolsa, por favor."],
+        note: ""
+      },
+      { who: "them", es: "Son doce euros con cincuenta.", zh: "一共十二欧元五十分。",
+        note: "con cincuenta = 五十分（欧分）。价格常常这样说。" },
+      { who: "me",
+        hintZh: "问能不能刷卡。",
+        options: [
+          { es: "¿Cuánto cuesta?", zh: "多少钱？", correct: false, whyZh: "她刚刚告诉你一共多少钱了。" },
+          { es: "¿Puedo pagar con tarjeta?", zh: "我能刷卡吗？", correct: true },
+          { es: "Es muy barato.", zh: "很便宜。", correct: false, whyZh: "你想问能不能刷卡，不是评价价格。" }
+        ],
+        alsoOk: ["Con tarjeta, por favor.", "¿Con tarjeta?"],
+        note: ""
+      },
+      { who: "them", es: "Lo siento, la máquina no funciona. ¿Tiene efectivo?", zh: "抱歉，刷卡机坏了。您有现金吗？",
+        note: "la máquina = 机器；no funciona = 不能用了、坏了。" },
+      { who: "me",
+        hintZh: "说有，把二十欧元递给她。",
+        options: [
+          { es: "Tengo una reserva.", zh: "我有预订。", correct: false, whyZh: "这是在酒店、餐厅说的；她问你有没有现金。" },
+          { es: "No tengo dinero.", zh: "我没有钱。", correct: false, whyZh: "你钱包里有二十欧元现金，可以付。" },
+          { es: "Sí, aquí tiene veinte euros.", zh: "有，给您二十欧元。", correct: true }
+        ],
+        alsoOk: ["Sí, pago en efectivo.", "Sí, aquí tiene.", "Aquí tiene veinte euros."],
+        note: "aquí tiene = 给您（递东西时说）。"
+      },
+      { who: "them", es: "Gracias. Aquí tiene el cambio: siete euros con cincuenta.", zh: "谢谢。这是找您的钱：七欧元五十分。" },
+      { who: "me",
+        hintZh: "谢谢她，然后道别。",
+        options: [
+          { es: "Gracias, ¡hasta luego!", zh: "谢谢，再见！", correct: true },
+          { es: "¿Dónde están los huevos?", zh: "鸡蛋在哪儿？", correct: false, whyZh: "钱都付完了，现在该道别了。" },
+          { es: "Una mesa para dos.", zh: "一张两人桌。", correct: false, whyZh: "这是在餐厅说的话。" }
+        ],
+        alsoOk: ["Muchas gracias. ¡Adiós!", "Gracias, adiós.", "¡Gracias!"],
+        note: ""
+      },
+      { who: "them", es: "¡Hasta luego! ¡Que tenga un buen día!", zh: "再见！祝您今天愉快！",
+        note: "¡Que tenga un buen día! = 祝您今天过得愉快！（对 usted 说）" }
+    ]
+  },
+
+  // 11 —— 第一节西语课
+  {
+    id: "school-class",
+    titleZh: "第一节西语课",
+    sceneZh: "今天是你在语言学校上的第一节课。老师 Marisa 走进教室。",
+    partner: "Marisa",
+    lines: [
+      { who: "them", es: "¡Buenos días! Tú eres Lin, ¿verdad?", zh: "早上好！你是 Lin，对吧？",
+        note: "¿verdad? = 对吧？是不是？放在句子最后。" },
+      { who: "me",
+        hintZh: "说是的，你就是 Lin，也问声早上好。",
+        options: [
+          { es: "No, soy profesora.", zh: "不，我是老师。", correct: false, whyZh: "你是学生 Lin，老师是 Marisa。" },
+          { es: "Sí, soy Lin. ¡Buenos días!", zh: "是的，我是 Lin。早上好！", correct: true },
+          { es: "Me duele la garganta.", zh: "我嗓子疼。", correct: false, whyZh: "答非所问：老师在问你是不是 Lin。" }
+        ],
+        alsoOk: ["Sí, soy Lin.", "Sí, buenos días.", "Sí, ¡buenos días!"],
+        note: ""
+      },
+      { who: "them", es: "Muy bien. Abre el libro en la página diez, por favor.", zh: "很好。请把书翻到第十页。",
+        note: "abre = 打开（对“你”说的命令）；la página = 页。" },
+      { who: "me",
+        hintZh: "你没听清第几页，问一下老师。",
+        options: [
+          { es: "¿En qué página estamos?", zh: "我们在第几页？", correct: true },
+          { es: "¿Qué hora es?", zh: "几点了？", correct: false, whyZh: "你想问的是第几页，不是时间。" },
+          { es: "Tengo sueño.", zh: "我困了。", correct: false, whyZh: "上课第一天可别这么说！你想问第几页。" }
+        ],
+        alsoOk: ["¿Qué página?", "Perdón, ¿qué página?", "¿Puede repetir, por favor?"],
+        note: ""
+      },
+      { who: "them", es: "En la página diez. ¿Tienes bolígrafo?", zh: "第十页。你有圆珠笔吗？" },
+      { who: "me",
+        hintZh: "说没有，请老师借你一支。",
+        options: [
+          { es: "Sí, tengo un libro.", zh: "有，我有一本书。", correct: false, whyZh: "老师问的是圆珠笔 bolígrafo，不是书。" },
+          { es: "Tengo un examen.", zh: "我有一场考试。", correct: false, whyZh: "答非所问：老师问你有没有笔。" },
+          { es: "No, lo siento. ¿Me prestas uno?", zh: "没有，不好意思。你能借我一支吗？", correct: true }
+        ],
+        alsoOk: ["No. ¿Me prestas un bolígrafo?", "No, ¿me prestas un bolígrafo, por favor?", "No, lo siento."],
+        note: "uno = 一个（这里指一支笔）。在西班牙，学生常用 tú 和老师说话。"
+      },
+      { who: "them", es: "Claro, toma. Ahora escribe tu nombre en el cuaderno.", zh: "当然，拿着。现在在本子上写下你的名字。",
+        note: "toma = 拿着（递东西给对方时说）；ahora = 现在；escribe = 写（对“你”说的命令）。" },
+      { who: "me",
+        hintZh: "写好了，告诉老师你做完了。",
+        options: [
+          { es: "No lo sé.", zh: "我不知道。", correct: false, whyZh: "老师让你写名字，写好了就说“我做完了”。" },
+          { es: "Ya he terminado.", zh: "我已经做完了。", correct: true },
+          { es: "¿Puedo entrar?", zh: "我可以进来吗？", correct: false, whyZh: "你已经在教室里了。" }
+        ],
+        alsoOk: ["He terminado.", "Ya está."],
+        note: ""
+      },
+      { who: "them", es: "¡Muy bien! ¿Tienes alguna pregunta?", zh: "很好！你有什么问题吗？",
+        note: "alguna = 某个、什么（阴性，因为 pregunta 是阴性）。" },
+      { who: "me",
+        hintZh: "问明天有没有作业。",
+        options: [
+          { es: "¿Hay un supermercado cerca?", zh: "附近有超市吗？", correct: false, whyZh: "这是问超市；你想问的是作业。" },
+          { es: "¿Hay deberes para mañana?", zh: "明天有作业吗？", correct: true },
+          { es: "El examen es fácil.", zh: "考试很容易。", correct: false, whyZh: "这不是问题；你想问明天有没有作业。" }
+        ],
+        alsoOk: ["¿Hay deberes?", "¿Tenemos deberes para mañana?"],
+        note: "los deberes = 作业（西班牙的说法；拉美说 la tarea）。"
+      },
+      { who: "them", es: "Sí, la página once. ¡Hasta mañana!", zh: "有，第十一页。明天见！" },
+      { who: "me",
+        hintZh: "跟老师说明天见。",
+        options: [
+          { es: "¡Buenos días!", zh: "早上好！", correct: false, whyZh: "下课了，要道别，不是打招呼。" },
+          { es: "Mucho gusto.", zh: "很高兴认识你。", correct: false, whyZh: "这是第一次见面时说的，现在要道别。" },
+          { es: "¡Hasta mañana, profesora!", zh: "老师，明天见！", correct: true }
+        ],
+        alsoOk: ["¡Hasta mañana!", "¡Adiós!", "¡Adiós, profesora!", "¡Hasta mañana, Marisa!"],
+        note: ""
+      }
+    ]
+  },
+
+  // 12 —— 海边的一天
+  {
+    id: "beach-day",
+    titleZh: "海边的一天",
+    sceneZh: "夏天的上午，你来到海滩。救生员 Álex 坐在高高的椅子上跟你打招呼。",
+    partner: "Álex",
+    lines: [
+      { who: "them", es: "¡Hola! ¡Qué calor hace hoy!", zh: "你好！今天真热啊！",
+        note: "¡Qué calor! = 好热啊！" },
+      { who: "me",
+        hintZh: "同意他：是啊，今天很热。",
+        options: [
+          { es: "Sí, hace mucho frío.", zh: "是啊，天很冷。", correct: false, whyZh: "calor 是热，frío 是冷，意思反了。" },
+          { es: "Sí, hace mucho calor.", zh: "是啊，很热。", correct: true },
+          { es: "Está nublado.", zh: "天阴了。", correct: false, whyZh: "今天出大太阳，一片云也没有。" }
+        ],
+        alsoOk: ["Sí, hoy hace mucho calor.", "¡Sí, mucho calor!", "Sí, hace calor."],
+        note: ""
+      },
+      { who: "them", es: "¿Sabes nadar?", zh: "你会游泳吗？" },
+      { who: "me",
+        hintZh: "说会一点点。",
+        options: [
+          { es: "Sí, un poco.", zh: "会，一点点。", correct: true },
+          { es: "Me duele el estómago.", zh: "我肚子疼。", correct: false, whyZh: "答非所问：他问你会不会游泳。" },
+          { es: "Sí, me gusta leer.", zh: "是的，我喜欢看书。", correct: false, whyZh: "他问的是游泳 nadar，不是看书。" }
+        ],
+        alsoOk: ["Sí.", "Sí, sé nadar.", "Sí, un poco, gracias."],
+        note: "sé nadar = 我会游泳（sé 来自 saber）。"
+      },
+      { who: "them", es: "¡Cuidado! El agua está fría y hoy hay muchas olas.", zh: "小心！水很凉，今天浪也很大。",
+        note: "las olas = 海浪；hay muchas olas = 浪很多、浪很大。" },
+      { who: "me",
+        hintZh: "那还是去游泳池吧：问他游泳池在哪儿。",
+        options: [
+          { es: "¿Dónde está la playa?", zh: "海滩在哪儿？", correct: false, whyZh: "你已经在海滩上了；你想去游泳池 piscina。" },
+          { es: "¿A qué hora abre el museo?", zh: "博物馆几点开门？", correct: false, whyZh: "你想去游泳，不是去博物馆。" },
+          { es: "¿Dónde está la piscina?", zh: "游泳池在哪儿？", correct: true }
+        ],
+        alsoOk: ["¿Hay una piscina cerca?", "Perdón, ¿dónde está la piscina?"],
+        note: ""
+      },
+      { who: "them", es: "Está allí, a cinco minutos. Y usa crema solar, el sol es muy fuerte.", zh: "在那边，走五分钟就到。还有，抹点防晒霜，太阳很毒。",
+        note: "usa = 用（对“你”说的命令）；fuerte = 强烈的。" },
+      { who: "me",
+        hintZh: "告诉他你没有防晒霜。",
+        options: [
+          { es: "No tengo toalla.", zh: "我没有毛巾。", correct: false, whyZh: "他说的是防晒霜 crema solar，不是毛巾。" },
+          { es: "No tengo crema solar.", zh: "我没有防晒霜。", correct: true },
+          { es: "Tengo una reserva.", zh: "我有预订。", correct: false, whyZh: "这是在酒店说的话。" }
+        ],
+        alsoOk: ["Lo siento, no tengo crema solar.", "No tengo crema."],
+        note: ""
+      },
+      { who: "them", es: "No pasa nada, aquí tienes mi crema.", zh: "没关系，用我的防晒霜吧。",
+        note: "aquí tienes = 给你（对朋友说；对“您”说 aquí tiene）。" },
+      { who: "me",
+        hintZh: "谢谢他，说他人真好。",
+        options: [
+          { es: "De nada.", zh: "不客气。", correct: false, whyZh: "是他帮了你，你要说谢谢；de nada 是回答谢谢的。" },
+          { es: "¡Muchas gracias! Muy amable.", zh: "非常感谢！您真好。", correct: true },
+          { es: "¡Qué aburrido!", zh: "真无聊！", correct: false, whyZh: "他帮了你，这样说很没礼貌。" }
+        ],
+        alsoOk: ["¡Gracias!", "Muchas gracias.", "¡Muchas gracias!"],
+        note: "muy amable = 您真好；谢谢您的好意。"
+      },
+      { who: "them", es: "¡De nada! ¡Que lo pases bien!", zh: "不客气！玩得开心！",
+        note: "¡Que lo pases bien! = 祝你玩得开心！" }
+    ]
   }
 ];

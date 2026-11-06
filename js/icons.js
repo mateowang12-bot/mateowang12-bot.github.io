@@ -50,6 +50,9 @@
     party: function () { return P("s p", "M8 41l7-22 14 14z") + L("M15 19l-3 9M19 23l-4 12") + C("s y", 33, 11, 3) + C("s r", 40, 22, 2.5) + C("s b", 24, 8, 2) + L("M28 18c3-4 7-4 9-1M31 25c4-1 7 1 8 4"); },
     // 挑战码 PK（阶段 17）：红蓝两半的圆 + 中间一道黄色闪电（两个人比一比）
     duel: function () { return C("r", 24, 24, 18) + P("b", "M36.7 11.3A18 18 0 0111.3 36.7z") + C("ln", 24, 24, 18) + P("s y", "M27 8l-9 15h7l-4 17 11-19h-7l5-13z") + HL(15, 16, 3.5); },
+    // 背诵模式（阶段 22）：一叠卡片（后面紫、黄两张斜着）+ 最前面的白卡上一个粉色的小脑袋
+    memorize: function () { return P("s p", "M4 15l17-7 9 22-17 7z") + P("s y", "M13 9l18-3 4 25-18 3z") + R("s w", 18, 11, 25, 31, 5) +
+      E("s pk", 26.5, 25, 5, 6.5) + E("s pk", 34.5, 25, 5, 6.5) + L("M30.5 19v13M24 23q2.5 .5 2.5 3M37 23q-2.5 .5-2.5 3") + HL(24, 21, 1.6) + R("gy", 23, 35, 15, 2.5, 1.2); },
     trophy: function () { return P("s y", "M14 8h20v8a10 10 0 01-20 0z") + L("M14 11H8c0 6 3 9 7 9M34 11h6c0 6-3 9-7 9") + R("s y", 21, 25, 6, 8, 1) + R("s br", 14, 33, 20, 8, 3) + HL(19, 12, 2.5, 3.5); },
     medal: function (c) { return P("s r", "M14 5h8l4 12h-8zM34 5h-8l-4 12h8z") + C("s " + (c || "y"), 24, 30, 12) + C("ring", 24, 30, 7) + HL(19, 25, 3); },
     "medal-bronze": function () { return D.medal("br"); },
@@ -111,6 +114,19 @@
     "r-pharmacy": function () { return R("s w", 6, 6, 36, 36, 9) + P("s g", "M19 11h10v8h8v10h-8v8H19v-8h-8V19h8z"); },
     "r-farm": function () { return P("s r", "M6 20L24 7l18 13v22H6z") + P("s w", "M17 42V28h14v14") + L("M17 28l14 14M31 28L17 42") + P("s w", "M20 16h8v6h-8z"); },
     "r-party": function () { return D.party(); },
+    // 阶段 20：新单元（data/levels.js 里 id 固定：restaurant / supermarket / school / beach）
+    // 餐厅：盘子里一份热菜，左边叉子、右边刀
+    "r-restaurant": function () { return C("s w", 24, 27, 14) + C("ring", 24, 27, 9.5) + C("s o", 24, 27, 6) + HL(21.5, 24.5, 2) + L("M21 13q-2-3 0-6M27 13q-2-3 0-6") +
+      P("s gy", "M3 6h2v8h1.2V6h2v8h1.2V6h2v10a3 3 0 01-2.6 3V42H6.4V19A3 3 0 013 16z") + P("s gy", "M40 6c5 3 5 13 1.5 16V42h-4V6z"); },
+    // 超市：购物车 + 车里的东西
+    "r-supermarket": function () { return R("s g", 16, 7, 8, 11, 2) + R("s r", 25, 9, 8, 9, 2) + C("s o", 35, 13, 4.5) + L("M3 8h6l5 23h25") +
+      P("s y", "M10 15h34l-4.5 13H13z") + L("M18 15v13M26 15v13M34 15v13") + C("s gy", 17, 38, 3.8) + C("s gy", 35, 38, 3.8); },
+    // 学校：红屋顶的小楼 + 钟 + 小旗
+    "r-school": function () { return L("M24 9V2") + P("s r", "M24 2h8l-2.5 3 2.5 3h-8z") + P("s r", "M4 22L24 9l20 13") + R("s y", 8, 20, 32, 22, 2) +
+      C("s w", 24, 19, 4) + L("M24 17v2.5h2") + R("s b", 12, 26, 6, 6, 1) + R("s b", 30, 26, 6, 6, 1) + R("s br", 20, 30, 8, 12, 1.5); },
+    // 海滩：太阳、遮阳伞、海浪和沙滩
+    "r-beach": function () { return C("s y", 37, 10, 5.5) + P("s cr", "M2 34c8-4 18-5 28-2 6 2 11 2 16 0v12H2z") + P("s b", "M2 40c4-3 7-3 11 0s7 3 11 0 7-3 11 0 7 3 11 0v6H2z") +
+      L("M19 37L25 16") + P("s r", "M9 21c4-8 14-12 24-7z") + P("s w", "M17 17.5c3-3 7-4.5 10-4.5l-3 6z") + HL(14, 18, 2); },
     // ---------- 主题皮肤 ----------
     "skin-default": function () { return D.leaf(); },
     "skin-ocean": function () { return P("s b", "M4 30c5-6 9-6 14 0s9 6 14 0 9-6 14 0v12H4z") + P("s t", "M4 22c5-6 9-6 14 0s9 6 14 0 9-6 14 0") + C("s y", 34, 11, 5); },
@@ -178,9 +194,15 @@
     train: { face: "y", ear: "mane", mane: "o", muzzle: "cr", nose: "dot", extra: "cap", hat: "r" }, // 售票员：小狮子
     pharmacy: { face: "w", ear: "round", inner: "pk", nose: "dot", extra: "glasses" },  // 药剂师：小羊
     farm: { face: "br", ear: "horn", muzzle: "cr", nose: "dot", extra: "hat", hat: "y" }, // 农场主：小牛
-    party: { face: "g", ear: "none", nose: "frog", extra: "hat", hat: "p" }        // 派对主人：小青蛙
+    party: { face: "g", ear: "none", nose: "frog", extra: "hat", hat: "p" },       // 派对主人：小青蛙
+    // 阶段 20：新单元
+    restaurant: { face: "pk", ear: "point", inner: "r", nose: "snout", extra: "hat", hat: "w" },   // 服务员 Manuel：小猪（白帽子）
+    supermarket: { face: "o", ear: "point", nose: "dot", extra: "cap", hat: "b" },                 // 收银员：小猫（蓝帽子）
+    school: { face: "cr", ear: "long", inner: "br", muzzle: "w", nose: "dot", extra: "glasses" },  // 老师：小狗（眼镜）
+    beach: { face: "k2", ear: "none", muzzle: "w", nose: "beak", beak: "o", extra: "hat", hat: "y" } // 救生员：小企鹅（草帽）
   };
-  var REGION_ICON = { airport: "r-airport", hotel: "r-hotel", cafe: "r-cafe", park: "r-park", home: "r-home", shop: "r-shop", train: "r-train", pharmacy: "r-pharmacy", farm: "r-farm", party: "r-party" };
+  var REGION_ICON = { airport: "r-airport", hotel: "r-hotel", cafe: "r-cafe", park: "r-park", home: "r-home", shop: "r-shop", train: "r-train", pharmacy: "r-pharmacy", farm: "r-farm", party: "r-party",
+    restaurant: "r-restaurant", supermarket: "r-supermarket", school: "r-school", beach: "r-beach" };
 
   function wrap(inner, viewBox) {
     return '<svg xmlns="' + NS + '" viewBox="' + (viewBox || "0 0 48 48") + '" focusable="false" aria-hidden="true">' + inner + "</svg>";
@@ -220,12 +242,12 @@
     "👀": "eye", "🔀": "shuffle", "🙂": "smile", "🧳": "suitcase", "🎯": "target", "👣": "footprints", "🌱": "sprout",
     "🌿": "leaf", "🌳": "tree", "📐": "ruler", "🎭": "masks", "🎮": "gamepad", "🤖": "robot", "🔤": "abc", "📇": "cards",
     "📚": "books", "🗺️": "map", "🗺": "map", "🎧": "headphones", "🔗": "link", "🧩": "puzzle", "⚡": "bolt", "🃏": "cards",
-    "🐼": "panda", "📦": "suitcase", "🌊": "skin-ocean", "🌅": "skin-sunset", "💜": "skin-violet", "👤": "smile", "🆚": "duel"
+    "🐼": "panda", "📦": "suitcase", "🌊": "skin-ocean", "🌅": "skin-sunset", "💜": "skin-violet", "👤": "smile", "🆚": "duel", "🧠": "memorize"
   };
   var EMOJI_RE = /\p{Extended_Pictographic}️?(?:‍\p{Extended_Pictographic}️?)*|[☀-➿]️?/gu;
   var EMOJI_TEST = /\p{Extended_Pictographic}|\u2606/u; // ☆（空星）不是 emoji，但也换成同一套的空星图标，和 ⭐ 一致
   // 单词内容（这些地方的 emoji 是单词配图：一律做成贴纸，不换成界面图标）
-  var WORDY = ".sticker-zone, .opt-emoji, .m-card, .match-card, .quiz-option, .quiz-feedback-zh, .quiz-feedback-word, .speed-flash, .p-review, .learn-emoji, .guess-hint, .flashcard, .word-list, .quiz-prompt-meaning, .review-card, .quiz-wrong-list, .game-list-box, .flash-zh, .fb-body, .bubble, .order-meaning, .card-toast-next";
+  var WORDY = ".sticker-zone, .opt-emoji, .m-card, .match-card, .quiz-option, .quiz-feedback-zh, .quiz-feedback-word, .speed-flash, .p-review, .learn-emoji, .guess-hint, .flashcard, .word-list, .quiz-prompt-meaning, .review-card, .quiz-wrong-list, .game-list-box, .flash-zh, .fb-body, .bubble, .order-meaning, .card-toast-next, .lv-items";
   function sticker(ch) {
     var s = document.createElement("span");
     s.className = "sticker";

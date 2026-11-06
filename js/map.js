@@ -7,6 +7,12 @@
 //   普通关：数字；对话任务关：💬；Boss 关：👑（更大）；锁住：🔒；过了：黄色 + 下面的星星 ⭐⭐☆。
 //   当前该玩的关卡上方有跳动的“开始”气泡；打开页面时自动滚到它。
 // 点关卡 → 弹出关卡卡片（标题、简介、题型、最好成绩）→ “开始” → pages/play.html#level=关卡id
+//
+// 阶段 20：一次只显示一个单元（区域），不再是一条很长的滚动地图。
+//   单元标题牌两边 ‹ › 换单元；手机左右滑（js/swipe.js）；电脑键盘 ← →；下面“第 3 / 14 单元”点开可以直接跳。
+//   关卡排成“蛇形”格子（一行从左到右、下一行从右到左），按屏幕高度选列数，390×844 一屏放下。
+//   打开时：到“现在该玩的关卡”所在的单元；如果上次看的单元之后进度没变，就回到上次看的单元
+//   （本机 localStorage 的 es-study-map-unit，和进度分开，不同步）。没解锁的单元也能看（灰色、锁住）。
 // ============================================
 (function () {
   var W = window.World;
@@ -99,7 +105,7 @@
     a.appendChild(el("div", "daily-icon", done ? "✅" : "📅")).setAttribute("aria-hidden", "true");
     var t = el("div", "");
     t.appendChild(el("div", "daily-title", "每日挑战"));
-    t.appendChild(el("div", "daily-sub", done ? "今天已完成 ✓ 还可以再练（奖励每天一次）" : "10 道混合题 · 通关 +30 XP、+3 ⭐"));
+    t.appendChild(el("div", "daily-sub", done ? "今天已完成 ✓ 还可以再练" : "10 道题 · +30 XP、+3 ⭐"));
     a.appendChild(t);
     a.appendChild(el("div", "daily-go", done ? "再练 ›" : "开始 ›"));
     box.appendChild(a);
@@ -202,26 +208,131 @@
 
   // ---------- 地图 ----------
   var cur = null;
-  function render() {
-    var box = $("map");
-    box.innerHTML = "";
-    var regs = W.regions();
-    cur = W.current();
-    if (window.Terrain) window.Terrain.ensureSprite();
-    for (var r = 0; r < regs.length; r++) {
-      var sec = regionEl(regs[r]);
-      // 地形背景（js/terrain.js）：底色从上一个区域的地形渐变过来
-      if (window.Terrain) window.Terrain.prepareRegion(sec, regs[r].id, r, r ? regs[r - 1].id : null, r - 1);
-      box.appendChild(sec);
+  // ---------- 阶段 20：一次一个单元 ----------
+  var UNIT_KEY = "es-study-map-unit"; // 本机记住上次看的单元（和进度分开）
+  var unitIdx = 0, swiper = null, slideDir = 0;
+  function loadUnit() {
+    try { var s = localStorage.getItem(UNIT_KEY); var o = s ? JSON.parse(s) : null; return o && typeof o === "object" ? o : null; } catch (e) { return null; }
+  }
+  function saveUnit() {
+    try {
+      var regs = W.regions();
+      if (regs[unitIdx]) localStorage.setItem(UNIT_KEY, JSON.stringify({ region: regs[unitIdx].id, cur: cur ? cur.id : "" }));
+    } catch (e) {}
+  }
+  // 打开时看哪个单元：上次看的单元（如果那之后“现在该玩的关”没变）；否则现在该玩的关所在的单元
+  function pickUnit(regs) {
+    var curIdx = cur && typeof cur.regionIndex === "number" ? cur.regionIndex : 0;
+    var saved = loadUnit();
+    if (saved && saved.cur === (cur ? cur.id : "")) {
+      for (var i = 0; i < regs.length; i++) if (regs[i].id === saved.region) return i;
     }
-    layout();
+    return curIdx;
+  }
+  function levelsDone(reg) {
+    var n = 0;
+    for (var i = 0; i < reg.levels.length; i++) if (W.isDone(reg.levels[i])) n++;
+    return n;
+  }
+  function goUnit(delta) {
+    var regs = W.regions();
+    var to = Math.max(0, Math.min(regs.length - 1, unitIdx + delta));
+    if (to === unitIdx) return;
+    slideDir = delta > 0 ? 1 : -1;
+    unitIdx = to;
+    render(true);
+    saveUnit();
+    var m = $("map");
+    if (m && m.getBoundingClientRect().top < 0) try { window.scrollTo(0, window.pageYOffset + m.getBoundingClientRect().top - 8); } catch (e) {}
+  }
+  function jumpUnit(i) {
+    slideDir = 0;
+    unitIdx = i;
+    render(true);
+    saveUnit();
+  }
+  function unitListSheet() {
+    var regs = W.regions();
+    openSheet(function (sh) {
+      sh.appendChild(el("div", "sheet-title", "选择单元"));
+      var list = el("div", "unit-list");
+      for (var i = 0; i < regs.length; i++) {
+        (function (reg, i) {
+          var unlocked = W.regionUnlocked(reg);
+          var b = el("button", "unit-row" + (i === unitIdx ? " is-here" : "") + (unlocked ? "" : " is-locked"));
+          b.type = "button";
+          var ic = el("span", "unit-row-ic");
+          if (window.Icons) ic.appendChild(window.Icons.el(window.Icons.region(reg.id))); else ic.textContent = reg.emoji || "";
+          b.appendChild(ic);
+          var tx = el("span", "unit-row-text");
+          tx.appendChild(el("span", "unit-row-kicker", "第 " + (i + 1) + " 站"));
+          tx.appendChild(el("span", "unit-row-name", reg.titleZh || ""));
+          b.appendChild(tx);
+          b.appendChild(el("span", "unit-row-meta", unlocked ? levelsDone(reg) + "/" + reg.levels.length + " 关" : "🔒"));
+          if (i === unitIdx) b.setAttribute("aria-current", "true");
+          b.onclick = function () {
+            closeSheet();
+            jumpUnit(i);
+            var ind = $("unit-ind");
+            if (ind) try { ind.focus(); } catch (e) {}
+          };
+          list.appendChild(b);
+        })(regs[i], i);
+      }
+      sh.appendChild(list);
+      var acts = el("div", "sheet-actions");
+      acts.appendChild(closeBtn());
+      sh.appendChild(acts);
+      var here = list.querySelector(".is-here");
+      if (here) setTimeout(function () { try { here.scrollIntoView({ block: "center" }); here.focus(); } catch (e) {} }, 0);
+    }, "选择单元");
   }
 
-  function regionEl(reg) {
+  function render(keep) {
+    var box = $("map");
+    box.innerHTML = "";
+    box.classList.add("is-unit");
+    document.body.classList.add("map-unit-page");
+    var regs = W.regions();
+    cur = W.current();
+    if (!regs.length) return;
+    if (!keep) unitIdx = pickUnit(regs);
+    unitIdx = Math.max(0, Math.min(regs.length - 1, unitIdx));
+    if (window.Terrain) window.Terrain.ensureSprite();
+    var reg = regs[unitIdx];
+    var sec = regionEl(reg, regs);
+    // 地形背景（js/terrain.js）：只有这一个单元，底色就用自己的
+    if (window.Terrain) window.Terrain.prepareRegion(sec, reg.id, unitIdx, null, -1);
+    if (slideDir) sec.classList.add(slideDir > 0 ? "slide-from-right" : "slide-from-left");
+    slideDir = 0;
+    box.appendChild(sec);
+    if (!swiper && window.addSwipe) swiper = window.addSwipe(box, { left: function () { goUnit(1); }, right: function () { goUnit(-1); } });
+    layout();
+    // 图标（js/icons.js）把文字里的 emoji 换成 SVG 以后，上面的高度会变一点：等一下再按真实高度排一次
+    if (relayoutTimer) clearTimeout(relayoutTimer);
+    relayoutTimer = setTimeout(function () { relayoutTimer = null; layout(); }, 80);
+  }
+  var relayoutTimer = null;
+
+  function regionEl(reg, regs) {
+    regs = regs || W.regions();
     var unlocked = W.regionUnlocked(reg);
     var sec = el("section", "region band-" + (reg.index % 6 + 1) + (unlocked ? "" : " is-locked"));
     sec.id = "region-" + reg.id;
     sec.setAttribute("aria-label", "第 " + (reg.index + 1) + " 站：" + (reg.titleZh || ""));
+    var headRow = el("div", "unit-head");
+    var prev = el("button", "unit-arrow is-prev", "‹");
+    prev.type = "button";
+    prev.id = "unit-prev";
+    prev.disabled = reg.index <= 0;
+    prev.setAttribute("aria-label", reg.index > 0 ? "上一个单元：" + (regs[reg.index - 1].titleZh || "") : "已经是第一个单元");
+    prev.onclick = function () { goUnit(-1); };
+    var next = el("button", "unit-arrow is-next", "›");
+    next.type = "button";
+    next.id = "unit-next";
+    next.disabled = reg.index >= regs.length - 1;
+    next.setAttribute("aria-label", reg.index < regs.length - 1 ? "下一个单元：" + (regs[reg.index + 1].titleZh || "") : "已经是最后一个单元");
+    next.onclick = function () { goUnit(1); };
     var sign = el("button", "region-sign");
     sign.type = "button";
     var re = el("span", "region-emoji");
@@ -229,16 +340,41 @@
     if (window.Icons) re.appendChild(window.Icons.el(window.Icons.region(reg.id))); else re.textContent = reg.emoji || "";
     sign.appendChild(re);
     var t = el("span", "region-title");
-    t.appendChild(el("span", "region-kicker", "第 " + (reg.index + 1) + " 站"));
+    var p0 = P();
+    var stamped = !!(p0 && p0.stamps && p0.stamps()[reg.id]);
+    t.appendChild(el("span", "region-kicker", "第 " + (reg.index + 1) + " 站" + (unlocked ? "" : " 🔒")));
     t.appendChild(document.createTextNode(reg.titleZh || ""));
     sign.appendChild(t);
     var rs = W.regionStars(reg);
-    var meta = el("span", "region-meta", "⭐ " + rs.got + "/" + rs.max);
+    var meta = el("span", "region-meta", (stamped ? "📮 " : "") + levelsDone(reg) + "/" + reg.levels.length + " 关");
     meta.appendChild(document.createElement("br"));
-    meta.appendChild(el("span", "story", unlocked ? "📖 故事" : "🔒"));
+    meta.appendChild(el("span", "story", "⭐ " + rs.got + "/" + rs.max));
     sign.appendChild(meta);
+    sign.setAttribute("aria-label", "第 " + (reg.index + 1) + " 站：" + (reg.titleZh || "") + "，完成 " + levelsDone(reg) + " / " + reg.levels.length + " 关，" + rs.got + " 颗星。点这里看故事");
     sign.onclick = function () { storySheet(reg); };
-    sec.appendChild(sign);
+    headRow.appendChild(prev);
+    headRow.appendChild(sign);
+    headRow.appendChild(next);
+    sec.appendChild(headRow);
+    var ind = el("button", "unit-ind");
+    ind.type = "button";
+    ind.id = "unit-ind";
+    ind.setAttribute("aria-label", "第 " + (reg.index + 1) + " 个单元，共 " + regs.length + " 个。点这里选择单元");
+    var dots = el("span", "unit-dots");
+    dots.setAttribute("aria-hidden", "true");
+    for (var d = 0; d < regs.length; d++) dots.appendChild(el("span", "unit-dot" + (d === reg.index ? " on" : "") + (W.regionUnlocked(regs[d]) ? "" : " off")));
+    ind.appendChild(dots);
+    ind.appendChild(el("span", "unit-ind-text", "第 " + (reg.index + 1) + " / " + regs.length + " 单元 ▾"));
+    ind.onclick = unitListSheet;
+    // 第二行：单元指示（点开选单元）+ “背一背本单元”（pages/memorize.html 背诵模式）
+    var bar = el("div", "unit-bar");
+    bar.appendChild(ind);
+    var memo = el("a", "unit-memo", "📖 背一背本单元");
+    memo.href = "pages/memorize.html#region=" + encodeURIComponent(reg.id) + "&kind=all";
+    memo.id = "unit-memo";
+    memo.setAttribute("aria-label", "背一背本单元：" + (reg.titleZh || "") + "的单词和句子");
+    bar.appendChild(memo);
+    sec.appendChild(bar);
 
     var path = el("div", "region-path");
     path.setAttribute("data-region", reg.id);
@@ -267,7 +403,7 @@
     b.type = "button";
     b.id = "node-" + lv.id;
     b.setAttribute("aria-label", "第 " + (lv.index + 1) + " 关：" + (lv.titleZh || "") + "，" + TYPE_ZH[lv.type] + "，" + (!unlocked ? "还没解锁" : isLearn ? (done ? "学过了" : (optional ? "可以补学" : "还没学")) : st ? st + " 颗星" : (optional ? "可以补做" : "还没过关")));
-    b.onclick = function () { levelSheet(lv); };
+    b.onclick = function () { if (swiper && swiper.justSwiped()) return; levelSheet(lv); };
     if (isCur) b.appendChild(el("span", "node-bubble", "开始 ▶")).setAttribute("aria-hidden", "true");
     wrap.appendChild(b);
     // 背单词 / 复习关的标题一般是“背句子：请和谢谢”这种：小标签放“：”前面的部分，标题只放后面的部分（不重复）
@@ -319,80 +455,126 @@
     };
     terrainTimer = setTimeout(step, 30);
   }
+  // 阶段 20：蛇形格子。一行 cols 个（一行从左到右、下一行从右到左），列数按屏幕剩下的高度选：放得下就少用几列（更好看）。
+  var CELL_MIN = 78, ROW_MIN = 96, ROW_MAX = 130, PAD_TOP = 10;
+  function availHeight(path) {
+    var top = path.getBoundingClientRect().top + window.pageYOffset;
+    var nav = document.getElementById("bottom-nav");
+    var nh = nav ? nav.getBoundingClientRect().height : 0; // 导航栏是 position: fixed（offsetParent 一直是 null，不能用它判断）
+    return (window.innerHeight || 700) - top - nh - 26;
+  }
   function layout() {
     terrainJobs = [];
     var paths = document.querySelectorAll(".region-path");
     for (var r = 0; r < paths.length; r++) {
       var path = paths[r];
       var nodes = path.querySelectorAll(".node-wrap");
+      var n = nodes.length;
       var w = path.clientWidth || 320;
-      // 左右摆动幅度：节点块宽 140px，不能超出地图；宽屏时最大 200px
-      var amp = Math.max(0, Math.min(200, (w - 150) / 2));
+      var maxCols = Math.max(2, Math.min(7, Math.floor(w / CELL_MIN)));
+      var rowsFit = Math.max(1, Math.floor((availHeight(path) - PAD_TOP) / ROW_MIN));
+      var cols = Math.max(Math.min(3, maxCols), Math.min(maxCols, Math.ceil(n / rowsFit)));
+      cols = Math.max(1, Math.min(cols, n));
+      var avail = availHeight(path) - PAD_TOP;
+      var rows, rowH, cellW;
+      // 先定宽度，量一下最高的一格（标题三行时更高），行距至少要放得下它，不压到下一行；
+      // 这样还放不下屏幕，就多用一列再试（最多到 maxCols）
+      for (;;) {
+        rows = Math.ceil(n / cols) || 1;
+        cellW = w / cols;
+        var tallest = 0;
+        for (var q = 0; q < n; q++) {
+          nodes[q].style.width = Math.floor(cellW - 4) + "px";
+          tallest = Math.max(tallest, nodes[q].offsetHeight + (nodes[q].classList.contains("is-boss") ? 0 : 5));
+        }
+        rowH = Math.max(ROW_MIN, tallest + 3, Math.min(ROW_MAX, Math.floor(avail / rows)));
+        if (rows * rowH <= avail || cols >= Math.min(maxCols, n)) break;
+        cols++;
+      }
       var pts = [];
       var old = path.querySelector("svg.trail-svg");
       if (old) path.removeChild(old);
-      for (var i = 0; i < nodes.length; i++) {
-        var x = w / 2 + amp * Math.sin(i * 1.15 + r * 0.7);
-        var y = TOP + i * ROW;
+      for (var i = 0; i < n; i++) {
+        var row = Math.floor(i / cols), c = i % cols;
+        if (row % 2 === 1) c = cols - 1 - c;
+        var x = cellW * (c + 0.5);
         var isBoss = nodes[i].querySelector(".is-boss");
-        var half = isBoss ? 38 : 32;
+        var half = isBoss ? 32 : 27;
+        var y = PAD_TOP + row * rowH + 32;
         nodes[i].style.left = x.toFixed(1) + "px";
         nodes[i].style.top = (y - half).toFixed(1) + "px";
-        // “开始”气泡放在朝地图中间的那一侧（节点在右半边 → 气泡在左边）
-        nodes[i].classList.toggle("bubble-left", x > w / 2 + 1);
-        pts.push({ x: x, y: y, done: !!nodes[i].querySelector(".is-done") });
+        nodes[i].style.width = Math.floor(cellW - 4) + "px";
+        nodes[i].style.marginLeft = (-Math.floor(cellW - 4) / 2).toFixed(1) + "px";
+        nodes[i].classList.remove("bubble-left");
+        pts.push({ x: x, y: y, row: row, done: !!nodes[i].querySelector(".is-done") });
       }
-      path.style.height = (TOP + (nodes.length - 1) * ROW + 116) + "px";
+      var h = PAD_TOP + rows * rowH;
+      path.style.height = h + "px";
       var svg = document.createElementNS(SVGNS, "svg");
       svg.setAttribute("class", "trail-svg");
       svg.setAttribute("aria-hidden", "true");
       svg.setAttribute("focusable", "false");
       for (var k = 1; k < pts.length; k++) {
-        var a = pts[k - 1], b = pts[k];
-        var d = "M" + a.x.toFixed(1) + " " + a.y.toFixed(1) + " C" + a.x.toFixed(1) + " " + (a.y + ROW / 2).toFixed(1) + " " +
-          b.x.toFixed(1) + " " + (b.y - ROW / 2).toFixed(1) + " " + b.x.toFixed(1) + " " + b.y.toFixed(1);
+        var a = pts[k - 1], b = pts[k], d;
+        if (a.row === b.row) {
+          // 同一行：微微弯一点的线
+          d = "M" + a.x.toFixed(1) + " " + a.y.toFixed(1) + " Q" + ((a.x + b.x) / 2).toFixed(1) + " " + (a.y + (k % 2 ? 12 : -12)) + " " + b.x.toFixed(1) + " " + b.y.toFixed(1);
+        } else {
+          // 换行：在这一侧往外绕一个弯
+          var dir = b.x > w / 2 ? 1 : -1, bulge = Math.min(cellW * 0.5, 46);
+          d = "M" + a.x.toFixed(1) + " " + a.y.toFixed(1) + " C" + (a.x + dir * bulge).toFixed(1) + " " + a.y.toFixed(1) + " " +
+            (b.x + dir * bulge).toFixed(1) + " " + b.y.toFixed(1) + " " + b.x.toFixed(1) + " " + b.y.toFixed(1);
+        }
         var pe = document.createElementNS(SVGNS, "path");
         pe.setAttribute("d", d);
         pe.setAttribute("class", "trail" + (a.done ? " done" : ""));
         svg.appendChild(pe);
       }
       path.insertBefore(svg, path.firstChild);
-      // 地形景物：放在路径后面、节点的另一侧
       if (window.Terrain) {
         var rid = path.getAttribute("data-region");
         var rg = W.getRegion(rid);
-        terrainJobs.push({ path: path, id: rid, index: rg ? rg.index : r, w: w, h: TOP + (nodes.length - 1) * ROW + 116, pts: pts });
+        terrainJobs.push({ path: path, id: rid, index: rg ? rg.index : r, w: w, h: h, pts: pts });
       }
     }
     if (terrainJobs.length) runTerrain();
   }
 
+  // 当前关卡在这个单元里、但在屏幕下面（例如 320×568 小屏）：滚一下让它看得见
   function scrollToCurrent() {
     if (!cur) return;
     var n = document.getElementById("node-" + cur.id);
     if (!n) return;
     var r = n.getBoundingClientRect();
-    var y = window.pageYOffset + r.top - window.innerHeight / 2 + r.height / 2;
-    // 第一关：已经完整在屏幕里（离底部导航栏还有地方）就不滚，顶部的吉祥物也能看到
-    if (cur.order === 0 && r.top >= 0 && r.bottom < window.innerHeight - 140) return;
-    try { window.scrollTo(0, Math.max(0, y)); } catch (e) {}
+    var nav = document.getElementById("bottom-nav");
+    var bottom = window.innerHeight - (nav ? nav.getBoundingClientRect().height : 0) - 60;
+    if (r.top >= 0 && r.bottom <= bottom) return;
+    try { window.scrollTo(0, Math.max(0, window.pageYOffset + r.bottom - bottom)); } catch (e) {}
   }
 
-  function renderAll() {
+  function renderAll(keep) {
     renderTop();
     renderHero();
     renderDaily();
-    render();
+    render(keep === true);
     var note = $("map-note");
     if (note) note.hidden = !W.isFallback();
   }
+  // 电脑键盘：← → 换单元（弹出卡片开着、在输入框里时不管）
+  document.addEventListener("keydown", function (e) {
+    if (sheetBack || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var tg = e.target && e.target.tagName;
+    if (tg === "INPUT" || tg === "TEXTAREA" || tg === "SELECT") return;
+    if (e.key === "ArrowLeft") { goUnit(-1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { goUnit(1); e.preventDefault(); }
+  });
 
   var t = null;
   window.addEventListener("resize", function () {
     if (t) clearTimeout(t);
     t = setTimeout(layout, 120);
   });
-  window.addEventListener("progress-synced", renderAll);
+  window.addEventListener("progress-synced", function () { renderAll(true); });
   window.addEventListener("progress-xp", function () { renderTop(); renderHero(); });
   window.addEventListener("profile-changed", renderTop);
   window.addEventListener("pageshow", function (ev) { if (ev.persisted) { renderAll(); scrollToCurrent(); } });
@@ -400,5 +582,6 @@
 
   renderAll();
   scrollToCurrent();
-  window.MapView = { render: renderAll, layout: layout, levelSheet: levelSheet, storySheet: storySheet, closeSheet: closeSheet };
+  window.MapView = { render: renderAll, layout: layout, levelSheet: levelSheet, storySheet: storySheet, closeSheet: closeSheet,
+    goUnit: goUnit, jumpUnit: jumpUnit, unitIndex: function () { return unitIdx; }, unitList: unitListSheet };
 })();

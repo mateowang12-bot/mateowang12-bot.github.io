@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>背诵模式 · 竹竹西语</title>
+  <!-- App 图标（竹竹）：浏览器标签页图标 + iPhone 主屏幕图标 -->
+  <link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <script src="../js/skin-early.js"></script>
+  <!-- 离线网站 / 添加到主屏幕（由 tools/build-web.ps1 加入） -->
+  <link rel="manifest" href="../manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="竹竹西语">
+  <meta name="theme-color" content="#f7faf4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a14" media="(prefers-color-scheme: dark)">
+</head>
+<body class="memo-page">
+  <div class="container memo-wrap">
+
+    <!-- 1. 选范围 -->
+    <section id="memo-pick">
+      <a class="back-link" href="../index.html">‹ 返回首页</a>
+      <h1>背诵模式</h1>
+      <p class="memo-lead">不扣心、不计时。看一看、听一听，记住了就点“记住了”。</p>
+
+      <div class="memo-seg" id="memo-kinds" role="radiogroup" aria-label="背什么"></div>
+
+      <div class="memo-src-list" id="memo-wrong" role="radiogroup" aria-label="我的错题"></div>
+
+      <h2 class="memo-h2">按地图单元</h2>
+      <div class="memo-src-list" id="memo-regions" role="radiogroup" aria-label="地图单元"></div>
+
+      <div class="memo-start-bar">
+        <div class="memo-start-info" id="memo-start-info" aria-live="polite"></div>
+        <button type="button" class="btn btn-big btn-block" id="memo-start">开始背</button>
+      </div>
+    </section>
+
+    <!-- 2. 一张一张背 -->
+    <section id="memo-session" hidden>
+      <div class="memo-topbar">
+        <button type="button" class="memo-exit" id="memo-exit" aria-label="退出" title="退出">×</button>
+        <div class="pbar memo-bar" id="memo-bar" role="progressbar" aria-label="这一轮的进度" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0"><span id="memo-bar-fill"></span></div>
+        <span class="memo-count" id="memo-count">0 / 0</span>
+      </div>
+      <div class="memo-tools">
+        <button type="button" class="memo-toggle" id="memo-zh-first" aria-pressed="false"><span class="memo-toggle-dot" aria-hidden="true"></span>中文先</button>
+      </div>
+      <div class="memo-card" id="memo-card" role="button" tabindex="0"></div>
+      <div class="memo-actions" id="memo-actions"></div>
+    </section>
+
+    <!-- 3. 一轮背完 -->
+    <section id="memo-end" hidden>
+      <div class="memo-end" id="memo-end-body"></div>
+      <div class="memo-end-btns" id="memo-end-btns"></div>
+    </section>
+  </div>
+
+  <script src="../js/claude-bridge.js"></script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/sfx.js"></script>
+  <script src="../js/icons.js"></script>
+  <script src="../js/mascot.js"></script>
+  <script src="../data/alphabet.js"></script>
+  <script src="../data/words.js"></script>
+  <script src="../data/phrases.js"></script>
+  <script src="../data/grammar.js"></script>
+  <script src="../data/dialogues.js"></script>
+  <script src="../data/levels.js"></script>
+  <script src="../data/lexicon.js"></script>
+  <script src="../js/speak.js"></script>
+  <script src="../js/storage.js"></script>
+  <script src="../js/cloud-config.js"></script>
+  <script src="../js/cloud.js"></script>
+  <script src="../js/words-util.js"></script>
+  <script src="../js/world.js"></script>
+  <script src="../js/swipe.js"></script>
+  <script src="../js/pwa.js"></script>
+  <script src="../js/memorize.js"></script>
+</body>
+</html>
