@@ -184,6 +184,7 @@ svg { display: block; }
 .wr-ex span { display: block; }
 .wr-ex span:last-child { color: var(--text-3); }
 .word-row.open .wr-ex { display: block; }
+.word-row:active { background: var(--soft); }
 
 .say {
   width: 48px; height: 48px; flex: 0 0 48px;

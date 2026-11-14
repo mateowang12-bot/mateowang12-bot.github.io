@@ -137,33 +137,35 @@
       '<div class="today-bar"><i style="width:' + Math.min(100, Math.round(p.done / p.limit * 100)) + '%"></i></div>' +
       btn + '<p class="hint">' + hint + '</p></section>';
 
-    ['A1', 'A2'].forEach(function (lv) {
-      var list = Data.units.filter(function (u) { return u.level === lv; });
+    // A1、A2，然后“专业场景”（不进每天的新词，自己点进去学），最后是其他级别（以后的 B1 等）
+    var groups = [
+      { title: 'A1', sub: '入门', test: function (u) { return u.level === 'A1'; } },
+      { title: 'A2', sub: '基础', test: function (u) { return u.level === 'A2'; } },
+      { title: '专业场景', sub: '医院、工地等，点进去自己选着学', test: function (u) { return u.level === 'PRO'; } },
+      { title: '更多', sub: '', test: function (u) { return ['A1', 'A2', 'PRO'].indexOf(u.level) < 0; } }
+    ];
+    groups.forEach(function (g) {
+      var list = Data.units.filter(g.test);
       if (!list.length) return;
-      html += '<h2 class="section-title">' + lv + ' <span>' + (lv === 'A1' ? '入门' : '基础') + '</span></h2><div class="units">';
-      list.forEach(function (u) {
-        var s = SRS.unitStats(u);
-        var st = unitStatus(s);
-        var seenPct = s.total ? Math.round(s.seen / s.total * 100) : 0;
-        var mPct = s.total ? Math.round(s.mastered / s.total * 100) : 0;
-        html += '<a class="unit" href="#/unit/' + esc(u.id) + '">' +
-          '<div class="unit-no">' + u.no + '</div>' +
-          '<div class="unit-main">' +
-          '<div class="unit-title"><span class="zh">' + esc(u.titleZh) + '</span><span class="tag ' + st.c + '">' + st.t + '</span></div>' +
-          '<div class="unit-es" lang="es">' + esc(u.titleEs) + '</div>' +
-          '<div class="bar"><i class="seen" style="width:' + seenPct + '%"></i><i class="mast" style="width:' + mPct + '%"></i></div>' +
-          '<div class="unit-meta">已学 ' + s.seen + ' / 总 ' + s.total + ' · 掌握 ' + s.mastered + '</div>' +
-          '</div><span class="chev">' + I.chev + '</span></a>';
-      });
-      html += '</div>';
+      html += '<h2 class="section-title">' + g.title + (g.sub ? ' <span>' + g.sub + '</span>' : '') + '</h2><div class="units">' +
+        list.map(unitRow).join('') + '</div>';
     });
-    var others = Data.units.filter(function (u) { return u.level !== 'A1' && u.level !== 'A2'; });
-    if (others.length) {
-      html += '<h2 class="section-title">更多</h2><div class="units">' + others.map(function (u) {
-        return '<a class="unit" href="#/unit/' + esc(u.id) + '"><div class="unit-no">' + u.no + '</div><div class="unit-main"><div class="unit-title"><span class="zh">' + esc(u.titleZh) + '</span></div></div></a>';
-      }).join('') + '</div>';
-    }
     view.innerHTML = html;
+  }
+
+  function unitRow(u) {
+    var s = SRS.unitStats(u);
+    var st = unitStatus(s);
+    var seenPct = s.total ? Math.round(s.seen / s.total * 100) : 0;
+    var mPct = s.total ? Math.round(s.mastered / s.total * 100) : 0;
+    return '<a class="unit" href="#/unit/' + esc(u.id) + '">' +
+      '<div class="unit-no">' + u.no + '</div>' +
+      '<div class="unit-main">' +
+      '<div class="unit-title"><span class="zh">' + esc(u.titleZh) + '</span><span class="tag ' + st.c + '">' + st.t + '</span></div>' +
+      '<div class="unit-es" lang="es">' + esc(u.titleEs) + '</div>' +
+      '<div class="bar"><i class="seen" style="width:' + seenPct + '%"></i><i class="mast" style="width:' + mPct + '%"></i></div>' +
+      '<div class="unit-meta">已学 ' + s.seen + ' / 总 ' + s.total + ' · 掌握 ' + s.mastered + '</div>' +
+      '</div><span class="chev">' + I.chev + '</span></a>';
   }
 
   /* ---------- 单元页 ---------- */
@@ -188,10 +190,11 @@
     html += '<ul class="words">';
     u.words.forEach(function (w) {
       var l = SRS.level(w.id);
-      html += '<li class="word-row" data-act="toggle-row">' +
+      // 点这一行 = 读这个词，并展开 / 收起它的例句
+      html += '<li class="word-row" data-act="row" data-id="' + esc(w.id) + '">' +
         '<i class="dot l' + l + '" title="' + DOT[l] + '"></i>' +
         '<div class="wr-main"><div class="wr-es" lang="es">' + esc(Data.display(w)) + '</div><div class="wr-zh">' + esc(w.zh) + '</div>' +
-        (w.example && w.example.es ? '<div class="wr-ex"><span lang="es">' + esc(w.example.es) + '</span><span>' + esc(w.example.zh) + '</span></div>' : '') +
+        (w.example && w.example.es ? '<div class="wr-ex"><span lang="es">' + esc(w.example.es) + '</span><span>' + esc(w.example.zh || '') + '</span></div>' : '') +
         '</div>' +
         '<button class="say" data-act="say-word" data-id="' + esc(w.id) + '" aria-label="朗读">' + I.speaker + '</button></li>';
     });
@@ -463,8 +466,8 @@
     if (!w) { S.idx++; return S.idx < S.queue.length ? renderCard(autoplay) : renderEnd(); }
     var total = S.queue.length;
     var pct = Math.round(S.idx / total * 100);
-    var ex = w.example || {};
     var alt = Array.isArray(w.alt) ? w.alt : [];
+    var ex = (w.example && w.example.es) ? w.example : null;
 
     var html = '<div class="s-top">' +
       '<button class="icon-btn" data-act="exit" aria-label="退出">' + I.close + '</button>' +
@@ -472,7 +475,7 @@
       '<div class="s-count">' + (S.idx + 1) + ' / ' + total + '</div></div>';
     if (Speech.missing()) html += '<div class="s-warn">没有找到西班牙语发音，去“我的”页面看看怎么添加。</div>';
 
-    // 上面：单词块；中间：例句；下面：一个按钮
+    // 上面：单词块；中间：例句（没有就不显示）；下面：一个按钮
     html += '<div class="s-body">' +
       '<div class="w-top">' +
       '<div class="w-meta"><span>' + (item.type === 'new' ? '新词' : '复习') + '</span>' +
@@ -487,13 +490,13 @@
       return '<p>' + esc(a.where || '其他地区') + '：<span lang="es">' + esc(a.es) + '</span></p>';
     }).join('') + '</div>';
     if (w.note) html += '<div class="note">' + esc(w.note) + '</div>';
-    html += '</div><div class="ex-zone">';
-    if (ex.es) {
-      html += '<div class="example"><button class="say small" data-act="say-ex" aria-label="朗读例句">' + I.speaker + '</button>' +
+    html += '</div>';
+    if (ex) {
+      html += '<div class="ex-zone"><div class="example"><button class="say small" data-act="say-ex" aria-label="朗读例句">' + I.speaker + '</button>' +
         '<div class="ex-text"><p class="ex-es" lang="es">' + esc(ex.es) + '</p>' +
-        (ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') + '</div></div>';
+        (ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') + '</div></div></div>';
     }
-    html += '</div></div>' +
+    html += '</div>' +
       '<div class="s-actions"><button class="btn primary big" data-act="next">下一个</button></div>';
     sessionEl.innerHTML = '<div class="s-wrap">' + html + '</div>';
     if (autoplay && Store.settings().autoplay) Speech.speak(Data.speakText(w));
@@ -566,13 +569,18 @@
       case 'review': startSession({ mode: 'review' }); break;
       case 'unit-learn': startSession({ mode: 'unit', unitId: el.getAttribute('data-unit') }); break;
       case 'unit-review': startSession({ mode: 'unit-review', unitId: el.getAttribute('data-unit') }); break;
+      case 'row': { // 单元页：点一行 = 读这个词 + 展开 / 收起例句
+        el.classList.toggle('open');
+        var rw = Data.word(el.getAttribute('data-id'));
+        if (rw) Speech.speak(Data.speakText(rw));
+        break;
+      }
       case 'say-word': {
         e.stopPropagation();
         var w = Data.word(el.getAttribute('data-id'));
         if (w) Speech.speak(Data.speakText(w));
         break;
       }
-      case 'toggle-row': el.classList.toggle('open'); break;
       case 'set': {
         var k = el.getAttribute('data-k'), v = el.getAttribute('data-v');
         if (k === 'newPerDay') v = Number(v);

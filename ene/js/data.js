@@ -22,8 +22,10 @@
     var unit = {
       id: u.id,
       no: Number(u.no) || units.length + 1,
-      level: u.level === 'A2' ? 'A2' : (u.level || 'A1'),
-      titleZh: u.titleZh || '',
+      level: String(u.level || 'A1').toUpperCase(), // A1 / A2 / PRO（专业场景）……
+      pro: String(u.level || '').toUpperCase() === 'PRO', // 专业场景：不进每天的新词，只能在单元页自己学
+      scene: u.scene || '',
+      titleZh: u.titleZh || u.scene || '',
       titleEs: u.titleEs || '',
       words: []
     };

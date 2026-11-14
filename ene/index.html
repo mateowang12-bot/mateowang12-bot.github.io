@@ -44,7 +44,9 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <noscript>请打开浏览器的 JavaScript 功能后再使用。</noscript>
 
-  <!-- 单词数据：有几个单元就加载几个，缺少的文件会被自动跳过 -->
+  <!-- 单词数据：有几个单元就加载几个，缺少的文件会被自动跳过。
+       发布时 tools/build.ps1 会把下面这一段换成 data/ 里实际存在的 u*.js（以后加新单元不用改代码）。 -->
+  <!-- BUILD:DATA-START -->
   <script src="data/u01.js"></script>
   <script src="data/u02.js"></script>
   <script src="data/u03.js"></script>
@@ -71,6 +73,13 @@
   <script src="data/u24.js"></script>
   <script src="data/u25.js"></script>
   <script src="data/u26.js"></script>
+  <script src="data/u27.js"></script>
+  <script src="data/u28.js"></script>
+  <script src="data/u29.js"></script>
+  <script src="data/u30.js"></script>
+  <script src="data/u31.js"></script>
+  <script src="data/u32.js"></script>
+  <!-- BUILD:DATA-END -->
 
   <script src="js/store.js"></script>
   <script src="js/data.js"></script>

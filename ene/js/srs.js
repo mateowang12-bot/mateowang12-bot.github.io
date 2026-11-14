@@ -106,10 +106,15 @@
   }
 
   // 还没学过的词，按单元顺序
+  // 不指定单元时（每天的“开始学习”）：跳过专业场景单元，只按 A1 → A2 的顺序
   function newIds(limit, unitId) {
     var out = [];
     var ids = unitId ? (Data.unit(unitId) || { words: [] }).words.map(function (w) { return w.id; }) : Data.order;
-    for (var i = 0; i < ids.length && out.length < limit; i++) if (!rec(ids[i])) out.push(ids[i]);
+    for (var i = 0; i < ids.length && out.length < limit; i++) {
+      if (rec(ids[i])) continue;
+      if (!unitId) { var w = Data.word(ids[i]); if (w && w.unit && w.unit.pro) continue; }
+      out.push(ids[i]);
+    }
     return out;
   }
 
