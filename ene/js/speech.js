@@ -13,7 +13,7 @@
 
   var RATES = isIOS
     ? { vslow: 0.45, slow: 0.6, normal: 0.85, turtle: 0.35 }
-    : { vslow: 0.5, slow: 0.65, normal: 0.8, turtle: 0.4 };
+    : { vslow: 0.6, slow: 0.8, normal: 1, turtle: 0.5 }; // 电脑：用户觉得原来的“慢”(0.65) 太慢（2026-11-14）
 
   var REGION_RANK = { MX: 0, US: 1, '419': 2, CO: 3, AR: 4 };
   var REGION_ZH = {
@@ -215,7 +215,8 @@
       var sp = speed || (Ene.Store ? Ene.Store.settings().rate : 'slow');
       var rate = rateFor(sp);
       kind = kind || 'word';
-      if (sp === 'turtle' || sp === 'vslow') queueSlow(text, kind, rate);
+      // 电脑的声音会听语速，所以只调语速、不拆开读（拆开读 + 低语速太慢了）；拆开读只给 iPhone 用
+      if ((sp === 'turtle' || sp === 'vslow') && isIOS) queueSlow(text, kind, rate);
       else if (sp === 'slow' && isIOS && kind === 'sentence') queueSlow(text, 'sentence', rate);
       else synth.speak(makeUtt(text, rate));
       return true;
