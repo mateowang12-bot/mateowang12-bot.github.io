@@ -272,12 +272,33 @@
       '<button class="switch' + (st.autoplay ? ' on' : '') + '" role="switch" aria-checked="' + !!st.autoplay + '" aria-label="自动朗读" data-act="toggle-autoplay"><i></i></button></div>' +
       '<div class="set-row"><div class="set-k">发音<small>' + (Speech.voice() ? esc(Speech.voiceLabel()) : (Speech.missing() ? '没有找到西班牙语发音' : '正在查找……')) + '</small></div>' +
       '<button class="btn small" data-act="test-voice">试听</button></div>' +
+      voiceDiag() +
       '</section>';
     html += cloudSection();
     html += voiceBanner();
     if (!Store.ok()) html += '<div class="notice">这个浏览器现在不能保存进度（可能是无痕模式），关掉后进度会丢失。</div>';
     html += '<p class="footnote center">Eñe 西语单词 · 共 ' + Data.count + ' 个词 · ' + Data.units.length + ' 个单元</p>';
     view.innerHTML = html;
+  }
+
+  /* ---------- 发音测试（找出 iPhone 上哪种方法能变慢） ---------- */
+  var voiceDiagOpen = false;
+  function voiceDiag() {
+    var html = '<button class="set-row row-btn" data-act="voice-diag-open" aria-expanded="' + voiceDiagOpen + '">' +
+      '<span class="set-k">发音测试<small>语速调不慢时，用这里找原因</small></span>' +
+      '<span class="chev' + (voiceDiagOpen ? ' up' : '') + '">' + I.chev + '</span></button>';
+    if (!voiceDiagOpen) return html;
+    var v = Speech.voiceInfo();
+    html += '<div class="diag">' +
+      '<p class="diag-info">' + (v ? '声音：' + esc(v.name) + ' · ' + esc(v.lang) + ' · ' + (v.local ? '本机语音' : '在线语音') : '没有找到西班牙语声音') + '</p>' +
+      '<p class="diag-note">每个按钮都读“Buenos días, ¿cómo estás?”，A、B、C 都用很慢的语速 0.35。</p>' +
+      '<div class="diag-btns">' +
+      '<button class="btn outline" data-act="voice-diag" data-m="A">A 现在的方法</button>' +
+      '<button class="btn outline" data-act="voice-diag" data-m="B">B 不指定声音</button>' +
+      '<button class="btn outline" data-act="voice-diag" data-m="C">C 先设语速</button>' +
+      '<button class="btn outline" data-act="voice-diag" data-m="D">D 一个词一个词</button></div>' +
+      '<p class="diag-note">如果 A 和正常语速一样快，说明这个声音不支持调速。</p></div>';
+    return html;
   }
 
   /* ---------- 账号同步（“我的”页） ---------- */
@@ -503,8 +524,8 @@
     var item = cur();
     var w = item && Data.word(item.id);
     if (!w) return;
-    if (which === 'ex') Speech.speak(w.example && w.example.es);
-    else Speech.speak(Data.speakText(w), which === 'slow' ? 'turtle' : null);
+    if (which === 'ex') Speech.speak(w.example && w.example.es, null, 'sentence');
+    else Speech.speak(Data.speakText(w), which === 'slow' ? 'turtle' : null, 'word');
   }
 
   /* ---------- 点击（统一处理） ---------- */
@@ -529,15 +550,19 @@
         var k = el.getAttribute('data-k'), v = el.getAttribute('data-v');
         if (k === 'newPerDay') v = Number(v);
         Store.setSetting(k, v);
-        if (k === 'rate') Speech.speak('Hola, ¿cómo estás?', v);
+        if (k === 'rate') Speech.speak('Hola, ¿cómo estás?', v, 'sentence');
         if (k === 'theme') applyTheme(v);
         renderMe();
         break;
       }
       case 'toggle-autoplay': Store.setSetting('autoplay', !Store.settings().autoplay); renderMe(); break;
       case 'test-voice':
-        if (!Speech.speak('Hola, ¿cómo estás?')) toast('现在不能朗读');
+        if (!Speech.speak('Hola, ¿cómo estás?', null, 'sentence')) toast('现在不能朗读');
         else if (Speech.missing()) toast('没有找到西班牙语发音，请先添加');
+        break;
+      case 'voice-diag-open': voiceDiagOpen = !voiceDiagOpen; renderMe(); break;
+      case 'voice-diag':
+        if (!Speech.test(el.getAttribute('data-m'))) toast('现在不能朗读');
         break;
       // 学习环节
       case 'say': e.stopPropagation(); speakCurrent('word'); break;

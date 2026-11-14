@@ -76,21 +76,141 @@
     return RATES[speed] || RATES.slow;
   }
 
-  // speed: 'vslow' | 'slow' | 'normal' | 'turtle'（不传就用设置里的）
-  function speak(text, speed) {
+  /* ---------- 西语分音节（给“慢速”用） ----------
+   * 规则：ch / ll / rr 算一个辅音；qu、gu（后面是 e / i）里的 u 不发音，算辅音的一部分；
+   * pl pr bl br cl cr dr tr fl fr gl gr 不拆开；两个强元音（a e o）或带重音的 í / ú 和别的元音 = 分开（hiatus）；
+   * 其余相邻元音 = 二合元音（不拆）；词尾的 y 当元音。 */
+  var STRONG = 'aeoáéó', WEAK = 'iuü', ACC_WEAK = 'íú';
+  var CLUSTERS = ['pl', 'pr', 'bl', 'br', 'cl', 'cr', 'dr', 'tr', 'fl', 'fr', 'gl', 'gr', 'kl', 'kr'];
+  function isVowelCh(c) { return (STRONG + WEAK + ACC_WEAK).indexOf(c) >= 0; }
+
+  function syllables(word) {
+    var w = String(word || '').toLowerCase();
+    if (!/[a-záéíóúüñ]/.test(w)) return [word];
+    // 1. 切成“单位”：{ s: 文字, v: 是不是元音, key: 用来判断辅音组合 }
+    var units = [];
+    for (var i = 0; i < w.length; i++) {
+      var c = w[i], n = w[i + 1], n2 = w[i + 2];
+      if ((c === 'c' && n === 'h') || (c === 'l' && n === 'l') || (c === 'r' && n === 'r')) {
+        units.push({ s: c + n, v: false, key: c + n }); i++; continue;
+      }
+      if ((c === 'q' || c === 'g') && n === 'u' && n2 && 'eéií'.indexOf(n2) >= 0) {
+        units.push({ s: c + n, v: false, key: c }); i++; continue;
+      }
+      if (c === 'y') {
+        var last = i === w.length - 1 || !/[a-záéíóúüñ]/.test(n || '');
+        var prevV = units.length && units[units.length - 1].v;
+        if (last && prevV) { units.push({ s: c, v: true, weak: true }); continue; }
+        units.push({ s: c, v: false, key: c }); continue;
+      }
+      if (isVowelCh(c)) units.push({ s: c, v: true, strong: STRONG.indexOf(c) >= 0 || ACC_WEAK.indexOf(c) >= 0, acc: ACC_WEAK.indexOf(c) >= 0 });
+      else units.push({ s: c, v: false, key: c });
+    }
+    // 2. 找出“韵核”（一个或几个连着的元音），两个强元音之间要断开
+    var nuclei = []; // [起点, 终点] 单位下标
+    for (var j = 0; j < units.length; j++) {
+      if (!units[j].v) continue;
+      var start = j;
+      while (j + 1 < units.length && units[j + 1].v) {
+        var a = units[j], b = units[j + 1];
+        var hiatus = (a.strong && b.strong) || a.acc || b.acc;
+        if (hiatus) break;
+        j++;
+      }
+      nuclei.push([start, j]);
+    }
+    if (nuclei.length <= 1) return [word];
+    // 3. 两个韵核之间的辅音怎么分
+    var cuts = []; // 新音节从哪个单位开始
+    for (var k = 0; k < nuclei.length - 1; k++) {
+      var from = nuclei[k][1] + 1, to = nuclei[k + 1][0]; // 辅音在 [from, to)
+      var cons = to - from, cut;
+      var pair = function (x) { return units[x].key + units[x + 1].key; };
+      if (cons === 0) cut = to;
+      else if (cons === 1) cut = from;
+      else if (cons === 2) cut = CLUSTERS.indexOf(pair(from)) >= 0 ? from : from + 1;
+      else if (cons === 3) cut = CLUSTERS.indexOf(pair(from + 1)) >= 0 ? from + 1 : from + 2;
+      else cut = from + 2;
+      cuts.push(cut);
+    }
+    // 4. 按原来的字母（保留大写和重音）拼回去
+    var out = [], pos = 0, startUnit = 0, origPos = 0;
+    var lens = units.map(function (u) { return u.s.length; });
+    cuts.concat([units.length]).forEach(function (cut) {
+      var len = 0;
+      for (var m = startUnit; m < cut; m++) len += lens[m];
+      out.push(String(word).substr(origPos, len));
+      origPos += len; startUnit = cut;
+    });
+    return out.filter(function (s) { return s; });
+  }
+
+  /* ---------- 说话 ----------
+   * 设置顺序：先 rate、pitch，再 lang、voice（有说法是 WebKit 在先设 voice 后设 rate 时会忽略 rate）；
+   * 只有正在说话时才 cancel（cancel 后立刻 speak，iOS 有时会忽略 rate）。
+   * 所有 speak() 都在同一次点击里同步排队，不用 setTimeout（iOS 会拦截延迟的朗读）。 */
+  function makeUtt(text, rate, mode) {
+    var u = new SpeechSynthesisUtterance(String(text));
+    if (mode === 'A') { // 旧方法：先 voice / lang，后 rate
+      if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = 'es-MX';
+      u.rate = rate; u.pitch = 1;
+      return u;
+    }
+    u.rate = rate; u.pitch = 1;
+    u.lang = voice ? voice.lang : 'es-MX';
+    if (voice && mode !== 'B') u.voice = voice; // B：不指定声音，只给语言
+    return u;
+  }
+
+  function begin() {
+    if (!voice) pick();
+    if (synth.speaking || synth.pending) synth.cancel();
+  }
+
+  // 慢速朗读的“说法清单”：例句 → 一个词一个词；单词（3 个音节以上）→ 一个音节一个音节，最后整词正常读一遍
+  function slowPlan(text, kind) {
+    var t = String(text).trim();
+    var parts = t.split(/\s+/).filter(function (x) { return /[a-záéíóúüñ0-9]/i.test(x); });
+    if (kind === 'sentence') return { pieces: parts, whole: null };
+    var syl = [];
+    parts.forEach(function (p) { syllables(p.replace(/[,.;:!?¡¿"]/g, '')).forEach(function (s) { syl.push(s); }); });
+    if (syl.length >= 3) return { pieces: syl, whole: t };
+    if (parts.length > 1) return { pieces: parts, whole: t };
+    return { pieces: [t], whole: null };
+  }
+
+  function queueSlow(text, kind, rate) {
+    var plan = slowPlan(text, kind);
+    plan.pieces.forEach(function (p) { synth.speak(makeUtt(p, rate)); });
+    if (plan.whole) synth.speak(makeUtt(plan.whole, RATES.normal));
+    return plan;
+  }
+
+  // speed: 'vslow' | 'slow' | 'normal' | 'turtle'（不传就用设置里的）；kind: 'word'（默认）| 'sentence'
+  function speak(text, speed, kind) {
     if (!synth || !text) return false;
     try {
-      if (!voice) pick();
-      if (synth.speaking || synth.pending) synth.cancel();
-      var u = new SpeechSynthesisUtterance(String(text));
-      if (voice) { u.voice = voice; u.lang = voice.lang; } else { u.lang = 'es-MX'; }
-      u.rate = rateFor(speed || (Ene.Store ? Ene.Store.settings().rate : 'slow'));
-      u.pitch = 1;
-      synth.speak(u);
+      begin();
+      var sp = speed || (Ene.Store ? Ene.Store.settings().rate : 'slow');
+      var rate = rateFor(sp);
+      if (sp === 'turtle' || sp === 'vslow') queueSlow(text, kind || 'word', rate);
+      else synth.speak(makeUtt(text, rate));
       return true;
     } catch (e) {
       return false;
     }
+  }
+
+  // “发音测试”：A 旧方法 / B 不指定声音 / C 先设 rate / D 一个词一个词
+  var TEST_TEXT = 'Buenos días, ¿cómo estás?';
+  function test(mode) {
+    if (!synth) return false;
+    try {
+      begin();
+      if (mode === 'D') queueSlow(TEST_TEXT, 'sentence', 0.35);
+      else synth.speak(makeUtt(TEST_TEXT, 0.35, mode));
+      return true;
+    } catch (e) { return false; }
   }
 
   function voiceLabel() {
@@ -105,6 +225,10 @@
     isIOS: isIOS,
     RATES: RATES,
     speak: speak,
+    test: test,
+    syllables: syllables,
+    slowPlan: slowPlan,
+    voiceInfo: function () { return voice ? { name: voice.name, lang: voice.lang, local: !!voice.localService } : null; },
     // 已经确认过：设备上没有任何西语语音
     missing: function () { return voicesChecked && !voice; },
     voice: function () { return voice; },

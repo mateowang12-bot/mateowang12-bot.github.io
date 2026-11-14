@@ -242,7 +242,12 @@ svg { display: block; }
 .switch::after { content: ""; position: absolute; top: -9px; bottom: -9px; left: -4px; right: -4px; }
 
 /* ---------- 账号同步 ---------- */
-.row-btn { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.row-btn { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.diag { padding: 0 0 16px; }
+.diag-info { margin: 0 0 6px; font-size: 14px; overflow-wrap: anywhere; }
+.diag-note { margin: 6px 0; font-size: 13px; color: var(--text-3); }
+.diag-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.diag-btns .btn { font-size: 15px; padding: 0 8px; }
 .chev.up svg { transform: rotate(90deg); }
 .cloud-form { padding: 4px 0 16px; display: flex; flex-direction: column; gap: 12px; }
 .cloud-form label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-2); }
