@@ -48,6 +48,8 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; background: var(--bg); }
+/* 学习时左右滑是“上一个 / 下一个”，不要触发浏览器的“滑动返回上一页” */
+html, body { overscroll-behavior-x: none; }
 body {
   margin: 0;
   background: var(--bg);
@@ -299,6 +301,9 @@ svg { display: block; }
   width: 100%; height: 100%;
   background: var(--bg);
   overflow: hidden;
+  /* 左右滑交给 App（上一个 / 下一个），不让浏览器把它当成“返回上一页” */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 .s-wrap {
   width: 100%; max-width: calc(var(--maxw) + 32px); height: 100%;
@@ -340,7 +345,15 @@ svg { display: block; }
 .ex-es { margin: 0; font-size: 17px; font-weight: 600; }
 .ex-zh { margin: 4px 0 0; color: var(--text-2); font-size: 15px; }
 .s-actions { flex: 0 0 auto; padding-top: 12px; }
-
+/* 底部：左边小的“上一个”，右边大的“下一个” */
+.s-nav { display: flex; align-items: center; gap: 10px; }
+.s-nav .btn.primary { flex: 1; }
+.btn.prev {
+  flex: 0 0 auto; min-height: 56px; padding: 0 14px 0 8px; gap: 2px;
+  background: transparent; border-color: var(--line); color: var(--fg); font-weight: 600; font-size: 15px; border-radius: 14px;
+}
+.btn.prev svg { width: 20px; height: 20px; }
+.btn.prev:disabled { color: var(--text-3); border-color: var(--line); opacity: .45; }
 .end { margin: auto 0; text-align: center; padding: 20px 0; }
 .end-icon { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; border: 2px solid var(--fg); display: flex; align-items: center; justify-content: center; }
 .end-icon svg { width: 36px; height: 36px; }
@@ -368,6 +381,10 @@ svg { display: block; }
   transition: opacity .2s, transform .2s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* 点单词 / 点例句 = 朗读 */
+.tap { cursor: pointer; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; transition: opacity .15s; }
+.tap:active { opacity: .55; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

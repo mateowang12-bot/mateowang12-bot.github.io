@@ -194,7 +194,7 @@
       html += '<li class="word-row" data-act="row" data-id="' + esc(w.id) + '">' +
         '<i class="dot l' + l + '" title="' + DOT[l] + '"></i>' +
         '<div class="wr-main"><div class="wr-es" lang="es">' + esc(Data.display(w)) + '</div><div class="wr-zh">' + esc(w.zh) + '</div>' +
-        (w.example && w.example.es ? '<div class="wr-ex"><span lang="es">' + esc(w.example.es) + '</span><span>' + esc(w.example.zh || '') + '</span></div>' : '') +
+        (w.example && w.example.es ? '<div class="wr-ex tap" data-act="say-row-ex" data-id="' + esc(w.id) + '"><span lang="es">' + esc(w.example.es) + '</span><span>' + esc(w.example.zh || '') + '</span></div>' : '') +
         '</div>' +
         '<button class="say" data-act="say-word" data-id="' + esc(w.id) + '" aria-label="朗读">' + I.speaker + '</button></li>';
     });
@@ -273,6 +273,11 @@
       '<div class="set-row col"><div class="set-k">朗读速度</div>' + seg('rate', [['vslow', '很慢'], ['slow', '慢'], ['normal', '正常']], st.rate) + '</div>' +
       '<div class="set-row"><div class="set-k">自动朗读<small>每张卡片出现时先读一遍</small></div>' +
       '<button class="switch' + (st.autoplay ? ' on' : '') + '" role="switch" aria-checked="' + !!st.autoplay + '" aria-label="自动朗读" data-act="toggle-autoplay"><i></i></button></div>' +
+      '<div class="set-row"><div class="set-k">按键声音<small>点按钮时轻轻“嗒”一声</small></div>' +
+      '<button class="switch' + (st.sound ? ' on' : '') + '" role="switch" aria-checked="' + !!st.sound + '" aria-label="按键声音" data-act="toggle-sound"><i></i></button></div>' +
+      (Sfx && Sfx.canVibrate() ?
+        '<div class="set-row"><div class="set-k">震动<small>点按钮时轻轻震一下</small></div>' +
+        '<button class="switch' + (st.vibrate ? ' on' : '') + '" role="switch" aria-checked="' + !!st.vibrate + '" aria-label="震动" data-act="toggle-vibrate"><i></i></button></div>' : '') +
       '</section>';
     html += voiceSection();
     html += cloudSection();
@@ -452,7 +457,8 @@
     var q = reviews.map(function (id) { return { type: 'review', id: id }; })
       .concat(news.map(function (id) { return { type: 'new', id: id }; }));
     if (!q.length) { toast('现在没有要学的词'); return; }
-    S = { opts: opts, queue: q, idx: 0, stat: { review: 0, news: 0 } };
+    // viewed：这一轮里哪几张已经按过“下一个”（记过一次“看过”）；回到上一个再按“下一个”不会重复记
+    S = { opts: opts, queue: q, idx: 0, viewed: {}, stat: { review: 0, news: 0 } };
     document.body.classList.add('in-session');
     sessionEl.hidden = false;
     renderCard(true);
@@ -480,7 +486,7 @@
       '<div class="w-top">' +
       '<div class="w-meta"><span>' + (item.type === 'new' ? '新词' : '复习') + '</span>' +
       (Data.posLabel(w) ? '<span>' + Data.posLabel(w) + '</span>' : '') + '</div>' +
-      '<div class="word" lang="es"><span class="nw">' + esc(w.es) + '</span>' +
+      '<div class="word tap" lang="es" data-act="say" role="button" aria-label="点单词朗读"><span class="nw">' + esc(w.es) + '</span>' +
       (w.fem ? ' <span class="nw">/ ' + esc(w.fem) + '</span>' : '') + '</div>' +
       '<div class="meaning">' + esc(w.zh) + '</div>' +
       '<div class="say-row">' +
@@ -493,11 +499,13 @@
     html += '</div>';
     if (ex) {
       html += '<div class="ex-zone"><div class="example"><button class="say small" data-act="say-ex" aria-label="朗读例句">' + I.speaker + '</button>' +
-        '<div class="ex-text"><p class="ex-es" lang="es">' + esc(ex.es) + '</p>' +
+        '<div class="ex-text tap" data-act="say-ex" role="button" aria-label="点例句朗读"><p class="ex-es" lang="es">' + esc(ex.es) + '</p>' +
         (ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') + '</div></div></div>';
     }
     html += '</div>' +
-      '<div class="s-actions"><button class="btn primary big" data-act="next">下一个</button></div>';
+      '<div class="s-actions s-nav">' +
+      '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.idx === 0 ? ' disabled' : '') + '>' + I.back + '<span>上一个</span></button>' +
+      '<button class="btn primary big" data-act="next">下一个</button></div>';
     sessionEl.innerHTML = '<div class="s-wrap">' + html + '</div>';
     if (autoplay && Store.settings().autoplay) Speech.speak(Data.speakText(w));
   }
@@ -506,13 +514,23 @@
   function nextCard() {
     var item = cur();
     if (!item || S.ended) return;
-    if (Data.word(item.id)) {
+    if (Data.word(item.id) && !S.viewed[S.idx]) { // 每张卡在这一轮里只记一次
+      S.viewed[S.idx] = true;
       SRS.view(item.id);
       if (item.type === 'new') S.stat.news++; else S.stat.review++;
     }
     S.idx++;
     if (S.idx >= S.queue.length) renderEnd();
     else renderCard(true);
+  }
+
+  // 回到上一张（不改记录）；在结束页按 ← 也能回到最后一张
+  function prevCard() {
+    if (!S) return;
+    if (S.ended) { S.ended = false; S.idx = S.queue.length - 1; renderCard(true); return; }
+    if (S.idx <= 0) return;
+    S.idx--;
+    renderCard(true);
   }
 
   function moreAvailable() {
@@ -528,6 +546,7 @@
     var log = Store.getLog();
     S.ended = true;
     if (Cloud) Cloud.changed();
+    if (Sfx && gestureEvent) Sfx.done(gestureEvent);
     sessionEl.innerHTML = '<div class="s-wrap"><div class="s-top"><button class="icon-btn" data-act="exit" aria-label="关闭">' + I.close + '</button>' +
       '<div class="s-progress"><i style="width:100%"></i></div><div class="s-count">完成</div></div>' +
       '<div class="s-body s-end"><div class="end">' +
@@ -558,6 +577,23 @@
     else Speech.speak(Data.speakText(w), which === 'slow' ? 'turtle' : null, 'word');
   }
 
+  /* ---------- 按键声音 + 震动 ----------
+   * 捕获阶段先放“嗒”（在页面处理点击之前），然后页面照常在同一个点击里朗读。
+   * 朗读类的按钮（喇叭、点单词、声音列表）不加“嗒”，免得和发音叠在一起。 */
+  var Sfx = Ene.Sfx || null;
+  var gestureEvent = null; // 当前正在处理的用户操作（给结束页的“叮—咚”判断是不是真的用户操作）
+  var TAP_ACTS = ['next', 'prev', 'start', 'extra', 'review', 'unit-learn', 'unit-review', 'continue', 'exit',
+    'set', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open'];
+  document.addEventListener('click', function (e) {
+    gestureEvent = e;
+    setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0);
+    if (!Sfx || !e.target.closest) return;
+    var el = e.target.closest('[data-act], .tabbar a, a.unit, .top a.icon-btn');
+    if (!el || el.disabled) return;
+    var act = el.getAttribute('data-act');
+    if (!act || TAP_ACTS.indexOf(act) >= 0) Sfx.tap(e);
+  }, true);
+
   /* ---------- 点击（统一处理） ---------- */
   document.addEventListener('click', function (e) {
     var el = e.target.closest('[data-act]');
@@ -573,6 +609,12 @@
         el.classList.toggle('open');
         var rw = Data.word(el.getAttribute('data-id'));
         if (rw) Speech.speak(Data.speakText(rw));
+        break;
+      }
+      case 'say-row-ex': { // 单元页：点展开的例句 = 读例句（不收起）
+        e.stopPropagation();
+        var xw = Data.word(el.getAttribute('data-id'));
+        if (xw && xw.example) Speech.speak(xw.example.es, null, 'sentence');
         break;
       }
       case 'say-word': {
@@ -609,6 +651,9 @@
       case 'say-slow': e.stopPropagation(); speakCurrent('slow'); break;
       case 'say-ex': e.stopPropagation(); speakCurrent('ex'); break;
       case 'next': nextCard(); break;
+      case 'prev': prevCard(); break;
+      case 'toggle-sound': Store.setSetting('sound', !Store.settings().sound); renderMe(); break;
+      case 'toggle-vibrate': Store.setSetting('vibrate', !Store.settings().vibrate); renderMe(); break;
       case 'continue': {
         var o = S.opts;
         S = null;
@@ -624,11 +669,18 @@
     }
   });
 
-  /* ---------- 键盘：空格 / 回车 / → = 下一个，Esc = 退出 ---------- */
+  /* ---------- 键盘：空格 / 回车 / → = 下一个，← = 上一个，Esc = 退出 ---------- */
   document.addEventListener('keydown', function (e) {
     if (!S || e.altKey || e.ctrlKey || e.metaKey) return;
     var k = e.key;
+    gestureEvent = e;
+    setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0);
     if (k === 'Escape') { e.preventDefault(); exitSession(); return; }
+    if (k === 'ArrowLeft') {
+      e.preventDefault();
+      if (!e.repeat && (S.ended || S.idx > 0)) { if (Sfx) Sfx.tap(e); prevCard(); }
+      return;
+    }
     if (S.ended) {
       if (k === 'Enter' || k === ' ') {
         e.preventDefault();
@@ -639,9 +691,34 @@
     }
     if (k === ' ' || k === 'Enter' || k === 'ArrowRight') {
       e.preventDefault();
-      if (!e.repeat) nextCard();
+      if (!e.repeat) { if (Sfx) Sfx.tap(e); nextCard(); }
     }
   });
+
+  /* ---------- 手机上左右滑：右滑 = 上一个，左滑 = 下一个 ---------- */
+  var touch0 = null;
+  sessionEl.addEventListener('touchstart', function (e) {
+    var t = e.touches && e.touches[0];
+    touch0 = t && e.touches.length === 1 ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+  }, { passive: true });
+  // 横着滑的时候不让浏览器自己处理（否则有的浏览器会当成“返回上一页”）
+  sessionEl.addEventListener('touchmove', function (e) {
+    var t = e.touches && e.touches[0];
+    if (!touch0 || !t) return;
+    var dx = Math.abs(t.clientX - touch0.x), dy = Math.abs(t.clientY - touch0.y);
+    if (dx > 10 && dx > dy && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  sessionEl.addEventListener('touchend', function (e) {
+    var t = e.changedTouches && e.changedTouches[0];
+    if (!touch0 || !t || !S || S.ended) { touch0 = null; return; }
+    var dx = t.clientX - touch0.x, dy = t.clientY - touch0.y, fast = Date.now() - touch0.at < 600;
+    touch0 = null;
+    if (!fast || Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+    gestureEvent = e;
+    setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0);
+    if (dx > 0) { if (S.idx > 0) { if (Sfx) Sfx.tap(e); prevCard(); } }
+    else { if (Sfx) Sfx.tap(e); nextCard(); }
+  }, { passive: true });
 
   window.addEventListener('hashchange', route);
   Speech.onChange(function () { if (!S && (currentTab === 'me' || currentTab === 'learn')) route(); });
