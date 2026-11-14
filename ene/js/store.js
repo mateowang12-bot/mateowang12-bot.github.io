@@ -36,7 +36,8 @@
   // theme：'system' 跟随系统 / 'light' 白色 / 'dark' 黑色
   // voice：选中的朗读声音（voiceURI，没有就用名字）；'' = 自动选择（推荐拉美）
   // sound：按键声音；vibrate：震动（只在支持的安卓手机上有用）
-  var DEFAULT_SETTINGS = { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true };
+  // mode：学习方式 'shanbay' 扇贝式（默认）/ 'view' 只看
+  var DEFAULT_SETTINGS = { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true, mode: 'shanbay' };
 
   function rid() {
     return 'd' + Math.random().toString(36).slice(2, 10) + time.now().toString(36);
@@ -50,7 +51,7 @@
       createdAt: now,
       updatedAt: now,
       words: {},     // id -> { box, due, seen, lastReview, reps, lapses, easy, updatedAt }
-      settings: { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true, updatedAt: 0 },
+      settings: { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true, mode: 'shanbay', updatedAt: 0 },
       log: {},       // 'YYYY-MM-DD' -> { cards, newWords, updatedAt }
       streak: { days: 0, last: null, updatedAt: 0 }
     };

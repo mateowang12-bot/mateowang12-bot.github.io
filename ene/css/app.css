@@ -354,6 +354,21 @@ svg { display: block; }
 }
 .btn.prev svg { width: 20px; height: 20px; }
 .btn.prev:disabled { color: var(--text-3); border-color: var(--line); opacity: .45; }
+/* 扇贝式：正面两个大按钮（不认识 = 空心，认识 = 实心），上面一行小字“提示一下” */
+.s-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hint-link { margin-bottom: 4px; }
+.hint-note { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
+.w-meta .verdict { margin-left: auto; color: var(--fg); font-weight: 600; }
+.s-actions > .btn.link { margin-bottom: 4px; }
+/* 结束页：不熟的词 */
+.weak-list { list-style: none; margin: 18px auto 0; padding: 0; max-width: 360px; text-align: left; border-top: 1px solid var(--line); }
+.weak-list li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 4px; min-height: 48px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.wl-es { font-weight: 700; }
+.wl-zh { color: var(--text-2); text-align: right; }
+.s-end .end { margin: auto 0; }
+/* 翻页动画：飞走的旧卡片（只用 transform / opacity） */
+.s-wrap > .s-body, .s-ghost { will-change: transform, opacity; transform-origin: 50% 90%; }
+.s-ghost { background: var(--bg); overflow: hidden; }
 .end { margin: auto 0; text-align: center; padding: 20px 0; }
 .end-icon { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; border: 2px solid var(--fg); display: flex; align-items: center; justify-content: center; }
 .end-icon svg { width: 36px; height: 36px; }

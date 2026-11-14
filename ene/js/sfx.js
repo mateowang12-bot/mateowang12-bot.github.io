@@ -107,6 +107,11 @@
       play([{ freq: 1500, to: 900, dur: 0.035, type: 'sine', vol: 0.09 }], e);
       buzz(10, e);
     },
+    // “不认识”：更低、更轻的“嘟”
+    miss: function (e) {
+      play([{ freq: 330, to: 240, dur: 0.09, type: 'sine', vol: 0.08 }], e);
+      buzz(10, e);
+    },
     // 一轮学完：轻柔的两个音
     done: function (e) {
       play([

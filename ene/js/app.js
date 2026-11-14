@@ -212,7 +212,8 @@
       '<div class="big-num">' + due + '</div><div class="big-label">今天要复习的词</div>' +
       (due ? '<button class="btn primary big" data-act="review">开始复习</button>'
         : '<button class="btn big" disabled>今天没有要复习的词</button>') +
-      '<p class="hint">' + (tomorrow > 0 ? '明天还有 ' + tomorrow + ' 个词到期' : '按时复习，记得更牢') + '</p></section>';
+      '<p class="hint">' + (tomorrow > 0 ? '明天还有 ' + tomorrow + ' 个词到期' : '按时复习，记得更牢') + '</p>' +
+      (SRS.weakCount() ? '<p class="hint">不熟的词：' + SRS.weakCount() + ' 个（错过、还在前两格）</p>' : '') + '</section>';
 
     var rows = [];
     // 旧版留下的“看过还没升格”的词，有才显示
@@ -268,6 +269,8 @@
       }).join('') + '</div></section>';
 
     html += '<h2 class="section-title">设置</h2><section class="card settings">' +
+      '<div class="set-row col"><div class="set-k">学习方式<small>' + (st.mode === 'view' ? '只看：每张卡全部显示，按“下一个”' : '扇贝式：先看西语，选“认识 / 不认识”，再看意思；不熟的词会多出现几次') + '</small></div>' +
+      seg('mode', [['shanbay', '扇贝式（推荐）'], ['view', '只看']], st.mode) + '</div>' +
       '<div class="set-row col"><div class="set-k">外观</div>' + seg('theme', [['system', '跟随系统'], ['light', '白色'], ['dark', '黑色']], st.theme) + '</div>' +
       '<div class="set-row col"><div class="set-k">每天学几个新词</div>' + seg('newPerDay', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], st.newPerDay) + '</div>' +
       '<div class="set-row col"><div class="set-k">朗读速度</div>' + seg('rate', [['vslow', '很慢'], ['slow', '慢'], ['normal', '正常']], st.rate) + '</div>' +
@@ -437,9 +440,15 @@
   });
 
   /* ================= 学习环节 =================
-   * 只看不考：每张卡全部显示，只有一个“下一个”按钮。
-   * 每按一次“下一个”= 看过一次 → 这个词升一格（见 srs.js 的 view）。 */
+   * 两种学习方式（我的 → 学习方式）：
+   * - 扇贝式（默认，S.sb = true）：正面只有西语 → 选“认识 / 不认识”→ 背面看全部 →“下一个”。
+   *   不认识 / 看错了 / 看了提示再认识 = 不熟，这个词隔 4 张卡再出现，直到“认识”够次数（新词 2 次，复习词 1 次）。
+   *   一个词在这一轮“完成”时才更新复习安排（SRS.grade）。
+   * - 只看（S.sb = false）：每张卡全部显示，一个“下一个”；每张卡第一次按“下一个”记一次“看过”（SRS.view）。 */
   var S = null;
+  var GAP = 4; // 不熟的词：中间隔 4 张卡再出现
+
+  function sbMode() { return Store.settings().mode !== 'view'; }
 
   function startSession(opts) {
     var reviews = [], news = [];
@@ -454,55 +463,81 @@
     } else if (opts.mode === 'unit-review') {
       reviews = SRS.dueIds(null, opts.unitId);
     }
-    var q = reviews.map(function (id) { return { type: 'review', id: id }; })
-      .concat(news.map(function (id) { return { type: 'new', id: id }; }));
-    if (!q.length) { toast('现在没有要学的词'); return; }
-    // viewed：这一轮里哪几张已经按过“下一个”（记过一次“看过”）；回到上一个再按“下一个”不会重复记
-    S = { opts: opts, queue: q, idx: 0, viewed: {}, stat: { review: 0, news: 0 } };
+    var has = function (id) { return !!Data.word(id); };
+    reviews = reviews.filter(has); news = news.filter(has);
+    if (!reviews.length && !news.length) { toast('现在没有要学的词'); return; }
+    if (sbMode()) {
+      var mk = function (type) { return function (id) { return { id: id, type: type, need: type === 'new' ? 2 : 1, got: 0, shown: 0, first: null, missed: false, done: false }; }; };
+      var words = reviews.map(mk('review')).concat(news.map(mk('new')));
+      S = { sb: true, opts: opts, words: words, queue: words.map(function (_, i) { return i; }), pos: 0,
+        side: 'front', hint: false, pending: null, history: [], peek: -1 };
+    } else {
+      var q = reviews.map(function (id) { return { type: 'review', id: id }; })
+        .concat(news.map(function (id) { return { type: 'new', id: id }; }));
+      // viewed：这一轮里哪几张已经按过“下一个”；回到上一个再按“下一个”不会重复记
+      S = { sb: false, opts: opts, queue: q, idx: 0, viewed: {} };
+    }
     document.body.classList.add('in-session');
     sessionEl.hidden = false;
     renderCard(true);
   }
 
-  function cur() { return S && S.queue[S.idx]; }
+  // 现在这张卡的词
+  function curWord() {
+    if (!S) return null;
+    if (!S.sb) { var it = S.queue[S.idx]; return it ? Data.word(it.id) : null; }
+    if (S.peek >= 0) return Data.word(S.words[S.history[S.peek].wi].id);
+    var wi = S.queue[S.pos];
+    return wi == null ? null : Data.word(S.words[wi].id);
+  }
 
-  function renderCard(autoplay) {
-    var item = cur();
-    var w = Data.word(item.id);
-    if (!w) { S.idx++; return S.idx < S.queue.length ? renderCard(autoplay) : renderEnd(); }
-    var total = S.queue.length;
-    var pct = Math.round(S.idx / total * 100);
+  /* ---------- 卡片的各个部分 ---------- */
+  function topBar(done, total, label) {
+    return '<div class="s-top">' +
+      '<button class="icon-btn" data-act="exit" aria-label="退出">' + I.close + '</button>' +
+      '<div class="s-progress"><i style="width:' + Math.round(done / Math.max(1, total) * 100) + '%"></i></div>' +
+      '<div class="s-count">' + label + '</div></div>' +
+      (Speech.missing() ? '<div class="s-warn">没有找到西班牙语发音，去“我的”页面看看怎么添加。</div>' : '');
+  }
+  // o: { kind, verdict, front, hint }
+  function cardBody(w, o) {
     var alt = Array.isArray(w.alt) ? w.alt : [];
     var ex = (w.example && w.example.es) ? w.example : null;
-
-    var html = '<div class="s-top">' +
-      '<button class="icon-btn" data-act="exit" aria-label="退出">' + I.close + '</button>' +
-      '<div class="s-progress"><i style="width:' + pct + '%"></i></div>' +
-      '<div class="s-count">' + (S.idx + 1) + ' / ' + total + '</div></div>';
-    if (Speech.missing()) html += '<div class="s-warn">没有找到西班牙语发音，去“我的”页面看看怎么添加。</div>';
-
-    // 上面：单词块；中间：例句（没有就不显示）；下面：一个按钮
-    html += '<div class="s-body">' +
-      '<div class="w-top">' +
-      '<div class="w-meta"><span>' + (item.type === 'new' ? '新词' : '复习') + '</span>' +
-      (Data.posLabel(w) ? '<span>' + Data.posLabel(w) + '</span>' : '') + '</div>' +
+    var html = '<div class="s-body' + (o.front ? ' front' : '') + '"><div class="w-top">' +
+      '<div class="w-meta"><span>' + o.kind + '</span>' + (Data.posLabel(w) ? '<span>' + Data.posLabel(w) + '</span>' : '') +
+      (o.verdict ? '<span class="verdict">' + o.verdict + '</span>' : '') + '</div>' +
       '<div class="word tap" lang="es" data-act="say" role="button" aria-label="点单词朗读"><span class="nw">' + esc(w.es) + '</span>' +
       (w.fem ? ' <span class="nw">/ ' + esc(w.fem) + '</span>' : '') + '</div>' +
-      '<div class="meaning">' + esc(w.zh) + '</div>' +
+      (o.front ? '' : '<div class="meaning">' + esc(w.zh) + '</div>') +
       '<div class="say-row">' +
       '<button class="say big" data-act="say" aria-label="朗读">' + I.speaker + '</button>' +
       '<button class="say slow" data-act="say-slow" aria-label="慢速朗读">' + I.turtle + '<span>慢速</span></button></div>';
-    if (alt.length) html += '<div class="extra">' + alt.map(function (a) {
-      return '<p>' + esc(a.where || '其他地区') + '：<span lang="es">' + esc(a.es) + '</span></p>';
-    }).join('') + '</div>';
-    if (w.note) html += '<div class="note">' + esc(w.note) + '</div>';
+    if (!o.front) {
+      if (alt.length) html += '<div class="extra">' + alt.map(function (a) {
+        return '<p>' + esc(a.where || '其他地区') + '：<span lang="es">' + esc(a.es) + '</span></p>';
+      }).join('') + '</div>';
+      if (w.note) html += '<div class="note">' + esc(w.note) + '</div>';
+    }
     html += '</div>';
-    if (ex) {
+    // 例句：背面全部显示；正面只有点了“提示一下”才显示西语（不显示中文）
+    if (ex && (!o.front || o.hint)) {
       html += '<div class="ex-zone"><div class="example"><button class="say small" data-act="say-ex" aria-label="朗读例句">' + I.speaker + '</button>' +
         '<div class="ex-text tap" data-act="say-ex" role="button" aria-label="点例句朗读"><p class="ex-es" lang="es">' + esc(ex.es) + '</p>' +
-        (ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') + '</div></div></div>';
+        (!o.front && ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') +
+        (o.front ? '<p class="hint-note">看了提示，这次算作“不熟”</p>' : '') + '</div></div></div>';
     }
-    html += '</div>' +
+    return html + '</div>';
+  }
+
+  function renderCard(autoplay) {
+    if (!S) return;
+    if (S.sb) return renderSb(autoplay);
+    var item = S.queue[S.idx];
+    var w = item && Data.word(item.id);
+    if (!w) { S.idx++; return S.idx < S.queue.length ? renderCard(autoplay) : renderEnd(); }
+    var total = S.queue.length;
+    var html = topBar(S.idx, total, (S.idx + 1) + ' / ' + total) +
+      cardBody(w, { kind: item.type === 'new' ? '新词' : '复习' }) +
       '<div class="s-actions s-nav">' +
       '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.idx === 0 ? ' disabled' : '') + '>' + I.back + '<span>上一个</span></button>' +
       '<button class="btn primary big" data-act="next">下一个</button></div>';
@@ -510,27 +545,176 @@
     if (autoplay && Store.settings().autoplay) Speech.speak(Data.speakText(w));
   }
 
-  // 按“下一个”：记一次“看过”，再翻到下一张
-  function nextCard() {
-    var item = cur();
-    if (!item || S.ended) return;
-    if (Data.word(item.id) && !S.viewed[S.idx]) { // 每张卡在这一轮里只记一次
-      S.viewed[S.idx] = true;
-      SRS.view(item.id);
-      if (item.type === 'new') S.stat.news++; else S.stat.review++;
+  var VERDICT = { known: '你选了：认识', hint: '看了提示（算不熟）', miss: '你选了：不认识', wrong: '看错了（算不熟）' };
+
+  function renderSb(autoplay) {
+    var total = S.words.length;
+    var done = S.words.filter(function (x) { return x.done; }).length;
+    var label = done + ' / ' + total;
+    var html, w, info;
+    if (S.peek >= 0) { // 回看上一张（只读）
+      var h = S.history[S.peek];
+      info = S.words[h.wi]; w = Data.word(info.id);
+      html = topBar(done, total, label) +
+        cardBody(w, { kind: '回看', verdict: VERDICT[h.v] }) +
+        '<div class="s-actions s-nav">' +
+        '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.peek === 0 ? ' disabled' : '') + '>' + I.back + '<span>上一个</span></button>' +
+        '<button class="btn primary big" data-act="next">下一个</button></div>';
+    } else {
+      info = S.words[S.queue[S.pos]]; w = Data.word(info.id);
+      var kind = info.type === 'new' ? (info.shown ? '新词 · 再来一次' : '新词') : (info.shown ? '复习 · 再来一次' : '复习');
+      var hasEx = !!(w.example && w.example.es);
+      if (S.side === 'front') {
+        html = topBar(done, total, label) +
+          cardBody(w, { kind: kind, front: true, hint: S.hint }) +
+          '<div class="s-actions">' +
+          (hasEx && !S.hint ? '<button class="btn link hint-link" data-act="hint">提示一下</button>' : '') +
+          '<div class="s-two">' +
+          '<button class="btn outline big" data-act="dontknow">不认识</button>' +
+          '<button class="btn primary big" data-act="know">认识</button></div></div>';
+      } else {
+        html = topBar(done, total, label) +
+          cardBody(w, { kind: kind, verdict: VERDICT[S.pending] }) +
+          '<div class="s-actions">' +
+          (S.pending === 'known' ? '<button class="btn link" data-act="wrong">看错了</button>' : '') +
+          '<div class="s-nav">' +
+          '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.history.length ? '' : ' disabled') + '>' + I.back + '<span>上一个</span></button>' +
+          '<button class="btn primary big" data-act="next">下一个</button></div></div>';
+      }
     }
-    S.idx++;
-    if (S.idx >= S.queue.length) renderEnd();
-    else renderCard(true);
+    sessionEl.innerHTML = '<div class="s-wrap">' + html + '</div>';
+    if (autoplay && S.peek < 0 && S.side === 'front' && Store.settings().autoplay) Speech.speak(Data.speakText(w));
   }
 
-  // 回到上一张（不改记录）；在结束页按 ← 也能回到最后一张
-  function prevCard() {
-    if (!S) return;
+  /* ---------- 卡片动画（只用 transform / opacity；“减少动态效果”时不动） ----------
+   * 先在同一个点击 / 手势里同步换好内容（朗读也同步开始），再让旧卡的“影子”飞走、新卡滑进来。 */
+  function reduceMotion() {
+    try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  }
+  var ANIM_MS = 200;
+  // dir: 'next'（往左走）| 'prev'（往右走）| 'flip'（正面翻到背面）| null（不动）；drag: 手指拖动时的位置
+  function swapCard(dir, change, drag) {
+    var old = sessionEl.querySelector('.s-wrap > .s-body');
+    var canAnim = dir && old && !reduceMotion() && typeof old.animate === 'function';
+    var ghost = null, rect = null;
+    if (canAnim && dir !== 'flip') { rect = old.getBoundingClientRect(); ghost = old.cloneNode(true); }
+    change(); // 同步：换内容 + 朗读
+    if (!canAnim) return;
+    var nb = sessionEl.querySelector('.s-wrap > .s-body');
+    if (!nb || typeof nb.animate !== 'function') return;
+    if (dir === 'flip') {
+      nb.animate([{ opacity: 0, transform: 'perspective(800px) rotateY(-10deg) scale(.98)' }, { opacity: 1, transform: 'none' }],
+        { duration: 150, easing: 'ease-out' });
+      return;
+    }
+    var W = rect.width || window.innerWidth, sign = dir === 'next' ? -1 : 1;
+    var x0 = drag ? drag.x : 0, r0 = drag ? drag.rot : 0, o0 = drag ? drag.op : 1;
+    ghost.classList.add('s-ghost');
+    ghost.removeAttribute('id');
+    ghost.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;pointer-events:none;z-index:22;';
+    ghost.setAttribute('aria-hidden', 'true');
+    sessionEl.appendChild(ghost);
+    var a = ghost.animate([
+      { transform: 'translateX(' + x0 + 'px) rotate(' + r0 + 'deg)', opacity: o0 },
+      { transform: 'translateX(' + (sign * W * 1.1) + 'px) rotate(' + (sign * 6) + 'deg)', opacity: 0 }
+    ], { duration: ANIM_MS, easing: 'ease-out', fill: 'forwards' });
+    a.onfinish = function () { if (ghost.parentNode) ghost.parentNode.removeChild(ghost); };
+    nb.animate([
+      { transform: 'translateX(' + (-sign * W * 0.35) + 'px)', opacity: 0 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: ANIM_MS, easing: 'ease-out' });
+  }
+
+  /* ---------- 只看模式：下一个 / 上一个 ---------- */
+  function viewNext(drag) {
+    var item = S.queue[S.idx];
+    if (!item || S.ended) return;
+    if (Data.word(item.id) && !S.viewed[S.idx]) { S.viewed[S.idx] = true; SRS.view(item.id); }
+    swapCard('next', function () {
+      S.idx++;
+      if (S.idx >= S.queue.length) renderEnd(); else renderCard(true);
+    }, drag);
+  }
+  function viewPrev(drag) {
     if (S.ended) { S.ended = false; S.idx = S.queue.length - 1; renderCard(true); return; }
     if (S.idx <= 0) return;
-    S.idx--;
-    renderCard(true);
+    swapCard('prev', function () { S.idx--; renderCard(true); }, drag);
+  }
+
+  /* ---------- 扇贝式 ---------- */
+  function sbAnswer(known) {
+    if (!S || !S.sb || S.ended || S.peek >= 0 || S.side !== 'front') return;
+    S.pending = known ? (S.hint ? 'hint' : 'known') : 'miss';
+    S.side = 'back';
+    swapCard('flip', function () { renderCard(false); });
+  }
+  function sbHint() {
+    if (!S || !S.sb || S.side !== 'front' || S.hint) return;
+    var w = curWord();
+    if (!w || !w.example || !w.example.es) return;
+    S.hint = true;
+    renderCard(false);
+  }
+  function sbWrong() {
+    if (!S || !S.sb || S.side !== 'back' || S.peek >= 0 || S.pending !== 'known') return;
+    S.pending = 'wrong';
+    renderCard(false);
+  }
+
+  // 这个词在这一轮完成了 → 更新复习安排
+  function sbFinish(info) {
+    var outcome;
+    if (info.type === 'review') outcome = info.missed ? 'again' : 'up';
+    else outcome = info.missed ? 'newMissed' : (info.first === true ? 'newKnown' : 'new');
+    SRS.grade(info.id, outcome);
+  }
+
+  // 把当前卡的答案记下来（按“下一个”或退出时）
+  function sbCommit() {
+    var wi = S.queue[S.pos], info = S.words[wi], v = S.pending;
+    if (!v) return false;
+    var firstTime = info.shown === 0;
+    info.shown++;
+    var known = v === 'known';
+    if (info.first === null) info.first = known;
+    if (known) info.got++;
+    else if (!(info.type === 'new' && firstTime && v === 'miss')) info.missed = true; // 新词第一次就“不认识”：不算不熟
+    S.history.push({ wi: wi, v: v });
+    if (info.got >= info.need) { info.done = true; sbFinish(info); }
+    else S.queue.splice(Math.min(S.pos + 1 + GAP, S.queue.length), 0, wi);
+    S.pending = null; S.hint = false; S.side = 'front';
+    return true;
+  }
+
+  function sbNext(drag) {
+    if (!S || S.ended) return;
+    if (S.peek >= 0) { // 回看中：往后翻，翻回当前卡的背面
+      swapCard('next', function () { S.peek++; if (S.peek >= S.history.length) S.peek = -1; renderCard(false); }, drag);
+      return;
+    }
+    if (S.side !== 'back') return;
+    sbCommit();
+    swapCard('next', function () {
+      S.pos++;
+      while (S.pos < S.queue.length && S.words[S.queue[S.pos]].done) S.pos++;
+      if (S.pos >= S.queue.length) renderEnd(); else renderCard(true);
+    }, drag);
+  }
+  function sbPrev(drag) {
+    if (!S || S.ended) return;
+    if (S.peek >= 0) { if (S.peek > 0) swapCard('prev', function () { S.peek--; renderCard(false); }, drag); return; }
+    if (S.side !== 'back' || !S.history.length) return;
+    swapCard('prev', function () { S.peek = S.history.length - 1; renderCard(false); }, drag);
+  }
+
+  function nextCard(drag) { if (S && S.sb) sbNext(drag); else if (S) viewNext(drag); }
+  function prevCard(drag) { if (S && S.sb) sbPrev(drag); else if (S) viewPrev(drag); }
+  // 现在能不能左右翻（扇贝式：只在背面）
+  function canNavigate() { return !!S && !S.ended && (!S.sb || S.peek >= 0 || S.side === 'back'); }
+  function canGoBack() {
+    if (!S || S.ended) return false;
+    if (!S.sb) return S.idx > 0;
+    return S.peek > 0 || (S.peek < 0 && S.side === 'back' && S.history.length > 0);
   }
 
   function moreAvailable() {
@@ -543,15 +727,26 @@
 
   function renderEnd() {
     var more = moreAvailable();
-    var log = Store.getLog();
     S.ended = true;
     if (Cloud) Cloud.changed();
     if (Sfx && gestureEvent) Sfx.done(gestureEvent);
+    var body;
+    if (S.sb) {
+      var once = S.words.filter(function (x) { return x.first === true; }).length;
+      var weak = S.words.filter(function (x) { return x.missed; });
+      body = '<p class="end-line">这一轮：' + S.words.length + ' 个词 · 一次就认识 ' + once + ' 个 · 不熟 ' + weak.length + ' 个</p>' +
+        (weak.length ? '<ul class="weak-list">' + weak.map(function (x) {
+          var w = Data.word(x.id);
+          return '<li class="tap" data-act="say-word" data-id="' + esc(x.id) + '" role="button"><span class="wl-es" lang="es">' + esc(Data.display(w)) + '</span><span class="wl-zh">' + esc(w.zh) + '</span></li>';
+        }).join('') + '</ul>' : '');
+    } else {
+      var log = Store.getLog();
+      body = '<p class="end-line">今天看了 ' + log.cards + ' 个词 · 新词 ' + log.newWords + ' · 复习 ' + Math.max(0, log.cards - log.newWords) + '</p>';
+    }
     sessionEl.innerHTML = '<div class="s-wrap"><div class="s-top"><button class="icon-btn" data-act="exit" aria-label="关闭">' + I.close + '</button>' +
       '<div class="s-progress"><i style="width:100%"></i></div><div class="s-count">完成</div></div>' +
       '<div class="s-body s-end"><div class="end">' +
-      '<div class="end-icon">' + I.check + '</div><h2>这一轮完成了</h2>' +
-      '<p class="end-line">今天看了 ' + log.cards + ' 个词 · 新词 ' + log.newWords + ' · 复习 ' + Math.max(0, log.cards - log.newWords) + '</p>' +
+      '<div class="end-icon">' + I.check + '</div><h2>这一轮完成了</h2>' + body +
       '<p class="hint">已经连续学习 ' + Store.streak() + ' 天。</p>' +
       '</div></div><div class="s-actions">' +
       (more ? '<button class="btn primary big" data-act="continue">继续</button><button class="btn link" data-act="exit">先到这里</button>'
@@ -559,8 +754,18 @@
       '</div></div>';
   }
 
+  // 中途退出（扇贝式）：已完成的保持；没完成但不熟过的 → 盒子 1、明天；没碰过的不变
+  function sbAbandon() {
+    if (S.peek >= 0) S.peek = -1;
+    if (S.side === 'back' && S.pending) sbCommit();
+    S.words.forEach(function (x) {
+      if (!x.done && x.missed) { x.done = true; SRS.grade(x.id, x.type === 'new' ? 'newMissed' : 'again'); }
+    });
+  }
+
   function exitSession() {
-    var had = S && S.idx > 0;
+    var had = S && (S.sb ? S.history.length > 0 : S.idx > 0);
+    if (S && S.sb && !S.ended) sbAbandon();
     S = null;
     if (had && Cloud) Cloud.changed(); // 学完一轮：过 3 秒同步一次
     sessionEl.hidden = true;
@@ -570,8 +775,7 @@
   }
 
   function speakCurrent(which) {
-    var item = cur();
-    var w = item && Data.word(item.id);
+    var w = curWord();
     if (!w) return;
     if (which === 'ex') Speech.speak(w.example && w.example.es, null, 'sentence');
     else Speech.speak(Data.speakText(w), which === 'slow' ? 'turtle' : null, 'word');
@@ -579,19 +783,20 @@
 
   /* ---------- 按键声音 + 震动 ----------
    * 捕获阶段先放“嗒”（在页面处理点击之前），然后页面照常在同一个点击里朗读。
-   * 朗读类的按钮（喇叭、点单词、声音列表）不加“嗒”，免得和发音叠在一起。 */
+   * 朗读类的按钮（喇叭、点单词、声音列表）不加“嗒”，免得和发音叠在一起。“不认识”用另一个更低更轻的声音。 */
   var Sfx = Ene.Sfx || null;
   var gestureEvent = null; // 当前正在处理的用户操作（给结束页的“叮—咚”判断是不是真的用户操作）
+  function markGesture(e) { gestureEvent = e; setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0); }
   var TAP_ACTS = ['next', 'prev', 'start', 'extra', 'review', 'unit-learn', 'unit-review', 'continue', 'exit',
-    'set', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open'];
+    'set', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open', 'know', 'hint', 'wrong'];
   document.addEventListener('click', function (e) {
-    gestureEvent = e;
-    setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0);
+    markGesture(e);
     if (!Sfx || !e.target.closest) return;
     var el = e.target.closest('[data-act], .tabbar a, a.unit, .top a.icon-btn');
     if (!el || el.disabled) return;
     var act = el.getAttribute('data-act');
-    if (!act || TAP_ACTS.indexOf(act) >= 0) Sfx.tap(e);
+    if (act === 'dontknow') Sfx.miss(e);
+    else if (!act || TAP_ACTS.indexOf(act) >= 0) Sfx.tap(e);
   }, true);
 
   /* ---------- 点击（统一处理） ---------- */
@@ -652,6 +857,10 @@
       case 'say-ex': e.stopPropagation(); speakCurrent('ex'); break;
       case 'next': nextCard(); break;
       case 'prev': prevCard(); break;
+      case 'know': sbAnswer(true); break;
+      case 'dontknow': sbAnswer(false); break;
+      case 'hint': sbHint(); break;
+      case 'wrong': sbWrong(); break;
       case 'toggle-sound': Store.setSetting('sound', !Store.settings().sound); renderMe(); break;
       case 'toggle-vibrate': Store.setSetting('vibrate', !Store.settings().vibrate); renderMe(); break;
       case 'continue': {
@@ -669,19 +878,18 @@
     }
   });
 
-  /* ---------- 键盘：空格 / 回车 / → = 下一个，← = 上一个，Esc = 退出 ---------- */
+  /* ---------- 键盘 ----------
+   * 只看：空格 / 回车 / → = 下一个，← = 上一个
+   * 扇贝式正面：1 / ← = 不认识，2 / → / 空格 / 回车 = 认识，H = 提示一下
+   * 扇贝式背面：空格 / 回车 / → = 下一个，← = 上一个（回看）
+   * Esc = 退出 */
   document.addEventListener('keydown', function (e) {
     if (!S || e.altKey || e.ctrlKey || e.metaKey) return;
     var k = e.key;
-    gestureEvent = e;
-    setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0);
+    markGesture(e);
     if (k === 'Escape') { e.preventDefault(); exitSession(); return; }
-    if (k === 'ArrowLeft') {
-      e.preventDefault();
-      if (!e.repeat && (S.ended || S.idx > 0)) { if (Sfx) Sfx.tap(e); prevCard(); }
-      return;
-    }
     if (S.ended) {
+      if (k === 'ArrowLeft' && !S.sb) { e.preventDefault(); if (Sfx) Sfx.tap(e); viewPrev(); return; }
       if (k === 'Enter' || k === ' ') {
         e.preventDefault();
         var btn = sessionEl.querySelector('[data-act="continue"]') || sessionEl.querySelector('[data-act="exit"]');
@@ -689,36 +897,79 @@
       }
       return;
     }
-    if (k === ' ' || k === 'Enter' || k === 'ArrowRight') {
-      e.preventDefault();
-      if (!e.repeat) { if (Sfx) Sfx.tap(e); nextCard(); }
+    if (e.repeat) { if (k === ' ' || k.indexOf('Arrow') === 0) e.preventDefault(); return; }
+    var front = S.sb && S.peek < 0 && S.side === 'front';
+    if (front) {
+      if (k === '1' || k === 'ArrowLeft') { e.preventDefault(); if (Sfx) Sfx.miss(e); sbAnswer(false); }
+      else if (k === '2' || k === 'ArrowRight' || k === ' ' || k === 'Enter') { e.preventDefault(); if (Sfx) Sfx.tap(e); sbAnswer(true); }
+      else if (k === 'h' || k === 'H') { e.preventDefault(); if (Sfx) Sfx.tap(e); sbHint(); }
+      return;
     }
+    if (k === 'ArrowLeft') { e.preventDefault(); if (canGoBack()) { if (Sfx) Sfx.tap(e); prevCard(); } return; }
+    if (k === ' ' || k === 'Enter' || k === 'ArrowRight') { e.preventDefault(); if (Sfx) Sfx.tap(e); nextCard(); }
   });
 
-  /* ---------- 手机上左右滑：右滑 = 上一个，左滑 = 下一个 ---------- */
-  var touch0 = null;
+  /* ---------- 手机上拖动卡片：左滑 = 下一个，右滑 = 上一个 ----------
+   * 卡片跟着手指走（平移 + 最多 6° 旋转 + 稍微变淡）；松手时超过宽度 30% 或快速一甩就翻页，否则弹回。
+   * 只有横向移动明显占主导才开始拖（不影响上下滚动和点单词朗读）。扇贝式正面不能拖（只能选认识 / 不认识）。
+   * 横向移动时一律 preventDefault，挡住浏览器的“滑动返回上一页”。 */
+  var drag = null; // 拖过的手指不会再触发 click（浏览器只给没移动的轻点发 click）
+  function bodyEl() { return sessionEl.querySelector('.s-wrap > .s-body'); }
   sessionEl.addEventListener('touchstart', function (e) {
     var t = e.touches && e.touches[0];
-    touch0 = t && e.touches.length === 1 ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+    drag = null;
+    if (!t || e.touches.length !== 1 || !S || S.ended) return;
+    drag = { x0: t.clientX, y0: t.clientY, t0: Date.now(), on: false, dead: false, x: 0, el: bodyEl(), W: sessionEl.clientWidth || window.innerWidth };
   }, { passive: true });
-  // 横着滑的时候不让浏览器自己处理（否则有的浏览器会当成“返回上一页”）
   sessionEl.addEventListener('touchmove', function (e) {
     var t = e.touches && e.touches[0];
-    if (!touch0 || !t) return;
-    var dx = Math.abs(t.clientX - touch0.x), dy = Math.abs(t.clientY - touch0.y);
-    if (dx > 10 && dx > dy && e.cancelable) e.preventDefault();
+    if (!drag || !t || drag.dead) return;
+    var dx = t.clientX - drag.x0, dy = t.clientY - drag.y0;
+    if (!drag.on) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) >= Math.abs(dx)) { drag.dead = true; return; } // 上下滚动
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (!canNavigate()) { drag.dead = true; if (e.cancelable) e.preventDefault(); return; }
+        drag.on = true;
+      } else return;
+    }
+    if (e.cancelable) e.preventDefault();
+    // 往右拖但没有上一张：阻力大一些
+    if (dx > 0 && !canGoBack()) dx = dx * 0.25;
+    drag.x = dx;
+    drag.rot = Math.max(-6, Math.min(6, dx / drag.W * 12));
+    drag.op = 1 - Math.min(0.35, Math.abs(dx) / drag.W * 0.6);
+    if (drag.el && !reduceMotion()) {
+      drag.el.style.transform = 'translateX(' + dx + 'px) rotate(' + drag.rot + 'deg)';
+      drag.el.style.opacity = drag.op;
+    }
   }, { passive: false });
+  sessionEl.addEventListener('touchmove', function (e) {
+    // 没开始拖、但横向明显：也挡住浏览器的返回手势
+    var t = e.touches && e.touches[0];
+    if (!drag || !t || drag.on) return;
+    if (Math.abs(t.clientX - drag.x0) > 10 && Math.abs(t.clientX - drag.x0) > Math.abs(t.clientY - drag.y0) && e.cancelable) e.preventDefault();
+  }, { passive: false });
+  function springBack(d) {
+    if (!d.el) return;
+    var from = d.el.style.transform || 'none', op = d.el.style.opacity || 1;
+    d.el.style.transform = ''; d.el.style.opacity = '';
+    if (!reduceMotion() && typeof d.el.animate === 'function') {
+      d.el.animate([{ transform: from, opacity: op }, { transform: 'none', opacity: 1 }], { duration: ANIM_MS, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
+    }
+  }
   sessionEl.addEventListener('touchend', function (e) {
-    var t = e.changedTouches && e.changedTouches[0];
-    if (!touch0 || !t || !S || S.ended) { touch0 = null; return; }
-    var dx = t.clientX - touch0.x, dy = t.clientY - touch0.y, fast = Date.now() - touch0.at < 600;
-    touch0 = null;
-    if (!fast || Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
-    gestureEvent = e;
-    setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0);
-    if (dx > 0) { if (S.idx > 0) { if (Sfx) Sfx.tap(e); prevCard(); } }
-    else { if (Sfx) Sfx.tap(e); nextCard(); }
+    var d = drag; drag = null;
+    if (!d || !d.on) return;
+    var dt = Math.max(1, Date.now() - d.t0), v = d.x / dt; // 像素 / 毫秒
+    var go = Math.abs(d.x) > d.W * 0.3 || (Math.abs(v) > 0.6 && Math.abs(d.x) > 40);
+    var dir = d.x < 0 ? 'next' : 'prev';
+    if (!go || !S || (dir === 'prev' && !canGoBack())) { springBack(d); return; }
+    markGesture(e);
+    if (Sfx) Sfx.tap(e);
+    var pose = { x: d.x, rot: d.rot || 0, op: d.op || 1 };
+    if (dir === 'next') nextCard(pose); else prevCard(pose); // 同步换卡 + 朗读，然后再播动画
   }, { passive: true });
+  sessionEl.addEventListener('touchcancel', function () { if (drag && drag.on) springBack(drag); drag = null; }, { passive: true });
 
   window.addEventListener('hashchange', route);
   Speech.onChange(function () { if (!S && (currentTab === 'me' || currentTab === 'learn')) route(); });

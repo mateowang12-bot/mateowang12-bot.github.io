@@ -92,6 +92,46 @@
     return r;
   }
 
+  /* 扇贝式：一个词在这一轮“完成”时调用一次
+   *   'up'        复习词，第一次就认识（没看提示）→ 升一格
+   *   'again'     复习词，这一轮不熟过 → 回到盒子 1（明天），lapses + 1
+   *   'new'       新词（第一次没认出来，但后来没再错）→ 盒子 1（明天）
+   *   'newMissed' 新词，这一轮不熟过 → 盒子 1（明天），lapses + 1
+   *   'newKnown'  新词，第一次就认识（本来就会）→ 盒子 3（7 天后） */
+  function grade(id, outcome) {
+    var today = T.today();
+    var r = rec(id);
+    var isNew = !r;
+    r = r ? JSON.parse(JSON.stringify(r)) : newRec();
+    if (outcome === 'again' || outcome === 'newMissed') {
+      r.easy = false;
+      r.box = 1;
+      r.lapses = (r.lapses || 0) + 1;
+    } else if (outcome === 'newKnown') {
+      r.box = 3;
+    } else if (outcome === 'new') {
+      r.box = 1;
+    } else if (!r.easy) {
+      r.box = Math.min((r.box || 0) + 1, MAX_BOX);
+    }
+    if (!r.easy) r.due = T.addDays(today, INTERVALS[r.box - 1]);
+    r.reps = (r.reps || 0) + 1;
+    r.lastReview = T.now();
+    Store.setWord(id, r);
+    Store.logStudy(1, isNew ? 1 : 0);
+    return r;
+  }
+
+  // 不熟的词：错过至少一次，而且还在盒子 1–2
+  function weakCount() {
+    var n = 0;
+    Data.order.forEach(function (id) {
+      var r = rec(id);
+      if (r && !r.easy && (r.lapses || 0) >= 1 && (r.box || 0) <= 2) n++;
+    });
+    return n;
+  }
+
   // 今天到期的词（只算现在有数据的词），最早到期的排前面
   function dueIds(today, unitId) {
     today = today || T.today();
@@ -175,6 +215,8 @@
     isMastered: isMastered,
     isDue: isDue,
     view: view,
+    grade: grade,
+    weakCount: weakCount,
     markSeen: markSeen,
     answer: answer,
     dueIds: dueIds,
