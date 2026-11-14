@@ -42,15 +42,32 @@
     return s;
   }
 
-  function pick() {
-    if (!synth) return null;
+  // 设备上所有西语声音，按“推荐”顺序排好（拉美、本机优先）
+  function spanishVoices() {
+    if (!synth) return [];
     var list = [];
     try { list = synth.getVoices() || []; } catch (e) { list = []; }
-    var es = list.filter(isSpanish);
     if (list.length) voicesChecked = true;
-    if (!es.length) { voice = null; return null; }
+    var es = list.filter(isSpanish);
     es.sort(function (a, b) { return score(a) - score(b); });
-    voice = es[0];
+    return es;
+  }
+  function voiceId(v) { return v ? String(v.voiceURI || v.name || '') : ''; }
+  function savedVoice() { return Ene.Store ? String(Ene.Store.settings().voice || '') : ''; }
+
+  // 用户在“我的”里选过声音就用它（按 voiceURI，找不到再按名字）；没选过或这台设备上没有 → 自动选
+  var pickedFor = null;
+  function pick() {
+    var es = spanishVoices();
+    var want = savedVoice();
+    pickedFor = want;
+    if (!es.length) { voice = null; return null; }
+    var chosen = null;
+    if (want) {
+      for (var i = 0; i < es.length && !chosen; i++) if (es[i].voiceURI && es[i].voiceURI === want) chosen = es[i];
+      for (var j = 0; j < es.length && !chosen; j++) if (es[j].name === want) chosen = es[j];
+    }
+    voice = chosen || es[0];
     return voice;
   }
 
@@ -163,7 +180,7 @@
   }
 
   function begin() {
-    if (!voice) pick();
+    if (!voice || pickedFor !== savedVoice()) pick(); // 换过声音（或同步来了别的设置）就重新找
     if (synth.speaking || synth.pending) synth.cancel();
   }
 
@@ -186,19 +203,51 @@
     return plan;
   }
 
-  // speed: 'vslow' | 'slow' | 'normal' | 'turtle'（不传就用设置里的）；kind: 'word'（默认）| 'sentence'
+  /* speed: 'vslow' | 'slow' | 'normal' | 'turtle'（不传就用设置里的）；kind: 'word'（默认）| 'sentence'
+   * 很慢 / 乌龟：句子按词、3 个音节以上的单词按音节（最后整词再读一遍）
+   * 慢：电脑上只调语速；iPhone 上的声音常常不理语速，所以句子按词分开读，单词一次读完
+   * 正常：一次读完
+   * 不管哪种，都照样设置 rate（换成支持调速的声音时就有效） */
   function speak(text, speed, kind) {
     if (!synth || !text) return false;
     try {
       begin();
       var sp = speed || (Ene.Store ? Ene.Store.settings().rate : 'slow');
       var rate = rateFor(sp);
-      if (sp === 'turtle' || sp === 'vslow') queueSlow(text, kind || 'word', rate);
+      kind = kind || 'word';
+      if (sp === 'turtle' || sp === 'vslow') queueSlow(text, kind, rate);
+      else if (sp === 'slow' && isIOS && kind === 'sentence') queueSlow(text, 'sentence', rate);
       else synth.speak(makeUtt(text, rate));
       return true;
     } catch (e) {
       return false;
     }
+  }
+
+  function regionZh(lang) {
+    var r = region(lang);
+    return REGION_ZH[r] || (r ? '其他地区' : '通用');
+  }
+
+  // 给“我的”页的声音列表
+  function voiceList() {
+    var cur = voiceId(voice);
+    return spanishVoices().map(function (v) {
+      return { id: voiceId(v), name: v.name, lang: v.lang, region: regionZh(v.lang), local: !!v.localService, current: voiceId(v) === cur };
+    });
+  }
+
+  // 选一个声音（'' = 自动选择），马上用 0.35 的语速读一句（一句话一次读完，听得出这个声音支不支持调速）
+  function choose(id) {
+    if (Ene.Store) Ene.Store.setSetting('voice', String(id || ''));
+    pick();
+    notify();
+    if (!synth) return false;
+    try {
+      if (synth.speaking || synth.pending) synth.cancel();
+      synth.speak(makeUtt(TEST_TEXT, 0.35));
+      return true;
+    } catch (e) { return false; }
   }
 
   // “发音测试”：A 旧方法 / B 不指定声音 / C 先设 rate / D 一个词一个词
@@ -215,9 +264,7 @@
 
   function voiceLabel() {
     if (!voice) return '';
-    var r = region(voice.lang);
-    var where = REGION_ZH[r] || (r ? '其他地区' : '通用');
-    return '西班牙语（' + where + '）· ' + (voice.localService ? '本机语音' : '在线语音');
+    return '西班牙语（' + regionZh(voice.lang) + '）· ' + (voice.localService ? '本机语音' : '在线语音');
   }
 
   Ene.Speech = {
@@ -226,6 +273,9 @@
     RATES: RATES,
     speak: speak,
     test: test,
+    voiceList: voiceList,
+    choose: choose,
+    savedVoice: savedVoice,
     syllables: syllables,
     slowPlan: slowPlan,
     voiceInfo: function () { return voice ? { name: voice.name, lang: voice.lang, local: !!voice.localService } : null; },

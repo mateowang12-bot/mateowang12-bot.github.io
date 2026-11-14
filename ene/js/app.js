@@ -270,10 +270,8 @@
       '<div class="set-row col"><div class="set-k">朗读速度</div>' + seg('rate', [['vslow', '很慢'], ['slow', '慢'], ['normal', '正常']], st.rate) + '</div>' +
       '<div class="set-row"><div class="set-k">自动朗读<small>每张卡片出现时先读一遍</small></div>' +
       '<button class="switch' + (st.autoplay ? ' on' : '') + '" role="switch" aria-checked="' + !!st.autoplay + '" aria-label="自动朗读" data-act="toggle-autoplay"><i></i></button></div>' +
-      '<div class="set-row"><div class="set-k">发音<small>' + (Speech.voice() ? esc(Speech.voiceLabel()) : (Speech.missing() ? '没有找到西班牙语发音' : '正在查找……')) + '</small></div>' +
-      '<button class="btn small" data-act="test-voice">试听</button></div>' +
-      voiceDiag() +
       '</section>';
+    html += voiceSection();
     html += cloudSection();
     html += voiceBanner();
     if (!Store.ok()) html += '<div class="notice">这个浏览器现在不能保存进度（可能是无痕模式），关掉后进度会丢失。</div>';
@@ -283,9 +281,38 @@
 
   /* ---------- 发音测试（找出 iPhone 上哪种方法能变慢） ---------- */
   var voiceDiagOpen = false;
+
+  // “发音”：当前声音 + 所有西语声音的列表（点一下 = 选中并试听）+ 更多测试
+  function voiceSection() {
+    var html = '<h2 class="section-title">发音</h2><section class="card settings voices">' +
+      '<div class="set-row"><div class="set-k">现在用的声音<small>' +
+      (Speech.voice() ? esc(Speech.voice().name) + ' · ' + esc(Speech.voiceLabel()) : (Speech.missing() ? '没有找到西班牙语发音' : '正在查找……')) +
+      '</small></div><button class="btn small" data-act="test-voice">试听</button></div>';
+    var list = Speech.voiceList();
+    if (list.length) {
+      var saved = Speech.savedVoice();
+      var savedFound = list.some(function (v) { return v.id === saved || v.name === saved; });
+      var auto = !saved || !savedFound;
+      html += '<p class="voice-hint">点一个声音试听：如果这句明显变慢，说明这个声音支持调速，选它就行。</p>' +
+        '<div class="voice-list" role="radiogroup">' +
+        voiceRow('', '自动选择（推荐拉美）', '', auto) +
+        list.map(function (v) {
+          return voiceRow(v.id, v.name, v.region + ' · ' + (v.local ? '本机' : '在线'), !auto && v.current);
+        }).join('') + '</div>';
+    }
+    html += '<p class="voice-hint">iPhone 可以下载更多声音：设置 → 辅助功能 → 朗读内容 → 声音 → 西班牙语（例如 Paulina、Mónica、Juan），下载后重新打开 App。</p>';
+    html += voiceDiag();
+    return html + '</section>';
+  }
+  function voiceRow(id, name, sub, on) {
+    return '<button class="voice-row' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" data-act="voice-pick" data-v="' + esc(id) + '">' +
+      '<span class="vr-mark">' + (on ? I.check : '') + '</span>' +
+      '<span class="vr-main"><span class="vr-name">' + esc(name) + '</span>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
+  }
+
   function voiceDiag() {
     var html = '<button class="set-row row-btn" data-act="voice-diag-open" aria-expanded="' + voiceDiagOpen + '">' +
-      '<span class="set-k">发音测试<small>语速调不慢时，用这里找原因</small></span>' +
+      '<span class="set-k">更多测试<small>语速调不慢时，用这里找原因</small></span>' +
       '<span class="chev' + (voiceDiagOpen ? ' up' : '') + '">' + I.chev + '</span></button>';
     if (!voiceDiagOpen) return html;
     var v = Speech.voiceInfo();
@@ -561,6 +588,11 @@
         else if (Speech.missing()) toast('没有找到西班牙语发音，请先添加');
         break;
       case 'voice-diag-open': voiceDiagOpen = !voiceDiagOpen; renderMe(); break;
+      case 'voice-pick':
+        // 先在点击里同步试听（iPhone 要求），再重画列表
+        if (!Speech.choose(el.getAttribute('data-v'))) toast('现在不能朗读');
+        renderMe();
+        break;
       case 'voice-diag':
         if (!Speech.test(el.getAttribute('data-m'))) toast('现在不能朗读');
         break;

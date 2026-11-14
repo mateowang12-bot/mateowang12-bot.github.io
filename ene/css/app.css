@@ -243,6 +243,20 @@ svg { display: block; }
 
 /* ---------- 账号同步 ---------- */
 .row-btn { width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.voice-hint { margin: 4px 0 10px; font-size: 13px; color: var(--text-3); }
+.voice-list { border-top: 1px solid var(--line); margin-bottom: 12px; }
+.voice-row {
+  width: 100%; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 0;
+  border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit;
+  text-align: left; cursor: pointer;
+}
+.vr-mark { flex: 0 0 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--mid); display: flex; align-items: center; justify-content: center; }
+.voice-row.on .vr-mark { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.vr-mark svg { width: 14px; height: 14px; }
+.vr-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.vr-name { font-weight: 600; overflow-wrap: anywhere; }
+.voice-row.on .vr-name { font-weight: 800; }
+.vr-main small { color: var(--text-3); font-size: 13px; }
 .diag { padding: 0 0 16px; }
 .diag-info { margin: 0 0 6px; font-size: 14px; overflow-wrap: anywhere; }
 .diag-note { margin: 6px 0; font-size: 13px; color: var(--text-3); }

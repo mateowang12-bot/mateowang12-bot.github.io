@@ -34,7 +34,8 @@
   Ene.time = time;
 
   // theme：'system' 跟随系统 / 'light' 白色 / 'dark' 黑色
-  var DEFAULT_SETTINGS = { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system' };
+  // voice：选中的朗读声音（voiceURI，没有就用名字）；'' = 自动选择（推荐拉美）
+  var DEFAULT_SETTINGS = { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '' };
 
   function rid() {
     return 'd' + Math.random().toString(36).slice(2, 10) + time.now().toString(36);
@@ -48,7 +49,7 @@
       createdAt: now,
       updatedAt: now,
       words: {},     // id -> { box, due, seen, lastReview, reps, lapses, easy, updatedAt }
-      settings: { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', updatedAt: 0 },
+      settings: { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', updatedAt: 0 },
       log: {},       // 'YYYY-MM-DD' -> { cards, newWords, updatedAt }
       streak: { days: 0, last: null, updatedAt: 0 }
     };
