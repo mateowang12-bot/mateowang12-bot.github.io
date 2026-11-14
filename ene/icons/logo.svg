@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Eñe</title>
+  <rect width="512" height="512" rx="116" fill="#000000"/>
+  <path d="M150 404V196h52l108 136V196h52v208h-52L202 268v136z" fill="#FFFFFF"/>
+  <path d="M168 152c26-36 58-38 88-18s62 18 88-18" fill="none" stroke="#FFFFFF" stroke-width="34" stroke-linecap="round"/>
+</svg>

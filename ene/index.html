@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Eñe 西语单词</title>
+  <meta name="description" content="只学单词的西班牙语 App：单词卡 + 按遗忘规律复习，拉美通用说法。">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <!-- 外观（白色 / 黑色）要在页面画出来之前就设好，避免闪一下 -->
+  <script>
+    (function () {
+      try {
+        var s = (JSON.parse(localStorage.getItem('ene-progress-v1') || '{}') || {}).settings || {};
+        var t = s.theme;
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+          var m = document.querySelectorAll('meta[name="theme-color"]');
+          for (var i = 0; i < m.length; i++) m[i].setAttribute('content', t === 'dark' ? '#000000' : '#FFFFFF');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <!-- 添加到主屏幕（iPhone） -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Eñe">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/svg+xml" href="icons/logo.svg">
+  <!-- 直接双击打开（file://）时浏览器不让读 manifest，所以只在网址打开时加上 -->
+  <script>if (location.protocol !== 'file:') document.write('<link rel="manifest" href="manifest.webmanifest">');</script>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <main id="view" class="view"></main>
+    <nav id="tabbar" class="tabbar" aria-label="主菜单"></nav>
+  </div>
+  <section id="session" class="session" hidden aria-label="学习"></section>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript>请打开浏览器的 JavaScript 功能后再使用。</noscript>
+
+  <!-- 单词数据：有几个单元就加载几个，缺少的文件会被自动跳过 -->
+  <script src="data/u01.js"></script>
+  <script src="data/u02.js"></script>
+  <script src="data/u03.js"></script>
+  <script src="data/u04.js"></script>
+  <script src="data/u05.js"></script>
+  <script src="data/u06.js"></script>
+  <script src="data/u07.js"></script>
+  <script src="data/u08.js"></script>
+  <script src="data/u09.js"></script>
+  <script src="data/u10.js"></script>
+  <script src="data/u11.js"></script>
+  <script src="data/u12.js"></script>
+  <script src="data/u13.js"></script>
+  <script src="data/u14.js"></script>
+  <script src="data/u15.js"></script>
+  <script src="data/u16.js"></script>
+  <script src="data/u17.js"></script>
+  <script src="data/u18.js"></script>
+  <script src="data/u19.js"></script>
+  <script src="data/u20.js"></script>
+  <script src="data/u21.js"></script>
+  <script src="data/u22.js"></script>
+  <script src="data/u23.js"></script>
+  <script src="data/u24.js"></script>
+  <script src="data/u25.js"></script>
+  <script src="data/u26.js"></script>
+
+  <script src="js/store.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/cloud-config.js"></script>
+  <script src="js/cloud.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

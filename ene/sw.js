@@ -1,0 +1,99 @@
+/* Eñe 西语单词 —— 离线缓存（先用缓存，没有再上网取）
+ * 发布时运行 tools/build.ps1：它会自动把下面的 VERSION 换成“文件内容的指纹”，
+ * 并重新生成 FILES 清单。所以只要内容变了，版本号一定会变，手机上就会换成新文件。
+ * （这里手写的内容只是在没用 build 时的后备。）
+ */
+var VERSION = 'ene-7b1342f6dfc7'; // BUILD:VERSION
+
+/* BUILD:FILES-START */
+var FILES = [
+  './',
+  'index.html',
+  'manifest.webmanifest',
+  'css/app.css',
+  'js/app.js',
+  'js/cloud.js',
+  'js/cloud-config.js',
+  'js/data.js',
+  'js/speech.js',
+  'js/srs.js',
+  'js/store.js',
+  'data/u01.js',
+  'data/u02.js',
+  'data/u03.js',
+  'data/u04.js',
+  'data/u05.js',
+  'data/u06.js',
+  'data/u07.js',
+  'data/u08.js',
+  'data/u09.js',
+  'data/u10.js',
+  'data/u11.js',
+  'data/u12.js',
+  'data/u13.js',
+  'data/u14.js',
+  'data/u15.js',
+  'data/u16.js',
+  'data/u17.js',
+  'data/u18.js',
+  'data/u19.js',
+  'data/u20.js',
+  'data/u21.js',
+  'data/u22.js',
+  'data/u23.js',
+  'data/u24.js',
+  'data/u25.js',
+  'data/u26.js',
+  'icons/apple-touch-icon.png',
+  'icons/favicon-32.png',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-maskable-512.png',
+  'icons/logo.svg'
+];
+/* BUILD:FILES-END */
+
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(VERSION).then(function (cache) {
+      // 一个一个加：某个文件取不到也不会让整个安装失败
+      return Promise.all(FILES.map(function (url) {
+        return fetch(url, { cache: 'no-cache' }).then(function (res) {
+          if (res && res.ok) return cache.put(url, res);
+        }).catch(function () {});
+      }));
+    }).then(function () { return self.skipWaiting(); })
+  );
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (k) {
+        if (k !== VERSION && k.indexOf('ene-') === 0) return caches.delete(k);
+      }));
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function (event) {
+  var req = event.request;
+  if (req.method !== 'GET') return;
+  var url = new URL(req.url);
+  if (url.origin !== self.location.origin) return; // 云同步（Supabase）的请求不经过缓存
+  event.respondWith(
+    caches.match(req, { ignoreSearch: true }).then(function (hit) {
+      if (hit) return hit;
+      return fetch(req).then(function (res) {
+        if (res && res.ok && res.type === 'basic') {
+          var copy = res.clone();
+          caches.open(VERSION).then(function (c) { c.put(req, copy); });
+        }
+        return res;
+      }).catch(function () {
+        if (req.mode === 'navigate') return caches.match('index.html');
+        return Response.error();
+      });
+    })
+  );
+});
