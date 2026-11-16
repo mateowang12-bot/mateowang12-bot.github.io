@@ -3,7 +3,7 @@
  * 并重新生成 FILES 清单。所以只要内容变了，版本号一定会变，手机上就会换成新文件。
  * （这里手写的内容只是在没用 build 时的后备。）
  */
-var VERSION = 'ene-0f0a8bbb1817'; // BUILD:VERSION
+var VERSION = 'ene-b3b300da3d0d'; // BUILD:VERSION
 
 /* BUILD:FILES-START */
 var FILES = [

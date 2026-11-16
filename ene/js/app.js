@@ -122,7 +122,9 @@
     var btn, hint;
     if (p.due || p.left) {
       btn = '<button class="btn primary big" data-act="start">开始学习</button>';
-      hint = p.due ? '先复习到期的词，再学新词' : '看完今天的新词就好';
+      hint = !p.due ? '看完今天的新词就好'
+        : batchOf(p.due) < p.due ? '先复习 ' + batchOf(p.due) + ' 个到期的词，再学新词'
+        : '先复习到期的词，再学新词';
     } else if (p.unseen) {
       btn = '<button class="btn primary big" data-act="extra">再学 5 个新词</button>';
       hint = '今天的任务完成了，想多学一点也可以';
@@ -176,7 +178,7 @@
     var unseen = SRS.newIds(9999, id).length;
     var btn;
     if (unseen) btn = '<button class="btn primary big" data-act="unit-learn" data-unit="' + esc(id) + '">学这个单元</button>';
-    else if (s.due) btn = '<button class="btn primary big" data-act="unit-review" data-unit="' + esc(id) + '">复习本单元（' + s.due + ' 个）</button>';
+    else if (s.due) btn = '<button class="btn primary big" data-act="unit-review" data-unit="' + esc(id) + '">复习本单元（' + batchOf(s.due) + ' 个）</button>';
     else btn = '<button class="btn big" disabled>这个单元的词都学过了</button>';
 
     var html = '<header class="top sub"><a class="icon-btn" href="#/learn" aria-label="返回">' + I.back + '</a>' +
@@ -203,17 +205,45 @@
   }
 
   /* ---------- 复习页 ---------- */
+  // 一轮复习几个词（0 = 全部）
+  function reviewBatch() {
+    var n = Number(Store.settings().reviewBatch);
+    return n > 0 ? n : 0;
+  }
+  function batchOf(n) { var b = reviewBatch(); return b ? Math.min(b, n) : n; }
+
   function renderReview() {
     var due = SRS.dueIds().length;
     var c = SRS.boxCounts();
     var tomorrow = SRS.dueIds(T.addDays(T.today(), 1)).length - due;
     var html = '<header class="top"><h1>复习</h1></header>';
+    var pick = '';
+    if (due > 10) {
+      var opts = [[10, '10 个'], [20, '20 个'], [50, '50 个'], [0, '全部']].filter(function (o) { return o[0] === 0 || o[0] < due; });
+      pick = '<div class="rv-pick"><div class="rv-pick-t">一次复习</div>' + seg('reviewBatch', opts, reviewBatch()) + '</div>';
+    }
+    var n = batchOf(due);
     html += '<section class="card review-hero">' +
-      '<div class="big-num">' + due + '</div><div class="big-label">今天要复习的词</div>' +
-      (due ? '<button class="btn primary big" data-act="review">开始复习</button>'
+      '<div class="big-num">' + due + '</div><div class="big-label">今天要复习的词</div>' + pick +
+      (due ? '<button class="btn primary big" data-act="review">' + (n < due ? '复习 ' + n + ' 个' : '开始复习') + '</button>'
         : '<button class="btn big" disabled>今天没有要复习的词</button>') +
-      '<p class="hint">' + (tomorrow > 0 ? '明天还有 ' + tomorrow + ' 个词到期' : '按时复习，记得更牢') + '</p>' +
+      '<p class="hint">' + (n < due ? '先复习最早到期的 ' + n + ' 个，学完可以再来一组'
+        : tomorrow > 0 ? '明天还有 ' + tomorrow + ' 个词到期' : '按时复习，记得更牢') + '</p>' +
       (SRS.weakCount() ? '<p class="hint">不熟的词：' + SRS.weakCount() + ' 个（错过、还在前两格）</p>' : '') + '</section>';
+
+    // 按单元挑着复习：只列出有到期词的单元
+    var units = Data.units.map(function (u) { return { u: u, n: SRS.dueIds(null, u.id).length }; })
+      .filter(function (x) { return x.n > 0; });
+    if (units.length > 1) {
+      html += '<h2 class="section-title">按单元复习 <span>只复习某一个单元</span></h2><div class="units">' +
+        units.map(function (x) {
+          return '<button class="unit rv-unit" data-act="unit-review" data-unit="' + esc(x.u.id) + '">' +
+            '<div class="unit-no">' + x.u.no + '</div>' +
+            '<div class="unit-main"><div class="unit-title"><span class="zh">' + esc(x.u.titleZh) + '</span></div>' +
+            '<div class="unit-es" lang="es">' + esc(x.u.titleEs) + '</div></div>' +
+            '<span class="rv-n">' + x.n + ' 个</span></button>';
+        }).join('') + '</div>';
+    }
 
     var rows = [];
     // 旧版留下的“看过还没升格”的词，有才显示
@@ -465,6 +495,9 @@
     }
     var has = function (id) { return !!Data.word(id); };
     reviews = reviews.filter(has); news = news.filter(has);
+    // 复习的词一轮只拿一组（最早到期的在前），学完可以按“继续”再来一组
+    var batch = reviewBatch();
+    if (batch && reviews.length > batch) reviews = reviews.slice(0, batch);
     if (!reviews.length && !news.length) { toast('现在没有要学的词'); return; }
     if (sbMode()) {
       var mk = function (type) { return function (id) { return { id: id, type: type, need: type === 'new' ? 2 : 1, got: 0, shown: 0, first: null, missed: false, done: false }; }; };
@@ -743,13 +776,21 @@
       var log = Store.getLog();
       body = '<p class="end-line">今天看了 ' + log.cards + ' 个词 · 新词 ' + log.newWords + ' · 复习 ' + Math.max(0, log.cards - log.newWords) + '</p>';
     }
+    // 复习：还剩多少个到期的词
+    var contLabel = '继续', left = 0;
+    var om = S.opts.mode;
+    if (more && (om === 'review' || om === 'unit-review')) {
+      left = (om === 'review' ? SRS.dueIds() : SRS.dueIds(null, S.opts.unitId)).length;
+      contLabel = '再复习 ' + batchOf(left) + ' 个';
+      body += '<p class="hint">还有 ' + left + ' 个词等着复习，不急，可以明天再来。</p>';
+    }
     sessionEl.innerHTML = '<div class="s-wrap"><div class="s-top"><button class="icon-btn" data-act="exit" aria-label="关闭">' + I.close + '</button>' +
       '<div class="s-progress"><i style="width:100%"></i></div><div class="s-count">完成</div></div>' +
       '<div class="s-body s-end"><div class="end">' +
       '<div class="end-icon">' + I.check + '</div><h2>这一轮完成了</h2>' + body +
       '<p class="hint">已经连续学习 ' + Store.streak() + ' 天。</p>' +
       '</div></div><div class="s-actions">' +
-      (more ? '<button class="btn primary big" data-act="continue">继续</button><button class="btn link" data-act="exit">先到这里</button>'
+      (more ? '<button class="btn primary big" data-act="continue">' + contLabel + '</button><button class="btn link" data-act="exit">先到这里</button>'
         : '<button class="btn primary big" data-act="exit">完成</button>') +
       '</div></div>';
   }
@@ -830,11 +871,11 @@
       }
       case 'set': {
         var k = el.getAttribute('data-k'), v = el.getAttribute('data-v');
-        if (k === 'newPerDay') v = Number(v);
+        if (k === 'newPerDay' || k === 'reviewBatch') v = Number(v);
         Store.setSetting(k, v);
         if (k === 'rate') Speech.speak('Hola, ¿cómo estás?', v, 'sentence');
         if (k === 'theme') applyTheme(v);
-        renderMe();
+        if (k === 'reviewBatch') renderReview(); else renderMe();
         break;
       }
       case 'toggle-autoplay': Store.setSetting('autoplay', !Store.settings().autoplay); renderMe(); break;
