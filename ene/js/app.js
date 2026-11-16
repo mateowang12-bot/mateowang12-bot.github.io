@@ -137,7 +137,7 @@
       (p.due || p.left ? '' : '<span class="tag good">已完成</span>') + '</div>' +
       '<div class="today-line">今天：新词 <b>' + p.done + '</b>/' + p.limit + ' · 待复习 <b>' + p.due + '</b></div>' +
       '<div class="today-bar"><i style="width:' + Math.min(100, Math.round(p.done / p.limit * 100)) + '%"></i></div>' +
-      btn + '<p class="hint">' + hint + '</p></section>';
+      batchPicker(p.due) + btn + '<p class="hint">' + hint + '</p></section>';
 
     // A1、A2，然后“专业场景”（不进每天的新词，自己点进去学），最后是其他级别（以后的 B1 等）
     var groups = [
@@ -211,17 +211,19 @@
     return n > 0 ? n : 0;
   }
   function batchOf(n) { var b = reviewBatch(); return b ? Math.min(b, n) : n; }
+  // “一次复习 10 / 20 / 50 / 全部”（首页和复习页共用；到期词 ≤ 10 个时不显示）
+  function batchPicker(due) {
+    if (due <= 10) return '';
+    var opts = [[10, '10 个'], [20, '20 个'], [50, '50 个'], [0, '全部']].filter(function (o) { return o[0] === 0 || o[0] < due; });
+    return '<div class="rv-pick"><div class="rv-pick-t">一次复习</div>' + seg('reviewBatch', opts, reviewBatch()) + '</div>';
+  }
 
   function renderReview() {
     var due = SRS.dueIds().length;
     var c = SRS.boxCounts();
     var tomorrow = SRS.dueIds(T.addDays(T.today(), 1)).length - due;
     var html = '<header class="top"><h1>复习</h1></header>';
-    var pick = '';
-    if (due > 10) {
-      var opts = [[10, '10 个'], [20, '20 个'], [50, '50 个'], [0, '全部']].filter(function (o) { return o[0] === 0 || o[0] < due; });
-      pick = '<div class="rv-pick"><div class="rv-pick-t">一次复习</div>' + seg('reviewBatch', opts, reviewBatch()) + '</div>';
-    }
+    var pick = batchPicker(due);
     var n = batchOf(due);
     html += '<section class="card review-hero">' +
       '<div class="big-num">' + due + '</div><div class="big-label">今天要复习的词</div>' + pick +
@@ -875,7 +877,8 @@
         Store.setSetting(k, v);
         if (k === 'rate') Speech.speak('Hola, ¿cómo estás?', v, 'sentence');
         if (k === 'theme') applyTheme(v);
-        if (k === 'reviewBatch') renderReview(); else renderMe();
+        if (k === 'reviewBatch') { if (currentTab === 'review') renderReview(); else renderHome(); }
+        else renderMe();
         break;
       }
       case 'toggle-autoplay': Store.setSetting('autoplay', !Store.settings().autoplay); renderMe(); break;
