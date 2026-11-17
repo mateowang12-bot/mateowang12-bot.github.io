@@ -3,7 +3,7 @@
  * 并重新生成 FILES 清单。所以只要内容变了，版本号一定会变，手机上就会换成新文件。
  * （这里手写的内容只是在没用 build 时的后备。）
  */
-var VERSION = 'ene-b007039cad07'; // BUILD:VERSION
+var VERSION = 'ene-3e58977301bc'; // BUILD:VERSION
 
 /* BUILD:FILES-START */
 var FILES = [
@@ -51,6 +51,17 @@ var FILES = [
   'data/u30.js',
   'data/u31.js',
   'data/u32.js',
+  'data/dele1.js',
+  'data/dele2.js',
+  'data/dele3.js',
+  'data/dele4.js',
+  'data/xianxi1.js',
+  'data/xianxi2.js',
+  'data/xianxi3.js',
+  'data/xianxi4.js',
+  'data/sucheng1.js',
+  'data/sucheng2.js',
+  'data/sucheng3.js',
   'icons/apple-touch-icon.png',
   'icons/favicon-32.png',
   'icons/icon-192.png',

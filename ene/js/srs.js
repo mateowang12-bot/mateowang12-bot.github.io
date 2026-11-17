@@ -146,10 +146,12 @@
   }
 
   // 还没学过的词，按单元顺序
-  // 不指定单元时（每天的“开始学习”）：跳过专业场景单元，只按 A1 → A2 的顺序
+  // 不指定单元时（每天的“开始学习”）：只从现在选的课本里拿，跳过专业场景单元
+  // （别的书里已经学过的同一个词不会再当新词）
+  function currentBook() { return Data.book(Store.settings().book); }
   function newIds(limit, unitId) {
     var out = [];
-    var ids = unitId ? (Data.unit(unitId) || { words: [] }).words.map(function (w) { return w.id; }) : Data.order;
+    var ids = unitId ? (Data.unit(unitId) || { words: [] }).words.map(function (w) { return w.id; }) : currentBook().order;
     for (var i = 0; i < ids.length && out.length < limit; i++) {
       if (rec(ids[i])) continue;
       if (!unitId) { var w = Data.word(ids[i]); if (w && w.unit && w.unit.pro) continue; }
@@ -221,6 +223,13 @@
     answer: answer,
     dueIds: dueIds,
     newIds: newIds,
+    currentBook: currentBook,
+    // 一本书的进度：总词数、学过、掌握
+    bookStats: function (b) {
+      var s = { total: b.order.length, seen: 0, mastered: 0 };
+      b.order.forEach(function (id) { var r = rec(id); if (!r) return; s.seen++; if (isMastered(r)) s.mastered++; });
+      return s;
+    },
     newToday: newToday,
     newLeftToday: newLeftToday,
     unitStats: unitStats,

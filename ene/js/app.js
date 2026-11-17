@@ -59,7 +59,10 @@
     if (S) return;
     var parts = location.hash.replace(/^#\/?/, '').split('/');
     var page = parts[0] || 'learn';
-    if (page === 'unit' && Data.unit(parts[1])) { currentTab = 'learn'; renderUnit(parts[1]); }
+    // 第一次打开（还没选过课本）：先选书
+    var firstTime = !Store.settings().book && Data.books.length > 0;
+    if (page === 'books' || firstTime) { currentTab = firstTime ? 'books-first' : 'me'; renderBooks(firstTime); }
+    else if (page === 'unit' && Data.unit(parts[1])) { currentTab = 'learn'; renderUnit(parts[1]); }
     else if (page === 'review') { currentTab = 'review'; renderReview(); }
     else if (page === 'me') { currentTab = 'me'; renderMe(); }
     else { currentTab = 'learn'; renderHome(); }
@@ -69,6 +72,44 @@
       tabs[i].classList.toggle('on', on);
       if (on) tabs[i].setAttribute('aria-current', 'page'); else tabs[i].removeAttribute('aria-current');
     }
+    document.body.classList.toggle('no-tabbar', currentTab === 'books-first'); // 第一次选书时不显示底部菜单
+  }
+
+  /* ---------- 选课本（像扇贝单词：一次只学一本，按书的顺序学） ---------- */
+  function bookCover(b) {
+    // 黑白“封面”：书名的前两个字
+    var t = b.titleZh.replace(/[《》]/g, '').replace(/\s+/g, '');
+    return '<div class="bk-cover" aria-hidden="true"><span>' + esc(t.slice(0, 2)) + '</span><small>' + esc(t.slice(2, 6)) + '</small></div>';
+  }
+  function renderBooks(first) {
+    var cur = Store.settings().book;
+    var html = first
+      ? '<header class="top books-first"><div class="brand">' + I.logo + '<span>Eñe 西语单词</span></div></header>' +
+        '<div class="bk-intro"><h1>选一本书开始背单词</h1><p>一次学一本，按书的顺序来。以后可以在“我的”里换。</p></div>'
+      : '<header class="top sub"><a class="icon-btn" href="#/me" aria-label="返回">' + I.back + '</a>' +
+        '<div class="top-title"><div class="t1">选择课本</div><div class="t2">一次学一本；换书后学过的词不会丢</div></div></header>';
+    html += '<div class="bk-list">' + Data.books.map(function (b) {
+      var s = SRS.bookStats(b);
+      var on = b.id === cur;
+      var pct = s.total ? Math.round(s.seen / s.total * 100) : 0;
+      var groups = [];
+      b.units.forEach(function (u) { if (u.group && groups.indexOf(u.group) < 0) groups.push(u.group); });
+      return '<button class="bk' + (on ? ' on' : '') + '" data-act="pick-book" data-v="' + esc(b.id) + '">' + bookCover(b) +
+        '<div class="bk-main"><div class="bk-title">' + esc(b.titleZh) + (on ? '<span class="tag">在学</span>' : '') + '</div>' +
+        '<div class="bk-sub">' + esc(b.sub) + '</div>' +
+        '<div class="bk-meta">' + s.total + ' 词' + (groups.length ? ' · ' + esc(groups.join(' / ')) : ' · ' + b.units.length + ' 个单元') + '</div>' +
+        (s.seen ? '<div class="bar"><i class="seen" style="width:' + pct + '%"></i></div><div class="bk-meta">已学 ' + s.seen + ' · 掌握 ' + s.mastered + '</div>' : '') +
+        '</div></button>';
+    }).join('') + '</div>';
+    html += '<p class="footnote">这些词表是按各本书的程度和话题自己整理的，例句和翻译都是自己写的，不是书里的原文生词表。同一个词在几本书里都有时，学习进度是共用的。</p>';
+    view.innerHTML = html;
+  }
+  function pickBook(id) {
+    var b = Data.book(id);
+    var was = Store.settings().book;
+    Store.setSetting('book', b.id);
+    if (was && was !== b.id) toast('已换成' + b.titleZh);
+    go('#/learn');
   }
   function go(hash) {
     if (location.hash === hash) route(); else location.hash = hash;
@@ -119,6 +160,14 @@
       return;
     }
 
+    // 现在学的课本（点一下去换书）
+    var bk = SRS.currentBook(), bs = SRS.bookStats(bk);
+    html += '<a class="bk-now" href="#/books">' + bookCover(bk) +
+      '<div class="bk-main"><div class="bk-label">正在学</div><div class="bk-title">' + esc(bk.titleZh) + '</div>' +
+      '<div class="bar"><i class="seen" style="width:' + (bs.total ? Math.round(bs.seen / bs.total * 100) : 0) + '%"></i></div>' +
+      '<div class="bk-meta">已学 ' + bs.seen + ' / ' + bs.total + ' 词</div></div>' +
+      '<span class="bk-change">换书' + I.chev + '</span></a>';
+
     var btn, hint;
     if (p.due || p.left) {
       btn = '<button class="btn primary big" data-act="start">开始学习</button>';
@@ -140,14 +189,22 @@
       batchPicker(p.due) + btn + '<p class="hint">' + hint + '</p></section>';
 
     // A1、A2，然后“专业场景”（不进每天的新词，自己点进去学），最后是其他级别（以后的 B1 等）
-    var groups = [
+    var groups;
+    if (bk.id === 'ene') groups = [
       { title: 'A1', sub: '入门', test: function (u) { return u.level === 'A1'; } },
       { title: 'A2', sub: '基础', test: function (u) { return u.level === 'A2'; } },
       { title: '专业场景', sub: '医院、工地等，点进去自己选着学', test: function (u) { return u.level === 'PRO'; } },
       { title: '更多', sub: '', test: function (u) { return ['A1', 'A2', 'PRO'].indexOf(u.level) < 0; } }
     ];
+    else { // 其他课本：按书里的分组（第一册、第二册… / A1、A2…），保持书的顺序
+      groups = [];
+      bk.units.forEach(function (u) {
+        var g = u.group || '单元';
+        if (!groups.some(function (x) { return x.title === g; })) groups.push({ title: g, sub: '', test: function (x) { return (x.group || '单元') === g; } });
+      });
+    }
     groups.forEach(function (g) {
-      var list = Data.units.filter(g.test);
+      var list = bk.units.filter(g.test);
       if (!list.length) return;
       html += '<h2 class="section-title">' + g.title + (g.sub ? ' <span>' + g.sub + '</span>' : '') + '</h2><div class="units">' +
         list.map(unitRow).join('') + '</div>';
@@ -234,7 +291,7 @@
       (SRS.weakCount() ? '<p class="hint">不熟的词：' + SRS.weakCount() + ' 个（错过、还在前两格）</p>' : '') + '</section>';
 
     // 按单元挑着复习：只列出有到期词的单元
-    var units = Data.units.map(function (u) { return { u: u, n: SRS.dueIds(null, u.id).length }; })
+    var units = SRS.currentBook().units.map(function (u) { return { u: u, n: SRS.dueIds(null, u.id).length }; })
       .filter(function (x) { return x.n > 0; });
     if (units.length > 1) {
       html += '<h2 class="section-title">按单元复习 <span>只复习某一个单元</span></h2><div class="units">' +
@@ -301,8 +358,10 @@
       }).join('') + '</div></section>';
 
     html += '<h2 class="section-title">设置</h2><section class="card settings">' +
-      '<div class="set-row col"><div class="set-k">学习方式<small>' + (st.mode === 'view' ? '只看：每张卡全部显示，按“下一个”' : '扇贝式：先看西语，选“认识 / 不认识”，再看意思；不熟的词会多出现几次') + '</small></div>' +
-      seg('mode', [['shanbay', '扇贝式（推荐）'], ['view', '只看']], st.mode) + '</div>' +
+      '<a class="set-row set-link" href="#/books"><div class="set-k">课本<small>' + esc(SRS.currentBook().titleZh) + '</small></div>' +
+      '<span class="set-go">换一本' + I.chev + '</span></a>' +
+      '<div class="set-row col"><div class="set-k">学习方式<small>' + (st.mode === 'view' ? '只看：每张卡全部显示，按“下一个”' : '四选一：看西语和例句，从 4 个中文意思里选；选错的词会多出现几次') + '</small></div>' +
+      seg('mode', [['shanbay', '四选一（推荐）'], ['view', '只看']], st.mode) + '</div>' +
       '<div class="set-row col"><div class="set-k">外观</div>' + seg('theme', [['system', '跟随系统'], ['light', '白色'], ['dark', '黑色']], st.theme) + '</div>' +
       '<div class="set-row col"><div class="set-k">每天学几个新词</div>' + seg('newPerDay', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], st.newPerDay) + '</div>' +
       '<div class="set-row col"><div class="set-k">朗读速度</div>' + seg('rate', [['vslow', '很慢'], ['slow', '慢'], ['normal', '正常']], st.rate) + '</div>' +
@@ -473,8 +532,8 @@
 
   /* ================= 学习环节 =================
    * 两种学习方式（我的 → 学习方式）：
-   * - 扇贝式（默认，S.sb = true）：正面只有西语 → 选“认识 / 不认识”→ 背面看全部 →“下一个”。
-   *   不认识 / 看错了 / 看了提示再认识 = 不熟，这个词隔 4 张卡再出现，直到“认识”够次数（新词 2 次，复习词 1 次）。
+   * - 四选一（默认，S.sb = true；设置值仍叫 'shanbay'）：正面 = 西语 + 西语例句 + 4 个中文选项（+“不知道”）→ 标出对错 → 背面看全部 →“下一个”。
+   *   选错 / 不知道 = 不熟，这个词隔 4 张卡再出现，直到选对够次数（新词 2 次，复习词 1 次）。
    *   一个词在这一轮“完成”时才更新复习安排（SRS.grade）。
    * - 只看（S.sb = false）：每张卡全部显示，一个“下一个”；每张卡第一次按“下一个”记一次“看过”（SRS.view）。 */
   var S = null;
@@ -554,12 +613,11 @@
       if (w.note) html += '<div class="note">' + esc(w.note) + '</div>';
     }
     html += '</div>';
-    // 例句：背面全部显示；正面只有点了“提示一下”才显示西语（不显示中文）
-    if (ex && (!o.front || o.hint)) {
+    // 例句：背面全部显示；四选一的正面只显示西语（不显示中文），这个词加粗
+    if (ex) {
       html += '<div class="ex-zone"><div class="example"><button class="say small" data-act="say-ex" aria-label="朗读例句">' + I.speaker + '</button>' +
-        '<div class="ex-text tap" data-act="say-ex" role="button" aria-label="点例句朗读"><p class="ex-es" lang="es">' + esc(ex.es) + '</p>' +
-        (!o.front && ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') +
-        (o.front ? '<p class="hint-note">看了提示，这次算作“不熟”</p>' : '') + '</div></div></div>';
+        '<div class="ex-text tap" data-act="say-ex" role="button" aria-label="点例句朗读"><p class="ex-es" lang="es">' + exampleHtml(w, ex.es) + '</p>' +
+        (!o.front && ex.zh ? '<p class="ex-zh">' + esc(ex.zh) + '</p>' : '') + '</div></div></div>';
     }
     return html + '</div>';
   }
@@ -580,7 +638,69 @@
     if (autoplay && Store.settings().autoplay) Speech.speak(Data.speakText(w));
   }
 
-  var VERDICT = { known: '你选了：认识', hint: '看了提示（算不熟）', miss: '你选了：不认识', wrong: '看错了（算不熟）' };
+  var VERDICT = { known: '选对了', miss: '选错了', dunno: '不知道' };
+
+  /* ---------- 四选一 ----------
+   * 1 个正确的中文意思 + 3 个干扰项：先从同一个单元里挑同词性的，不够再挑同单元其他词性，再不够从同一级别里挑；中文意思不重复。 */
+  var POS_ABBR = { v: 'v.', adj: 'adj.', adv: 'adv.', pron: 'pron.', prep: 'prep.', conj: 'conj.', num: 'num.', interj: 'interj.', phr: '短语' };
+  function posAbbr(w) {
+    if (w.pos === 'n') return w.fem || w.gender === 'mf' ? 'm./f.' : w.gender === 'f' ? 'f.' : 'm.';
+    return POS_ABBR[w.pos] || '';
+  }
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  function makeChoices(w) {
+    var used = {}; used[w.zh] = true;
+    var picks = [];
+    function take(list) {
+      shuffle(list.slice()).forEach(function (x) {
+        if (picks.length >= 3 || !x || x.id === w.id || used[x.zh]) return;
+        used[x.zh] = true; picks.push(x);
+      });
+    }
+    var unit = w.unit || { words: [] };
+    take(unit.words.filter(function (x) { return x.pos === w.pos; }));
+    take(unit.words);
+    if (picks.length < 3) {
+      var lvl = [];
+      Data.units.forEach(function (u) { if (u.level === unit.level) lvl = lvl.concat(u.words.filter(function (x) { return x.pos === w.pos; })); });
+      take(lvl);
+    }
+    if (picks.length < 3) take(Data.order.map(Data.word));
+    return shuffle(picks.concat([w])).map(function (x) { return { id: x.id, text: (posAbbr(x) ? posAbbr(x) + ' ' : '') + x.zh, ok: x.id === w.id }; });
+  }
+
+  // 例句里把这个词加粗（找不到就不加粗）
+  var ARTICLES = /^(el|la|los|las|un|una|unos|unas)\s+/i;
+  function exampleHtml(w, text) {
+    var low = text.toLowerCase();
+    var base = [w.es, w.fem].filter(Boolean).map(function (s) { return s.replace(ARTICLES, '').replace(/[¿?¡!]/g, '').trim().toLowerCase(); });
+    var tries = [];
+    base.forEach(function (t) { tries.push(t, t + 's', t + 'es'); }); // 也找复数
+    var at = -1, len = 0;
+    tries.forEach(function (t) { if (at < 0 && t) { var i = findWord(low, t); if (i >= 0) { at = i; len = t.length; } } });
+    var root = (base[0] || '').replace(/se$/, ''); // llamarse → llamar
+    if (at < 0 && root && root.indexOf(' ') < 0 && root.length >= 4) { // 动词变位等：用词根找
+      var stem = root.slice(0, root.length - 2);
+      var m = new RegExp('(^|[^a-záéíóúüñ])(' + stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[a-záéíóúüñ]*)').exec(low);
+      if (m) { at = m.index + m[1].length; len = m[2].length; }
+    }
+    if (at < 0) return esc(text);
+    return esc(text.slice(0, at)) + '<b>' + esc(text.slice(at, at + len)) + '</b>' + esc(text.slice(at + len));
+  }
+  Ene.Quiz = { makeChoices: makeChoices, exampleHtml: exampleHtml }; // 给自动测试用
+
+  function findWord(low, t) {
+    var from = 0, i;
+    while ((i = low.indexOf(t, from)) >= 0) {
+      var before = low.charAt(i - 1), after = low.charAt(i + t.length);
+      if (!/[a-záéíóúüñ]/.test(before) && !/[a-záéíóúüñ]/.test(after)) return i;
+      from = i + 1;
+    }
+    return -1;
+  }
 
   function renderSb(autoplay) {
     var total = S.words.length;
@@ -591,27 +711,35 @@
       var h = S.history[S.peek];
       info = S.words[h.wi]; w = Data.word(info.id);
       html = topBar(done, total, label) +
-        cardBody(w, { kind: '回看', verdict: VERDICT[h.v] }) +
+        cardBody(w, { kind: '回看', verdict: (VERDICT[h.v] || '') + (h.v === 'miss' && h.pick ? '：你选了“' + h.pick + '”' : '') }) +
         '<div class="s-actions s-nav">' +
         '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.peek === 0 ? ' disabled' : '') + '>' + I.back + '<span>上一个</span></button>' +
         '<button class="btn primary big" data-act="next">下一个</button></div>';
     } else {
       info = S.words[S.queue[S.pos]]; w = Data.word(info.id);
       var kind = info.type === 'new' ? (info.shown ? '新词 · 再来一次' : '新词') : (info.shown ? '复习 · 再来一次' : '复习');
-      var hasEx = !!(w.example && w.example.es);
       if (S.side === 'front') {
+        // 这张卡的 4 个选项（同一次出现只生成一次，重画时不变）
+        var key = S.pos + ':' + info.shown;
+        if (!S.quiz || S.quiz.key !== key) S.quiz = { key: key, list: makeChoices(w), picked: -1 };
+        var q = S.quiz;
         html = topBar(done, total, label) +
-          cardBody(w, { kind: kind, front: true, hint: S.hint }) +
-          '<div class="s-actions">' +
-          (hasEx && !S.hint ? '<button class="btn link hint-link" data-act="hint">提示一下</button>' : '') +
-          '<div class="s-two">' +
-          '<button class="btn outline big" data-act="dontknow">不认识</button>' +
-          '<button class="btn primary big" data-act="know">认识</button></div></div>';
+          cardBody(w, { kind: kind, front: true }) +
+          '<div class="s-actions"><div class="choices">' +
+          q.list.map(function (c, i) {
+            var cls = 'choice';
+            if (q.picked >= 0) cls += c.ok ? ' ok' : (i === q.picked ? ' bad' : ' dim');
+            return '<button class="' + cls + '" data-act="pick" data-i="' + i + '"' + (c.ok ? ' data-ok="1"' : '') +
+              (q.picked >= 0 ? ' disabled' : '') + '><span>' + esc(c.text) + '</span>' +
+              (q.picked >= 0 && c.ok ? '<i>' + I.check + '</i>' : '') + '</button>';
+          }).join('') + '</div>' +
+          '<button class="btn link dunno" data-act="dunno"' + (q.picked >= 0 ? ' disabled' : '') + '>不知道</button></div>';
       } else {
+        var vt = VERDICT[S.pending] || '';
+        if (S.pending === 'miss' && S.pickText) vt += '：你选了“' + S.pickText + '”';
         html = topBar(done, total, label) +
-          cardBody(w, { kind: kind, verdict: VERDICT[S.pending] }) +
+          cardBody(w, { kind: kind, verdict: vt }) +
           '<div class="s-actions">' +
-          (S.pending === 'known' ? '<button class="btn link" data-act="wrong">看错了</button>' : '') +
           '<div class="s-nav">' +
           '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.history.length ? '' : ' disabled') + '>' + I.back + '<span>上一个</span></button>' +
           '<button class="btn primary big" data-act="next">下一个</button></div></div>';
@@ -677,23 +805,23 @@
   }
 
   /* ---------- 扇贝式 ---------- */
-  function sbAnswer(known) {
-    if (!S || !S.sb || S.ended || S.peek >= 0 || S.side !== 'front') return;
-    S.pending = known ? (S.hint ? 'hint' : 'known') : 'miss';
-    S.side = 'back';
-    swapCard('flip', function () { renderCard(false); });
-  }
-  function sbHint() {
-    if (!S || !S.sb || S.side !== 'front' || S.hint) return;
-    var w = curWord();
-    if (!w || !w.example || !w.example.es) return;
-    S.hint = true;
-    renderCard(false);
-  }
-  function sbWrong() {
-    if (!S || !S.sb || S.side !== 'back' || S.peek >= 0 || S.pending !== 'known') return;
-    S.pending = 'wrong';
-    renderCard(false);
+  // 四选一：i = 选了第几个；i = -1 表示“不知道”
+  var PICK_MS = 650; // 选完先看一眼对错，再翻到背面
+  function sbPick(i) {
+    if (!S || !S.sb || S.ended || S.peek >= 0 || S.side !== 'front' || !S.quiz || S.quiz.picked >= 0) return;
+    var q = S.quiz, c = q.list[i];
+    if (i >= 0 && !c) return;
+    var ok = !!(c && c.ok);
+    q.picked = i >= 0 ? i : q.list.findIndex(function (x) { return x.ok; });
+    S.pending = i < 0 ? 'dunno' : ok ? 'known' : 'miss';
+    S.pickText = c && !ok ? c.text : '';
+    renderCard(false); // 先标出对错（正确的实心 + ✓，选错的划掉）
+    var mine = S;
+    setTimeout(function () {
+      if (S !== mine || S.ended || S.side !== 'front' || S.peek >= 0) return;
+      S.side = 'back';
+      swapCard('flip', function () { renderCard(false); });
+    }, i < 0 ? 0 : PICK_MS);
   }
 
   // 这个词在这一轮完成了 → 更新复习安排
@@ -713,11 +841,11 @@
     var known = v === 'known';
     if (info.first === null) info.first = known;
     if (known) info.got++;
-    else if (!(info.type === 'new' && firstTime && v === 'miss')) info.missed = true; // 新词第一次就“不认识”：不算不熟
-    S.history.push({ wi: wi, v: v });
+    else if (!(info.type === 'new' && firstTime)) info.missed = true; // 新词第一次就选错 / 不知道：还没学过，不算不熟
+    S.history.push({ wi: wi, v: v, pick: S.pickText || '' });
     if (info.got >= info.need) { info.done = true; sbFinish(info); }
     else S.queue.splice(Math.min(S.pos + 1 + GAP, S.queue.length), 0, wi);
-    S.pending = null; S.hint = false; S.side = 'front';
+    S.pending = null; S.pickText = ''; S.quiz = null; S.side = 'front';
     return true;
   }
 
@@ -769,7 +897,7 @@
     if (S.sb) {
       var once = S.words.filter(function (x) { return x.first === true; }).length;
       var weak = S.words.filter(function (x) { return x.missed; });
-      body = '<p class="end-line">这一轮：' + S.words.length + ' 个词 · 一次就认识 ' + once + ' 个 · 不熟 ' + weak.length + ' 个</p>' +
+      body = '<p class="end-line">这一轮：' + S.words.length + ' 个词 · 一次就选对 ' + once + ' 个 · 不熟 ' + weak.length + ' 个</p>' +
         (weak.length ? '<ul class="weak-list">' + weak.map(function (x) {
           var w = Data.word(x.id);
           return '<li class="tap" data-act="say-word" data-id="' + esc(x.id) + '" role="button"><span class="wl-es" lang="es">' + esc(Data.display(w)) + '</span><span class="wl-zh">' + esc(w.zh) + '</span></li>';
@@ -830,15 +958,17 @@
   var Sfx = Ene.Sfx || null;
   var gestureEvent = null; // 当前正在处理的用户操作（给结束页的“叮—咚”判断是不是真的用户操作）
   function markGesture(e) { gestureEvent = e; setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0); }
-  var TAP_ACTS = ['next', 'prev', 'start', 'extra', 'review', 'unit-learn', 'unit-review', 'continue', 'exit',
-    'set', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open', 'know', 'hint', 'wrong'];
+  var TAP_ACTS = ['next', 'prev', 'start', 'extra', 'review', 'pick-book', 'unit-learn', 'unit-review', 'continue', 'exit',
+    'set', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open'];
   document.addEventListener('click', function (e) {
     markGesture(e);
     if (!Sfx || !e.target.closest) return;
-    var el = e.target.closest('[data-act], .tabbar a, a.unit, .top a.icon-btn');
+    var el = e.target.closest('[data-act], .tabbar a, a.unit, .top a.icon-btn, a.bk-now, a.set-link');
     if (!el || el.disabled) return;
     var act = el.getAttribute('data-act');
-    if (act === 'dontknow') Sfx.miss(e);
+    // 四选一：选对“嗒”，选错 / 不知道是更低的“嘟”
+    if (act === 'dunno' || (act === 'pick' && !el.hasAttribute('data-ok'))) Sfx.miss(e);
+    else if (act === 'pick') Sfx.tap(e);
     else if (!act || TAP_ACTS.indexOf(act) >= 0) Sfx.tap(e);
   }, true);
 
@@ -851,6 +981,7 @@
       case 'start': startSession({ mode: 'all' }); break;
       case 'extra': startSession({ mode: 'all', extra: EXTRA }); break;
       case 'review': startSession({ mode: 'review' }); break;
+      case 'pick-book': pickBook(el.getAttribute('data-v')); break;
       case 'unit-learn': startSession({ mode: 'unit', unitId: el.getAttribute('data-unit') }); break;
       case 'unit-review': startSession({ mode: 'unit-review', unitId: el.getAttribute('data-unit') }); break;
       case 'row': { // 单元页：点一行 = 读这个词 + 展开 / 收起例句
@@ -901,10 +1032,8 @@
       case 'say-ex': e.stopPropagation(); speakCurrent('ex'); break;
       case 'next': nextCard(); break;
       case 'prev': prevCard(); break;
-      case 'know': sbAnswer(true); break;
-      case 'dontknow': sbAnswer(false); break;
-      case 'hint': sbHint(); break;
-      case 'wrong': sbWrong(); break;
+      case 'pick': sbPick(Number(el.getAttribute('data-i'))); break;
+      case 'dunno': sbPick(-1); break;
       case 'toggle-sound': Store.setSetting('sound', !Store.settings().sound); renderMe(); break;
       case 'toggle-vibrate': Store.setSetting('vibrate', !Store.settings().vibrate); renderMe(); break;
       case 'continue': {
@@ -924,7 +1053,7 @@
 
   /* ---------- 键盘 ----------
    * 只看：空格 / 回车 / → = 下一个，← = 上一个
-   * 扇贝式正面：1 / ← = 不认识，2 / → / 空格 / 回车 = 认识，H = 提示一下
+   * 四选一正面：1–4 = 选第几个，0 = 不知道
    * 扇贝式背面：空格 / 回车 / → = 下一个，← = 上一个（回看）
    * Esc = 退出 */
   document.addEventListener('keydown', function (e) {
@@ -944,9 +1073,15 @@
     if (e.repeat) { if (k === ' ' || k.indexOf('Arrow') === 0) e.preventDefault(); return; }
     var front = S.sb && S.peek < 0 && S.side === 'front';
     if (front) {
-      if (k === '1' || k === 'ArrowLeft') { e.preventDefault(); if (Sfx) Sfx.miss(e); sbAnswer(false); }
-      else if (k === '2' || k === 'ArrowRight' || k === ' ' || k === 'Enter') { e.preventDefault(); if (Sfx) Sfx.tap(e); sbAnswer(true); }
-      else if (k === 'h' || k === 'H') { e.preventDefault(); if (Sfx) Sfx.tap(e); sbHint(); }
+      // 1–4 = 选第几个，0 = 不知道
+      var n = '01234'.indexOf(k);
+      if (n >= 0 && k.length === 1 && S.quiz && S.quiz.picked < 0) {
+        e.preventDefault();
+        var c = n > 0 ? S.quiz.list[n - 1] : null;
+        if (n > 0 && !c) return;
+        if (Sfx) { if (c && c.ok) Sfx.tap(e); else Sfx.miss(e); }
+        sbPick(n - 1);
+      }
       return;
     }
     if (k === 'ArrowLeft') { e.preventDefault(); if (canGoBack()) { if (Sfx) Sfx.tap(e); prevCard(); } return; }

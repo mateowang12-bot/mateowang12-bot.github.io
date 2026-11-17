@@ -282,6 +282,37 @@ svg { display: block; }
 .cloud-msg { margin: 0; font-size: 14px; color: var(--fg); padding: 10px 0 0; }
 .cloud-form .cloud-msg { padding: 0; }
 
+/* ---------- 选课本 ---------- */
+.no-tabbar .tabbar { display: none; }
+.bk-intro { margin: 8px 2px 20px; }
+.bk-intro h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.01em; }
+.bk-intro p { margin: 0; color: var(--text-2); }
+.bk-list { display: flex; flex-direction: column; gap: 12px; }
+.bk, .bk-now {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px; text-align: left;
+  border: 1.5px solid var(--line); border-radius: 18px; background: var(--bg); color: var(--fg); font: inherit;
+  cursor: pointer; touch-action: manipulation;
+}
+.bk:active, .bk-now:active { background: var(--soft); }
+.bk.on { border-color: var(--fg); }
+.bk-cover {
+  flex: 0 0 60px; width: 60px; height: 80px; border-radius: 8px; background: var(--fg); color: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 800;
+}
+.bk-cover span { font-size: 18px; letter-spacing: .02em; }
+.bk-cover small { font-size: 10px; font-weight: 600; opacity: .8; }
+.bk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.bk-title { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.bk-title .tag { color: var(--fg); font-weight: 700; border: 1px solid var(--fg); border-radius: 99px; padding: 3px 7px; }
+.bk-sub, .bk-meta, .bk-label { font-size: 13px; color: var(--text-3); }
+.bk-now { margin-bottom: 14px; }
+.bk-now .bk-cover { flex-basis: 48px; width: 48px; height: 64px; }
+.bk-now .bk-cover span { font-size: 15px; }
+.bk-change { flex: 0 0 auto; display: flex; align-items: center; font-size: 14px; color: var(--text-2); }
+.bk-change svg, .set-go svg { width: 16px; height: 16px; }
+.set-link { color: inherit; }
+.set-go { display: flex; align-items: center; gap: 2px; color: var(--text-2); font-size: 14px; flex: 0 0 auto; }
+
 /* ---------- 底部菜单 ---------- */
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
@@ -359,10 +390,23 @@ svg { display: block; }
 }
 .btn.prev svg { width: 20px; height: 20px; }
 .btn.prev:disabled { color: var(--text-3); border-color: var(--line); opacity: .45; }
-/* 扇贝式：正面两个大按钮（不认识 = 空心，认识 = 实心），上面一行小字“提示一下” */
-.s-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.hint-link { margin-bottom: 4px; }
-.hint-note { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
+/* 四选一：2 × 2 的大格子；选对的 = 实心 + ✓，选错的 = 划掉，其他变淡；下面一行小字“不知道” */
+.ex-es b { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice {
+  position: relative; min-height: 76px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 16px;
+  background: var(--soft); color: var(--fg); font: inherit; font-size: 16px; line-height: 1.3; text-align: left;
+  cursor: pointer; touch-action: manipulation; display: flex; align-items: center; overflow-wrap: anywhere;
+  transition: background .15s, color .15s, opacity .15s, border-color .15s;
+}
+.choice:active { opacity: .7; }
+.choice:disabled { cursor: default; }
+.choice.ok { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 700; }
+.choice.ok i { position: absolute; right: 10px; top: 8px; width: 20px; height: 20px; }
+.choice.ok i svg { width: 20px; height: 20px; }
+.choice.bad { border-style: dashed; border-color: var(--mid); color: var(--text-3); text-decoration: line-through; background: transparent; }
+.choice.dim { opacity: .35; }
+.btn.link.dunno { display: block; margin: 8px auto 0; }
 .w-meta .verdict { margin-left: auto; color: var(--fg); font-weight: 600; }
 .s-actions > .btn.link { margin-bottom: 4px; }
 /* 结束页：不熟的词 */
