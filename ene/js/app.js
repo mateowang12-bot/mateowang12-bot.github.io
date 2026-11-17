@@ -634,7 +634,7 @@
       '<div class="s-actions s-nav">' +
       '<button class="btn prev" data-act="prev" aria-label="上一个"' + (S.idx === 0 ? ' disabled' : '') + '>' + I.back + '<span>上一个</span></button>' +
       '<button class="btn primary big" data-act="next">下一个</button></div>';
-    sessionEl.innerHTML = '<div class="s-wrap">' + html + '</div>';
+    setSession('<div class="s-wrap">' + html + '</div>');
     if (autoplay && Store.settings().autoplay) Speech.speak(Data.speakText(w));
   }
 
@@ -745,7 +745,7 @@
           '<button class="btn primary big" data-act="next">下一个</button></div></div>';
       }
     }
-    sessionEl.innerHTML = '<div class="s-wrap">' + html + '</div>';
+    setSession('<div class="s-wrap">' + html + '</div>');
     if (autoplay && S.peek < 0 && S.side === 'front' && Store.settings().autoplay) Speech.speak(Data.speakText(w));
   }
 
@@ -754,38 +754,73 @@
   function reduceMotion() {
     try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
   }
-  var ANIM_MS = 200;
+  /* 2026-11-16 用户说动画不够流畅，调整为：
+   * - 更柔和的曲线（快出慢停），时长 280 毫秒；
+   * - 新卡只从 40px 外轻轻滑进来（以前从 35% 宽度外，和飞走的旧卡挤在一起显得乱）；
+   * - 连续快速翻页时，先把上一次还没播完的动画收尾、删掉旧影子，避免叠在一起和位置跳动；
+   * - 翻到背面：淡入 + 往上浮 12px（以前是 3D 转动，手机上容易一顿一顿）；
+   * - 四选一标出对错、进度条：在原来的元素上改样式，让颜色和宽度渐变（以前整块重画，一下跳过去）。 */
+  var ANIM_MS = 280;
+  var EASE_OUT = 'cubic-bezier(.22,.61,.36,1)';   // 新卡进来：快出慢停
+  var EASE_AWAY = 'cubic-bezier(.4,0,.7,.2)';     // 旧卡飞走：慢起加速
+  function settleAnims() {
+    var gs = sessionEl.querySelectorAll('.s-ghost');
+    for (var i = 0; i < gs.length; i++) gs[i].parentNode.removeChild(gs[i]);
+    var b = sessionEl.querySelector('.s-wrap > .s-body');
+    if (b && b.getAnimations) b.getAnimations().forEach(function (a) { try { a.finish(); } catch (e) {} });
+  }
   // dir: 'next'（往左走）| 'prev'（往右走）| 'flip'（正面翻到背面）| null（不动）；drag: 手指拖动时的位置
   function swapCard(dir, change, drag) {
+    if (!drag) settleAnims();
     var old = sessionEl.querySelector('.s-wrap > .s-body');
     var canAnim = dir && old && !reduceMotion() && typeof old.animate === 'function';
     var ghost = null, rect = null;
+    if (old && drag) { old.style.transform = ''; old.style.opacity = ''; } // 先去掉手指拖出来的位移，再量原来的位置
     if (canAnim && dir !== 'flip') { rect = old.getBoundingClientRect(); ghost = old.cloneNode(true); }
     change(); // 同步：换内容 + 朗读
     if (!canAnim) return;
     var nb = sessionEl.querySelector('.s-wrap > .s-body');
     if (!nb || typeof nb.animate !== 'function') return;
+    // 下面的按钮区也一起淡入（以前一下子换掉，看起来会跳）
+    var acts = sessionEl.querySelector('.s-wrap > .s-actions');
+    if (acts && acts.animate && S && S.sb) acts.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
     if (dir === 'flip') {
-      nb.animate([{ opacity: 0, transform: 'perspective(800px) rotateY(-10deg) scale(.98)' }, { opacity: 1, transform: 'none' }],
-        { duration: 150, easing: 'ease-out' });
+      nb.animate([{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 240, easing: EASE_OUT });
       return;
     }
     var W = rect.width || window.innerWidth, sign = dir === 'next' ? -1 : 1;
     var x0 = drag ? drag.x : 0, r0 = drag ? drag.rot : 0, o0 = drag ? drag.op : 1;
     ghost.classList.add('s-ghost');
     ghost.removeAttribute('id');
+    // 影子放在卡片原来的位置，动画从手指松开时的位移（x0、r0）接着走
     ghost.style.cssText = 'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;pointer-events:none;z-index:22;';
     ghost.setAttribute('aria-hidden', 'true');
     sessionEl.appendChild(ghost);
     var a = ghost.animate([
       { transform: 'translateX(' + x0 + 'px) rotate(' + r0 + 'deg)', opacity: o0 },
-      { transform: 'translateX(' + (sign * W * 1.1) + 'px) rotate(' + (sign * 6) + 'deg)', opacity: 0 }
-    ], { duration: ANIM_MS, easing: 'ease-out', fill: 'forwards' });
+      { transform: 'translateX(' + (sign * W * 1.05) + 'px) rotate(' + (sign * 4) + 'deg)', opacity: 0 }
+    ], { duration: drag ? 220 : ANIM_MS, easing: drag ? EASE_OUT : EASE_AWAY, fill: 'forwards' });
     a.onfinish = function () { if (ghost.parentNode) ghost.parentNode.removeChild(ghost); };
     nb.animate([
-      { transform: 'translateX(' + (-sign * W * 0.35) + 'px)', opacity: 0 },
+      { transform: 'translateX(' + (-sign * 40) + 'px)', opacity: 0 },
       { transform: 'none', opacity: 1 }
-    ], { duration: ANIM_MS, easing: 'ease-out' });
+    ], { duration: ANIM_MS, easing: EASE_OUT, delay: drag ? 0 : 40, fill: 'backwards' });
+  }
+
+  // 重画学习界面，但进度条从原来的宽度平滑变到新宽度
+  function setSession(html) {
+    var oldBar = sessionEl.querySelector('.s-progress i');
+    var from = oldBar ? oldBar.style.width : '';
+    sessionEl.innerHTML = html;
+    var bar = sessionEl.querySelector('.s-progress i');
+    if (!bar || !from || bar.style.width === from) return;
+    var to = bar.style.width;
+    bar.style.transition = 'none';
+    bar.style.width = from;
+    void bar.offsetWidth; // 让浏览器先画出旧宽度
+    bar.style.transition = '';
+    bar.style.width = to;
   }
 
   /* ---------- 只看模式：下一个 / 上一个 ---------- */
@@ -805,6 +840,19 @@
   }
 
   /* ---------- 扇贝式 ---------- */
+  function markChoices(q) {
+    var btns = sessionEl.querySelectorAll('.choice');
+    if (btns.length !== q.list.length) { renderCard(false); return; }
+    for (var i = 0; i < btns.length; i++) {
+      var c = q.list[i], b = btns[i];
+      b.disabled = true;
+      b.classList.add(c.ok ? 'ok' : (i === q.picked ? 'bad' : 'dim'));
+      if (c.ok) { var ic = document.createElement('i'); ic.innerHTML = I.check; b.appendChild(ic); }
+    }
+    var d = sessionEl.querySelector('[data-act="dunno"]');
+    if (d) d.disabled = true;
+  }
+
   // 四选一：i = 选了第几个；i = -1 表示“不知道”
   var PICK_MS = 650; // 选完先看一眼对错，再翻到背面
   function sbPick(i) {
@@ -815,7 +863,12 @@
     q.picked = i >= 0 ? i : q.list.findIndex(function (x) { return x.ok; });
     S.pending = i < 0 ? 'dunno' : ok ? 'known' : 'miss';
     S.pickText = c && !ok ? c.text : '';
-    renderCard(false); // 先标出对错（正确的实心 + ✓，选错的划掉）
+    markChoices(q); // 先标出对错（正确的实心 + ✓，选错的划掉）——在原来的按钮上改，颜色会渐变
+    // 选对了：读一遍例句（用户 2026-11-16 要求；在同一次点击里同步朗读，iPhone 才允许；跟着“自动朗读”开关）
+    if (ok && Store.settings().autoplay) {
+      var w = curWord();
+      if (w && w.example && w.example.es) Speech.speak(w.example.es, null, 'sentence');
+    }
     var mine = S;
     setTimeout(function () {
       if (S !== mine || S.ended || S.side !== 'front' || S.peek >= 0) return;
@@ -914,7 +967,7 @@
       contLabel = '再复习 ' + batchOf(left) + ' 个';
       body += '<p class="hint">还有 ' + left + ' 个词等着复习，不急，可以明天再来。</p>';
     }
-    sessionEl.innerHTML = '<div class="s-wrap"><div class="s-top"><button class="icon-btn" data-act="exit" aria-label="关闭">' + I.close + '</button>' +
+    setSession('<div class="s-wrap"><div class="s-top"><button class="icon-btn" data-act="exit" aria-label="关闭">' + I.close + '</button>' +
       '<div class="s-progress"><i style="width:100%"></i></div><div class="s-count">完成</div></div>' +
       '<div class="s-body s-end"><div class="end">' +
       '<div class="end-icon">' + I.check + '</div><h2>这一轮完成了</h2>' + body +
@@ -922,7 +975,7 @@
       '</div></div><div class="s-actions">' +
       (more ? '<button class="btn primary big" data-act="continue">' + contLabel + '</button><button class="btn link" data-act="exit">先到这里</button>'
         : '<button class="btn primary big" data-act="exit">完成</button>') +
-      '</div></div>';
+      '</div></div>');
   }
 
   // 中途退出（扇贝式）：已完成的保持；没完成但不熟过的 → 盒子 1、明天；没碰过的不变
@@ -1133,7 +1186,7 @@
     var from = d.el.style.transform || 'none', op = d.el.style.opacity || 1;
     d.el.style.transform = ''; d.el.style.opacity = '';
     if (!reduceMotion() && typeof d.el.animate === 'function') {
-      d.el.animate([{ transform: from, opacity: op }, { transform: 'none', opacity: 1 }], { duration: ANIM_MS, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
+      d.el.animate([{ transform: from, opacity: op }, { transform: 'none', opacity: 1 }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1.15)' });
     }
   }
   sessionEl.addEventListener('touchend', function (e) {
