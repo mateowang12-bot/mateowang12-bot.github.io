@@ -864,8 +864,8 @@
     S.pending = i < 0 ? 'dunno' : ok ? 'known' : 'miss';
     S.pickText = c && !ok ? c.text : '';
     markChoices(q); // 先标出对错（正确的实心 + ✓，选错的划掉）——在原来的按钮上改，颜色会渐变
-    // 选对了：读一遍例句（用户 2026-11-16 要求；在同一次点击里同步朗读，iPhone 才允许；跟着“自动朗读”开关）
-    if (ok && Store.settings().autoplay) {
+    // 选对了：读一遍例句（用户 2026-11-16 要求；在同一次点击里同步朗读，iPhone 才允许；不管“自动朗读”开关，一定读）
+    if (ok) {
       var w = curWord();
       if (w && w.example && w.example.es) Speech.speak(w.example.es, null, 'sentence');
     }
@@ -995,6 +995,7 @@
     sessionEl.hidden = true;
     sessionEl.innerHTML = '';
     document.body.classList.remove('in-session');
+    if (pendingReload) { reloadIfIdle(); return; } // 学习时来了新版本：退出后刷新
     route();
   }
 
@@ -1213,9 +1214,24 @@
   route();
 
   // 只有 https 才注册离线缓存（file:// 不行）
+  // 发布了新版本：新的离线缓存接管后自动刷新一次（以前要关掉再开两次才是新版）。
+  // 正在学习时不打断，等退出这一轮再刷新。第一次安装（以前没有缓存）不刷新。
+  var pendingReload = false;
+  function reloadIfIdle() { if (pendingReload && !S) { pendingReload = false; location.reload(); } }
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController) return;
+      pendingReload = true;
+      reloadIfIdle();
+    });
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        // 每次切回 App 时看看有没有新版本
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') { try { reg.update(); } catch (e) {} }
+        });
+      }).catch(function () {});
     });
   }
 
