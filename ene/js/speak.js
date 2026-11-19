@@ -63,8 +63,61 @@
   function sfx(e) { if (e) playKind('tap', e); }
   function sfxMiss(e) { if (e) playKind('miss', e); }
   // 打分出来时：过关“叮—咚”，没过“嘟”
+  /* 打分音效（2026-11-19 用户：按钮有声音了，打分出来没有“叮—咚”）。
+   * 打分是点完麦克风几秒后才出来的，不在点击里，iPhone 不让网页这时候用 Web Audio 出声。
+   * 办法：用 <audio> 播一段现做的 wav；在点麦克风的那一下先静音 play() 一次“解锁”，之后就能随时播。 */
+  var resultAudio = null;
+  function wavURL(notes, total) {
+    var rate = 22050, n = Math.round(rate * total), data = new Float32Array(n);
+    notes.forEach(function (o) {
+      var s0 = Math.round(rate * (o.at || 0)), len = Math.round(rate * o.dur);
+      for (var i = 0; i < len && s0 + i < n; i++) {
+        var t = i / rate, f = o.to ? o.freq * Math.pow(o.to / o.freq, t / o.dur) : o.freq;
+        var env = Math.min(1, i / (rate * 0.005)) * Math.pow(1 - i / len, 2);
+        data[s0 + i] += Math.sin(2 * Math.PI * f * t) * env * o.vol * 4;
+      }
+    });
+    var buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    function str(o, s) { for (var k = 0; k < s.length; k++) v.setUint8(o + k, s.charCodeAt(k)); }
+    str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+    v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+    for (var j = 0; j < n; j++) v.setInt16(44 + j * 2, Math.max(-1, Math.min(1, data[j])) * 32767, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  var RESULT_SRC = {};
+  function resultSrc(kind) {
+    if (!RESULT_SRC[kind]) RESULT_SRC[kind] = kind === 'done' ? wavURL(TONES.done, 0.6) : wavURL(TONES.miss, 0.2);
+    return RESULT_SRC[kind];
+  }
+  // 在点击里调用：静音播一下，把这个 <audio> 解锁
+  function unlockResultAudio() {
+    if (!soundSetting()) return;
+    try {
+      if (!resultAudio) { resultAudio = new Audio(); resultAudio.preload = 'auto'; }
+      resultAudio.src = resultSrc('done');
+      resultAudio.muted = true;
+      var p = resultAudio.play();
+      if (p && p.then) p.then(function () { resultAudio.pause(); resultAudio.currentTime = 0; resultAudio.muted = false; }, function () {});
+    } catch (e) {}
+  }
   // 等 0.25 秒：刚关麦克风，iPhone 要一下才把声音切回扬声器
-  function sfxResult(pass) { setTimeout(function () { playKind(pass ? 'done' : 'miss'); }, 250); }
+  function sfxResult(pass) {
+    setTimeout(function () {
+      if (!soundSetting()) return;
+      var kind = pass ? 'done' : 'miss';
+      if (resultAudio) {
+        try {
+          resultAudio.muted = false;
+          resultAudio.src = resultSrc(kind);
+          var p = resultAudio.play();
+          if (p && p.catch) p.catch(function () { playKind(kind); });
+          return;
+        } catch (e) {}
+      }
+      playKind(kind);
+    }, 250);
+  }
   function say(text, rate, onEnd, pitch, who) {
     afterHold(function () { Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); });
   }
@@ -967,7 +1020,7 @@
         if (P.checkPick === P.L.check.answer) sfx(e); else sfxMiss(e);
         render(false); break;
       }
-      case 'rec': sfx(e); Speech.stop(); startRec(); break;
+      case 'rec': sfx(e); unlockResultAudio(); Speech.stop(); startRec(); break;
       case 'asr-get': Ene.ASR.load().catch(function () {}); render(false); break;
       case 'rec-stop': sfx(e); stopListen(); break;
       case 'self-done': sfx(e); P.tries[P.task]++; go('feedback'); break;
@@ -982,7 +1035,7 @@
         render(false); break;
       }
       // 再说一遍：直接开始录音（少点一下）
-      case 'again': sfx(e); go('produce'); if (!P.self && canRecognize() && (!useLocal() || localReady())) { Speech.stop(); startRec(true); } break;
+      case 'again': sfx(e); unlockResultAudio(); go('produce'); if (!P.self && canRecognize() && (!useLocal() || localReady())) { Speech.stop(); startRec(true); } break;
       case 'next': sfx(e); P.autoNext = false; P.done[P.task] = true; nextTask(); break;
       case 'skip': sfxMiss(e); P.skipped[P.task] = true; nextTask(); break;
       case 'drill': sfx(e); startDrill(); break;
@@ -1055,6 +1108,7 @@
     lessons: LESSONS,
     grade: grade,       // 给测试用
     lastLog: function () { return lastLog; },
+    resultSrc: resultSrc, // 给测试用：打分音效的 wav 地址
     norm: norm
   };
 })();
