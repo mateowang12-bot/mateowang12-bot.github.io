@@ -314,8 +314,30 @@
       }
       html += '</div>';
     });
+    // 录音小测试（2026-11-19 排查 iPhone“第二次录不进”：分别试 连录 / 放提示音后录 / 放西语后录）
+    html += '<h2 class="section-title">录音小测试 <span>录不进去时用</span></h2><section class="card sp-test">' +
+      '<p class="sp-small">每次点“录一句”后说 <b lang="es">hola, buenos días</b>。看看哪一步之后就录不进了。</p>' +
+      '<div class="sp-test-btns"><button class="btn primary" data-sp="t-rec">录一句</button>' +
+      '<button class="btn" data-sp="t-say">放一句西语</button><button class="btn" data-sp="t-beep">放提示音</button></div>' +
+      '<ol class="sp-test-log">' + testLog.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></section>';
     html += '<p class="footnote">打分用的是手机或浏览器自带的语音识别：逐词比对你说的话和标准句，不能按音节判断发音。</p>';
     view.innerHTML = html;
+  }
+  var testLog = [], testBusy = false;
+  function testAdd(x) {
+    testLog.push(x);
+    var ol = document.querySelector('.sp-test-log');
+    if (ol) { var li = document.createElement('li'); li.textContent = x; ol.appendChild(li); }
+  }
+  function testRec(btn) {
+    if (testBusy) { stopListen(); return; }
+    testBusy = true; btn.textContent = '请稍等…';
+    var n = testLog.filter(function (x) { return /^录音/.test(x); }).length + 1;
+    function done(txt) { testBusy = false; btn.textContent = '录一句'; testAdd('录音 ' + n + '：' + txt + (txt.indexOf('听到') === 0 ? '' : '｜' + lastLog)); }
+    listen(function (t) { btn.textContent = '听到：' + t; },
+      function (alts) { done(alts && alts.length && alts[0] ? '听到「' + alts[0] + '」' : '没听到｜' + lastLog); },
+      function (why) { done('失败 ' + why + '｜' + lastLog); },
+      function () { btn.textContent = '现在说（点这里停）'; });
   }
   function variantToggle() {
     var v = variant();
@@ -760,6 +782,9 @@
       Store.setSetting('variant', el.getAttribute('data-v'));
       if (Ene.App && Ene.App.route) Ene.App.route();
     } else if (a === 'say') say(el.getAttribute('data-text'), 0.95);
+    else if (a === 't-rec') { Speech.stop(); testRec(el); }
+    else if (a === 't-say') { testAdd('放了一句西语'); say('Hola, ¿cómo estás?', 0.95); }
+    else if (a === 't-beep') { testAdd('放了提示音'); if (Ene.Sfx) { try { Ene.Sfx.tap(e); } catch (x) {} } }
   });
 
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”

@@ -598,3 +598,9 @@ svg { display: block; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* 录音小测试 */
+.sp-test-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.sp-test-btns .btn { flex: 1 1 auto; min-width: 0; }
+.sp-test-log { margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: var(--text-2); word-break: break-all; }
+.sp-test-log li { margin: 4px 0; }
