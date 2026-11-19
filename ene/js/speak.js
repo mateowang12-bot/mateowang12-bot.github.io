@@ -45,8 +45,12 @@
   // 2026-11-19 录音小测试证实：iPhone 上放过提示音（AudioContext）后，语音识别就一直不出字。
   // 所以口语课里不放按钮提示音（iPhone / iPad），录音前还会彻底关掉 AudioContext（Sfx.release）
   var NO_SFX = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  function sfx(e) { if (!NO_SFX && Ene.Sfx && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
-  function sfxMiss(e) { if (!NO_SFX && Ene.Sfx && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
+  // 改用本地识别（js/asr.js）以后不受这个问题影响，iPhone 上的按钮声音又打开了（用户：点按钮要有反馈）
+  function sfxOk() { return !(NO_SFX && !useLocal()) && Ene.Sfx; }
+  function sfx(e) { if (sfxOk() && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
+  function sfxMiss(e) { if (sfxOk() && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
+  // 打分出来时：过关“叮—咚”，没过“嘟”（不是点击里，iPhone 上偶尔会放不出来）
+  function sfxResult(pass) { if (sfxOk()) { try { if (pass) Ene.Sfx.done(); else Ene.Sfx.miss(); } catch (x) {} } }
   function say(text, rate, onEnd, pitch, who) {
     afterHold(function () { Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); });
   }
@@ -690,6 +694,7 @@
       P.sel = -1;
       P.autoNext = P.result.pass && P.task < P.L.tasks.length - 1;
       go('feedback');
+      if (!P.result.empty) sfxResult(P.result.pass);
       if (P.autoNext) {
         loops.push(setTimeout(function () {
           if (P === mine && P.screen === 'feedback' && P.autoNext) { P.autoNext = false; P.done[P.task] = true; nextTask(); }
@@ -893,9 +898,9 @@
         if (P.checkPick === P.L.check.answer) sfx(e); else sfxMiss(e);
         render(false); break;
       }
-      case 'rec': Speech.stop(); startRec(); break;
+      case 'rec': sfx(e); Speech.stop(); startRec(); break;
       case 'asr-get': Ene.ASR.load().catch(function () {}); render(false); break;
-      case 'rec-stop': stopListen(); break;
+      case 'rec-stop': sfx(e); stopListen(); break;
       case 'self-done': sfx(e); P.tries[P.task]++; go('feedback'); break;
       case 'sr-retry': sfx(e); setBroken(false); P.self = false; render(false); break;
       case 'to-self': sfx(e); setBroken(true); P.self = true; go('produce'); break;
@@ -963,6 +968,9 @@
     else if (a === 't-say') { testAdd('放了一句西语'); say('Hola, ¿cómo estás?', 0.95); }
     else if (a === 't-beep') { testAdd(Ene.Sfx && Ene.Sfx.locked && Ene.Sfx.locked() ? '提示音已关（录过音后不再放）' : '放了提示音');if (Ene.Sfx) { try { Ene.Sfx.tap(e); } catch (x) {} } }
   });
+
+  // iPhone 的 Safari 要有一个 touchstart 监听，按下按钮时的 :active 样式（按下去缩一下）才会出现
+  try { document.addEventListener('touchstart', function () {}, { passive: true }); } catch (e) {}
 
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
   document.addEventListener('visibilitychange', function () {

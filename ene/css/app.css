@@ -616,3 +616,11 @@ svg { display: block; }
 .btn.sp-auto span { position: relative; z-index: 1; }
 .btn.sp-auto::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: currentColor; opacity: .18; transform-origin: left; animation: sp-auto 2.2s linear both; }
 @keyframes sp-auto { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* 口语课：按下去要有反馈（缩一下、变浅），配合按键声音 */
+.sp-session button { -webkit-tap-highlight-color: transparent; transition: transform .12s cubic-bezier(.22,.61,.36,1), opacity .12s, background-color .12s; }
+.sp-mic:active { transform: scale(.92); }
+.sp-opt:not(:disabled):active, .sp-w:active, .sp-mini:not(:disabled):active, .sp-day:not(:disabled):active { transform: scale(.96); }
+.sp-session .say:active { transform: scale(.92); }
+.sp-session .btn:active:not(:disabled) { transform: scale(.97); opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .sp-session button { transition: none; } }
