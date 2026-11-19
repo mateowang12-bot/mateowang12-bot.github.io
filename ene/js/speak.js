@@ -105,6 +105,25 @@
   var IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var useCont = !IS_IOS;
   try { if (localStorage.getItem('ene-sr-nocont') === '1') useCont = false; } catch (e) {}
+  /* 2026-11-19 小测试证实：iPhone 录过音后再放声音（朗读 / 提示音），识别就一直不出字；刷新页面也救不回来；
+   * 但先用 getUserMedia 把麦克风一直开着，放完朗读后还能正常识别。
+   * 所以 iPhone / iPad 上：第一次录音时（在点击里）打开一个“常开麦克风”，一直开到退出这节课 / App 切到后台。 */
+  var hold = null, holdPending = false;
+  function ensureHold() {
+    if (!IS_IOS || hold || holdPending || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    holdPending = true;
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+        holdPending = false;
+        if (hold) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+        hold = s;
+      }, function () { holdPending = false; });
+    } catch (e) { holdPending = false; }
+  }
+  function dropHold() {
+    if (hold) { try { hold.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
+    hold = null;
+  }
   function setPrefer(fresh) {
     preferFresh = fresh;
     try { if (fresh) localStorage.removeItem('ene-sr-reuse'); else localStorage.setItem('ene-sr-reuse', '1'); } catch (e) {}
@@ -210,6 +229,7 @@
     }, 4000));
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
     try { if (window.Ene && Ene.Sfx && Ene.Sfx.lock) Ene.Sfx.lock(); } catch (e) {}
+    ensureHold();
     L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse') + (cont ? ':c1' : ':c0'));
     try { r.start(); }
     catch (e) {
@@ -385,6 +405,7 @@
   }
   function close() {
     stopAll();
+    dropHold();
     P = null;
     if (box) { box.hidden = true; box.innerHTML = ''; }
     document.body.classList.remove('in-session');
@@ -806,7 +827,7 @@
 
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState !== 'visible' && cur) stopListen();
+    if (document.visibilityState !== 'visible') { if (cur) stopListen(); dropHold(); }
   });
 
   Ene.Speak = {
