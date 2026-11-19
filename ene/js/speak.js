@@ -321,14 +321,26 @@
     html += '<h2 class="section-title">录音小测试 <span>录不进去时用</span></h2><section class="card sp-test">' +
       '<p class="sp-small">每次点“录一句”后说 <b lang="es">hola, buenos días</b>。看看哪一步之后就录不进了。</p>' +
       '<div class="sp-test-btns"><button class="btn primary" data-sp="t-rec">录一句</button>' +
-      '<button class="btn" data-sp="t-say">放一句西语</button><button class="btn" data-sp="t-beep">放提示音</button></div>' +
+      '<button class="btn" data-sp="t-say">放一句西语</button><button class="btn" data-sp="t-beep">放提示音</button>' +
+      '<button class="btn" data-sp="t-hold">' + (micHold ? '麦克风常开：开着' : '麦克风常开') + '</button>' +
+      '<button class="btn" data-sp="t-reload">刷新页面</button></div>' +
       '<ol class="sp-test-log">' + testLog.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></section>';
     html += '<p class="footnote">打分用的是手机或浏览器自带的语音识别：逐词比对你说的话和标准句，不能按音节判断发音。</p>';
     view.innerHTML = html;
   }
-  var testLog = [], testBusy = false;
+  var testLog = [], testBusy = false, micHold = null;
+  try { testLog = JSON.parse(sessionStorage.getItem('ene-sr-testlog') || '[]') || []; } catch (e) {}
+  // 试验：一直开着一个麦克风流（getUserMedia），看 iPhone 放声音后识别还能不能出字
+  function testHold(btn) {
+    if (micHold) { try { micHold.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} micHold = null; btn.textContent = '麦克风常开'; testAdd('关了麦克风常开'); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { testAdd('这个浏览器不能开麦克风常开'); return; }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+      micHold = s; btn.textContent = '麦克风常开：开着'; testAdd('开了麦克风常开');
+    }, function (e) { testAdd('麦克风常开失败：' + (e && e.name)); });
+  }
   function testAdd(x) {
     testLog.push(x);
+    try { sessionStorage.setItem('ene-sr-testlog', JSON.stringify(testLog)); } catch (e) {}
     var ol = document.querySelector('.sp-test-log');
     if (ol) { var li = document.createElement('li'); li.textContent = x; ol.appendChild(li); }
   }
@@ -786,6 +798,8 @@
       if (Ene.App && Ene.App.route) Ene.App.route();
     } else if (a === 'say') say(el.getAttribute('data-text'), 0.95);
     else if (a === 't-rec') { Speech.stop(); testRec(el); }
+    else if (a === 't-hold') testHold(el);
+    else if (a === 't-reload') { testAdd('刷新了页面'); setTimeout(function () { location.reload(); }, 50); }
     else if (a === 't-say') { testAdd('放了一句西语'); say('Hola, ¿cómo estás?', 0.95); }
     else if (a === 't-beep') { testAdd(Ene.Sfx && Ene.Sfx.locked && Ene.Sfx.locked() ? '提示音已关（录过音后不再放）' : '放了提示音');if (Ene.Sfx) { try { Ene.Sfx.tap(e); } catch (x) {} } }
   });
