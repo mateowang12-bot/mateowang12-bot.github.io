@@ -85,14 +85,27 @@
    * - 开始后 2.5 秒还没收到声音（没有 audiostart / 结果）→ 换一个新的识别器重来一次；
    * - 刚开始就自己结束 → 等 0.4 秒（让麦克风放开）再换新的重来；
    * - 每次识别记下经过了哪几步（lastLog），收不到时在结果页显示，方便用户截图排查。 */
+  /* 2026-11-19 用户截图：第 2 句 begin → start@7 → audio@18 → (8 秒无结果) → stop。
+   * iPhone 上重复用的识别器会“假装”开始收音（audio 事件马上来）但一个字都不出。改为：
+   * - 默认每次都新建识别器（第一次总能录，说明新建的可靠），并把哪种方式管用记在 localStorage；
+   * - 收到 audio 但 4 秒内一个结果都没有 → 换另一种方式重来一次（只重来一次）；
+   * - 开始录音前先让提示音的声音通道（AudioContext）停下，免得占着 iPhone 的麦克风。 */
   var cur = null; // 正在进行的识别 { r, finish(kind), stop() }
   var SILENCE_MS = 1600;
   var shared = null, needFresh = false, lastLog = '';
   // 记住哪种方式能收到声音：false = 重复用同一个识别器，true = 每次新建。收不到就换另一种，并记住
-  var preferFresh = false;
+  var preferFresh = true;
+  try { if (localStorage.getItem('ene-sr-reuse') === '1') preferFresh = false; } catch (e) {}
+  function setPrefer(fresh) {
+    preferFresh = fresh;
+    try { if (fresh) localStorage.removeItem('ene-sr-reuse'); else localStorage.setItem('ene-sr-reuse', '1'); } catch (e) {}
+  }
   var HARD_ERR = ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network'];
   function getSR(fresh) {
-    if (fresh || needFresh || !shared) { shared = new SR(); needFresh = false; }
+    if (fresh || needFresh || !shared) {
+      if (shared) { try { shared.onstart = shared.onaudiostart = shared.onsoundstart = shared.onspeechstart = shared.onresult = shared.onerror = shared.onend = null; shared.abort(); } catch (e) {} }
+      shared = new SR(); needFresh = false;
+    }
     return shared;
   }
   function listen(onInterim, onFinal, onFail, onReady, retried, log, fresh) {
@@ -109,11 +122,11 @@
     function retry(why, delay) {
       // 这种方式不行：换另一种（重复用 ↔ 新建），以后也先用另一种
       var next = !usedFresh;
-      if (why !== 'busy') preferFresh = next;
+      if (why !== 'busy') setPrefer(next);
       L('retry(' + why + (next ? ',new' : ',reuse') + ')');
       needFresh = true;
       try { detach(); r.abort(); } catch (e) {}
-      setTimeout(function () { listen(onInterim, onFinal, onFail, onReady, true, log, true); }, delay);
+      setTimeout(function () { listen(onInterim, onFinal, onFail, onReady, true, log, next); }, delay);
     }
     function finish(kind) {
       if (ended) return; ended = true; clear();
@@ -175,8 +188,13 @@
     timers.push(setTimeout(function () {
       if (!ended && !heard && !lastText && !retried && cur && cur.r === r) { ended = true; clear(); cur = null; retry('no-audio', 300); }
     }, 2500));
+    // 重复用的识别器：显示在收音，但 4 秒一个字都没出 → 换新的重来一次（iPhone 上常见）
+    timers.push(setTimeout(function () {
+      if (!ended && !lastText && !retried && !usedFresh && cur && cur.r === r) { ended = true; clear(); cur = null; retry('no-result', 300); }
+    }, 4000));
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
-    L(retried ? 'begin(new)' : 'begin');
+    try { if (window.Ene && Ene.Sfx && Ene.Sfx.quiet) Ene.Sfx.quiet(); } catch (e) {}
+    L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse'));
     try { r.start(); }
     catch (e) {
       // 上一次还没完全结束（InvalidStateError）：换一个新的

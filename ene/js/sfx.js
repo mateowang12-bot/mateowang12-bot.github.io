@@ -120,6 +120,7 @@
       ], e);
       buzz([10, 40, 10], e);
     },
+    quiet: suspendNow, // 录音前调用：马上停掉提示音的声音通道，免得 iPhone 麦克风被占
     canVibrate: canVibrate,
     soundOn: soundOn,
     vibrateOn: vibrateOn,
