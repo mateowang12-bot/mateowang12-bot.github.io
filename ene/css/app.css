@@ -445,6 +445,7 @@ svg { display: block; }
 .sp-legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid var(--fg); vertical-align: -1px; margin-right: 4px; }
 .sp-legend .sw.low { background: var(--fg); }
 .sp-heard { margin: 0; }
+.sp-log { font-size: 11px; word-break: break-all; }
 .sp-drill { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 14px; }
 .sp-drill.done { border-color: var(--fg); }
 .sp-drill .say { width: 40px; height: 40px; flex: 0 0 40px; }

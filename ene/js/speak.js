@@ -80,29 +80,56 @@
    * - 识别真正开始（onstart / onaudiostart）才告诉页面“现在说吧”（onReady），免得一开口就被漏掉；
    * - 开始收音后 8 秒都没听到任何内容 → 自动停（显示“没听到声音”）；
    * - network 错误（电脑 Chrome 要连谷歌，国内常连不上）单独提示，不当作“这台设备不能用”。 */
+  /* 2026-11-19 用户发现：第一次录音能录进去，之后就不行（iPhone）。
+   * - 一节课里尽量用同一个识别器（shared），只有上一次没有正常结束（被强制停 / abort）才换新的；
+   * - 开始后 2.5 秒还没收到声音（没有 audiostart / 结果）→ 换一个新的识别器重来一次；
+   * - 刚开始就自己结束 → 等 0.4 秒（让麦克风放开）再换新的重来；
+   * - 每次识别记下经过了哪几步（lastLog），收不到时在结果页显示，方便用户截图排查。 */
   var cur = null; // 正在进行的识别 { r, finish(kind), stop() }
   var SILENCE_MS = 1600;
-  function listen(onInterim, onFinal, onFail, onReady, retried) {
+  var shared = null, needFresh = false, lastLog = '';
+  // 记住哪种方式能收到声音：false = 重复用同一个识别器，true = 每次新建。收不到就换另一种，并记住
+  var preferFresh = false;
+  var HARD_ERR = ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network'];
+  function getSR(fresh) {
+    if (fresh || needFresh || !shared) { shared = new SR(); needFresh = false; }
+    return shared;
+  }
+  function listen(onInterim, onFinal, onFail, onReady, retried, log, fresh) {
     var r, t0 = Date.now();
-    try { r = new SR(); } catch (e) { onFail('nosr'); return; }
+    log = log || [];
+    var usedFresh = fresh != null ? fresh : preferFresh;
+    function L(x) { log.push(x + '@' + (Date.now() - t0)); lastLog = log.join(' → '); }
+    try { r = getSR(usedFresh); } catch (e) { onFail('nosr'); return; }
     r.lang = variant() === 'es' ? 'es-ES' : 'es-MX';
     r.interimResults = true; r.maxAlternatives = 5; r.continuous = true;
-    var finals = null, lastText = '', err = '', ended = false, alive = false, timers = [], silence = null, noSpeech = null;
+    var finals = null, lastText = '', err = '', ended = false, alive = false, heard = false, timers = [], silence = null, noSpeech = null;
     function clear() { timers.forEach(clearTimeout); timers = []; clearTimeout(silence); clearTimeout(noSpeech); }
+    function detach() { r.onstart = r.onaudiostart = r.onsoundstart = r.onspeechstart = r.onresult = r.onerror = r.onend = null; }
+    function retry(why, delay) {
+      // 这种方式不行：换另一种（重复用 ↔ 新建），以后也先用另一种
+      var next = !usedFresh;
+      if (why !== 'busy') preferFresh = next;
+      L('retry(' + why + (next ? ',new' : ',reuse') + ')');
+      needFresh = true;
+      try { detach(); r.abort(); } catch (e) {}
+      setTimeout(function () { listen(onInterim, onFinal, onFail, onReady, true, log, true); }, delay);
+    }
     function finish(kind) {
       if (ended) return; ended = true; clear();
+      L(kind);
       if (cur && cur.r === r) cur = null;
-      if (kind === 'hang') { try { r.onend = null; r.abort(); } catch (e) {} onFail('hang'); return; }
-      if (kind === 'force') { try { r.onend = null; r.abort(); } catch (e) {} }
-      // iPhone 连着录第二次时，识别有时刚开始就自己结束、什么都没听到：悄悄重新开始一次
-      if (kind === 'end' && !lastText && !retried && Date.now() - t0 < 1500 &&
-          ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network'].indexOf(err) < 0) {
-        listen(onInterim, onFinal, onFail, onReady, true);
+      if (kind === 'hang') { needFresh = true; try { detach(); r.abort(); } catch (e) {} onFail('hang'); return; }
+      if (kind === 'force') { needFresh = true; try { detach(); r.abort(); } catch (e) {} }
+      else detach();
+      // 刚开始就自己结束、什么都没听到：等 0.4 秒换一个新的识别器重来一次
+      if (kind === 'end' && !lastText && !retried && Date.now() - t0 < 1500 && HARD_ERR.indexOf(err) < 0) {
+        retry('quick-end', 400);
         return;
       }
       if (finals && finals.length && finals[0] === lastText) onFinal(finals);
       else if (lastText) onFinal([lastText].concat(finals || []));
-      else if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture' || err === 'language-not-supported' || err === 'network') onFail(err);
+      else if (HARD_ERR.indexOf(err) >= 0) onFail(err);
       else onFinal([]);
     }
     var readySent = false;
@@ -114,8 +141,13 @@
         noSpeech = setTimeout(function () { if (!lastText && cur && cur.r === r) cur.stop(); }, 8000);
       }
     }
-    r.onstart = wake; r.onaudiostart = wake; r.onsoundstart = wake; r.onspeechstart = wake;
+    r.onstart = function () { L('start'); wake(); };
+    r.onaudiostart = function () { L('audio'); heard = true; wake(); };
+    r.onsoundstart = function () { L('sound'); heard = true; wake(); };
+    r.onspeechstart = function () { L('speech'); heard = true; wake(); };
     r.onresult = function (ev) {
+      if (!lastText) L('result');
+      heard = true;
       wake();
       clearTimeout(noSpeech);
       clearTimeout(silence);
@@ -130,21 +162,32 @@
       }
       if (onInterim) onInterim(joined);
     };
-    r.onerror = function (e) { err = (e && e.error) || 'error'; };
+    r.onerror = function (e) { err = (e && e.error) || 'error'; L('error:' + err); };
     r.onend = function () { finish('end'); };
     cur = { r: r, finish: finish, stop: function () {
       if (ended) return;
+      L('stop');
       try { r.stop(); } catch (e) {}
       timers.push(setTimeout(function () { finish('force'); }, 1500));
     } };
     timers.push(setTimeout(function () { if (!alive && !ended) finish('hang'); }, 5000));
+    // 开始了但 2.5 秒都没收到声音：换一个新的识别器重来一次
+    timers.push(setTimeout(function () {
+      if (!ended && !heard && !lastText && !retried && cur && cur.r === r) { ended = true; clear(); cur = null; retry('no-audio', 300); }
+    }, 2500));
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
-    try { r.start(); } catch (e) { ended = true; clear(); cur = null; onFail('start'); }
+    L(retried ? 'begin(new)' : 'begin');
+    try { r.start(); }
+    catch (e) {
+      // 上一次还没完全结束（InvalidStateError）：换一个新的
+      if (!retried) { ended = true; clear(); cur = null; retry('busy', 300); return; }
+      ended = true; clear(); cur = null; onFail('start');
+    }
   }
   function stopListen() { if (cur) cur.stop(); }
   function abortListen() {
     if (!cur) return;
-    var c = cur; cur = null;
+    var c = cur; cur = null; needFresh = true;
     try { c.r.onend = null; c.r.abort(); } catch (e) {}
   }
 
@@ -436,6 +479,7 @@
       P.result = answers.map(function (a) { return grade(a, alts); })
         .reduce(function (b, g) { return !b || g.score > b.score ? g : b; }, null);
       P.result.empty = !alts.length || !String(alts[0]).trim();
+      P.result.log = lastLog;
       if (P.result.score > P.best[P.task]) P.best[P.task] = P.result.score;
       P.sel = -1;
       go('feedback');
@@ -483,7 +527,8 @@
         return '<button class="sp-w' + (x.ok ? '' : ' low') + (P.sel === i ? ' sel' : '') + '" data-sp="word" data-i="' + i + '">' + esc(x.w) + '</button>';
       }).join('') + '</div>' +
       '<div class="sp-legend"><span><i class="sw low"></i>没听出来 / 说错了</span><span><i class="sw"></i>说对了</span></div>' +
-      '<p class="sp-heard" lang="es"><span class="sp-small">我们听到：</span>' + esc(r.heard || '（没有听到）') + '</p></div>';
+      '<p class="sp-heard" lang="es"><span class="sp-small">我们听到：</span>' + esc(r.heard || '（没有听到）') + '</p>' +
+      (r.empty && r.log ? '<p class="sp-small sp-log">识别记录（收不到音时截图给我们）：' + esc(r.log) + '</p>' : '') + '</div>';
     html += '<div class="sp-grow"></div><div class="sp-actions">';
     if (r.pass) {
       html += '<button class="btn primary big" data-sp="next">' + (last ? '本课结算' : '下一句') + '</button>' +
