@@ -47,7 +47,9 @@
   var NO_SFX = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   function sfx(e) { if (!NO_SFX && Ene.Sfx && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
   function sfxMiss(e) { if (!NO_SFX && Ene.Sfx && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
-  function say(text, rate, onEnd, pitch, who) { return Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); }
+  function say(text, rate, onEnd, pitch, who) {
+    afterHold(function () { Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); });
+  }
   // 对话里第几个出场的人（0、1、2…）：每个人固定一个声音
   function speakerIndex(L, i) {
     var seen = [];
@@ -108,7 +110,7 @@
   /* 2026-11-19 小测试证实：iPhone 录过音后再放声音（朗读 / 提示音），识别就一直不出字；刷新页面也救不回来；
    * 但先用 getUserMedia 把麦克风一直开着，放完朗读后还能正常识别。
    * 所以 iPhone / iPad 上：第一次录音时（在点击里）打开一个“常开麦克风”，一直开到退出这节课 / App 切到后台。 */
-  var hold = null, holdPending = false;
+  var hold = null, holdPending = false, holdEver = false;
   function ensureHold() {
     if (hold && !holdLive()) hold = null; // 常开的麦克风被系统停掉了：重新开
     if (!IS_IOS || hold || holdPending || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -116,10 +118,19 @@
     try {
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
         holdPending = false;
-        if (hold) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
-        hold = s;
-      }, function () { holdPending = false; });
-    } catch (e) { holdPending = false; }
+        if (hold) s.getTracks().forEach(function (t) { t.stop(); });
+        else { hold = s; holdEver = true; }
+        flushHold();
+      }, function () { holdPending = false; flushHold(); });
+    } catch (e) { holdPending = false; flushHold(); }
+  }
+  // 常开麦克风还在打开时，先别放声音（放了 iPhone 识别会坏），等它开好再放（最多等 3 秒）
+  var holdWaiters = [];
+  function flushHold() { var w = holdWaiters; holdWaiters = []; w.forEach(function (f) { try { f(); } catch (e) {} }); }
+  function afterHold(fn) {
+    if (!holdPending) { fn(); return; }
+    var done = false, run = function () { if (!done) { done = true; fn(); } };
+    holdWaiters.push(run); setTimeout(run, 3000);
   }
   function holdLive() {
     try { return !!hold && hold.getTracks().some(function (t) { return t.readyState !== 'ended'; }); } catch (e) { return !!hold; }
@@ -411,7 +422,7 @@
   }
   function close() {
     stopAll();
-    dropHold();
+    // 不关常开麦克风：关了再开的空档里一放声音，iPhone 识别又会坏（用户：第二次进课就不行）。关掉 App 时系统会关
     P = null;
     if (box) { box.hidden = true; box.innerHTML = ''; }
     document.body.classList.remove('in-session');
@@ -833,8 +844,8 @@
 
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState !== 'visible') { if (cur) stopListen(); dropHold(); }
-    else if (P && !P.self) ensureHold(); // 回到 App、还在上课：重新打开常开麦克风
+    if (document.visibilityState !== 'visible') { if (cur) stopListen(); }
+    else if (holdEver || (P && !P.self)) ensureHold(); // 回到 App：常开麦克风被系统关了就重新打开
   });
 
   Ene.Speak = {
