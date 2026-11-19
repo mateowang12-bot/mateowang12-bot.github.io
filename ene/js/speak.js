@@ -110,6 +110,7 @@
    * 所以 iPhone / iPad 上：第一次录音时（在点击里）打开一个“常开麦克风”，一直开到退出这节课 / App 切到后台。 */
   var hold = null, holdPending = false;
   function ensureHold() {
+    if (hold && !holdLive()) hold = null; // 常开的麦克风被系统停掉了：重新开
     if (!IS_IOS || hold || holdPending || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     holdPending = true;
     try {
@@ -119,6 +120,9 @@
         hold = s;
       }, function () { holdPending = false; });
     } catch (e) { holdPending = false; }
+  }
+  function holdLive() {
+    try { return !!hold && hold.getTracks().some(function (t) { return t.readyState !== 'ended'; }); } catch (e) { return !!hold; }
   }
   function dropHold() {
     if (hold) { try { hold.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
@@ -230,7 +234,7 @@
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
     try { if (window.Ene && Ene.Sfx && Ene.Sfx.lock) Ene.Sfx.lock(); } catch (e) {}
     ensureHold();
-    L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse') + (cont ? ':c1' : ':c0'));
+    L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse') + (cont ? ':c1' : ':c0') + (IS_IOS ? (hold ? (holdLive() ? ':mic-on' : ':mic-ended') : holdPending ? ':mic-wait' : ':mic-off') : ''));
     try { r.start(); }
     catch (e) {
       // 上一次还没完全结束（InvalidStateError）：换一个新的
@@ -394,6 +398,8 @@
   function open(day) {
     var L = LESSONS[day];
     if (!L) return;
+    // iPhone：进课就（在这次点击里）打开常开麦克风，和小测试里有效的顺序一样：先常开，再放声音、录音
+    if (canRecognize()) ensureHold();
     ensureBox();
     P = { L: L, day: day, screen: 'warm', warmPick: -1, speed: 1.0, played: false, lineNow: -1, showLines: false, reveal: {}, checkPick: -1,
       task: 0, tries: L.tasks.map(function () { return 0; }), best: L.tasks.map(function () { return 0; }), done: L.tasks.map(function () { return false; }),
@@ -828,6 +834,7 @@
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') { if (cur) stopListen(); dropHold(); }
+    else if (P && !P.self) ensureHold(); // 回到 App、还在上课：重新打开常开麦克风
   });
 
   Ene.Speak = {
