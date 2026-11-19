@@ -58,18 +58,38 @@
 
   /* ================= 语音识别 + 逐词打分 ================= */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  var srBroken = false; // 用过一次发现不能用（没权限 / 服务不可用）就改成自己对照
+  // 发现这台设备上语音识别不能用（没权限 / 服务不可用 / 卡住没反应）→ 改成自己对照，并记住（下次不用再等）
+  var SR_KEY = 'ene-sr-broken';
+  var srBroken = (function () { try { return localStorage.getItem(SR_KEY) === '1'; } catch (e) { return false; } })();
+  function setBroken(v) { srBroken = v; try { if (v) localStorage.setItem(SR_KEY, '1'); else localStorage.removeItem(SR_KEY); } catch (e) {} }
   function canRecognize() { return !!SR && !srBroken; }
 
-  var recog = null;
+  /* 2026-11-19 用户在 iPhone 上“一直正在听、停止也按不掉”：iOS 的识别有时既不给结果也不触发 onend。
+   * 所以加了几道保险：
+   * - 开始后 5 秒内一点反应都没有（没有 onstart / 声音 / 结果）→ 当作这台设备不能用，改成自己对照；
+   * - 按停止：调用 stop()，1.5 秒内还没结束就强制结束，用已经听到的部分打分；
+   * - 最长 15 秒自动停。 */
+  var cur = null; // 正在进行的识别 { r, finish(force) }
   function listen(onInterim, onFinal, onFail) {
     var r;
     try { r = new SR(); } catch (e) { onFail('nosr'); return; }
-    recog = r;
     r.lang = variant() === 'es' ? 'es-ES' : 'es-MX';
     r.interimResults = true; r.maxAlternatives = 5; r.continuous = false;
-    var finals = null, lastText = '', err = '', ended = false;
+    var finals = null, lastText = '', err = '', ended = false, alive = false, timers = [];
+    function clear() { timers.forEach(clearTimeout); timers = []; }
+    function finish(kind) {
+      if (ended) return; ended = true; clear();
+      if (cur && cur.r === r) cur = null;
+      if (kind === 'hang') { try { r.onend = null; r.abort(); } catch (e) {} onFail('hang'); return; }
+      if (kind === 'force') { try { r.onend = null; r.abort(); } catch (e) {} }
+      if (finals && finals.length) onFinal(finals);
+      else if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture' || err === 'language-not-supported') onFail(err);
+      else onFinal(lastText ? [lastText] : []);
+    }
+    function wake() { alive = true; }
+    r.onstart = wake; r.onaudiostart = wake; r.onsoundstart = wake; r.onspeechstart = wake;
     r.onresult = function (ev) {
+      alive = true;
       var res = ev.results, joined = '';
       for (var i = 0; i < res.length; i++) joined += (i ? ' ' : '') + res[i][0].transcript;
       lastText = joined;
@@ -81,17 +101,22 @@
       if (onInterim) onInterim(joined);
     };
     r.onerror = function (e) { err = (e && e.error) || 'error'; };
-    r.onend = function () {
-      if (ended) return; ended = true;
-      if (recog === r) recog = null;
-      if (finals && finals.length) onFinal(finals);
-      else if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture' || err === 'language-not-supported') onFail(err);
-      else onFinal(lastText ? [lastText] : []);
-    };
-    try { r.start(); } catch (e) { ended = true; recog = null; onFail('start'); }
+    r.onend = function () { finish('end'); };
+    cur = { r: r, finish: finish, stop: function () {
+      if (ended) return;
+      try { r.stop(); } catch (e) {}
+      timers.push(setTimeout(function () { finish('force'); }, 1500));
+    } };
+    timers.push(setTimeout(function () { if (!alive && !ended) finish('hang'); }, 5000));
+    timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
+    try { r.start(); } catch (e) { ended = true; clear(); cur = null; onFail('start'); }
   }
-  function stopListen() { if (recog) { try { recog.stop(); } catch (e) {} } }
-  function abortListen() { if (recog) { var r = recog; recog = null; try { r.onend = null; r.abort(); } catch (e) {} } }
+  function stopListen() { if (cur) cur.stop(); }
+  function abortListen() {
+    if (!cur) return;
+    var c = cur; cur = null;
+    try { c.r.onend = null; c.r.abort(); } catch (e) {}
+  }
 
   // 0–999 的数字转成西语（识别结果里常常是阿拉伯数字）
   var U = ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce', 'trece', 'catorce', 'quince',
@@ -340,7 +365,8 @@
     var t = P.L.tasks[P.task], inner;
     if (P.self) {
       inner = '<p class="sp-muted sp-c">大声说出来，说完点下面的按钮。</p>' +
-        '<button class="sp-mic" data-sp="self-done" aria-label="说完了">' + I.check + '</button><p class="sp-small sp-c">说完了，看答案</p>';
+        '<button class="sp-mic" data-sp="self-done" aria-label="说完了">' + I.check + '</button><p class="sp-small sp-c">说完了，看答案</p>' +
+        (SR ? '<button class="btn link" data-sp="sr-retry">再试一次语音识别</button>' : '');
     } else if (P.rec) {
       inner = '<div class="sp-level" id="sp-level">' + new Array(16).join('<i></i>') + '</div>' +
         '<button class="sp-mic rec" data-sp="rec-stop" aria-label="停止"><span class="sp-stop"></span></button>' +
@@ -382,10 +408,11 @@
       if (P.result.score > P.best[P.task]) P.best[P.task] = P.result.score;
       P.sel = -1;
       go('feedback');
-    }, function () {
+    }, function (why) {
       if (P !== mine) return;
-      srBroken = true; P.self = true; P.rec = false; stopLoops();
-      toast('这里不能用语音识别，改成自己对照：说完看答案、听示范，自己判断。');
+      setBroken(true); P.self = true; P.rec = false; stopLoops();
+      toast(why === 'hang' ? '语音识别没有反应，先改成自己对照：说完看答案、听示范，自己判断。'
+        : '这里不能用语音识别，改成自己对照：说完看答案、听示范，自己判断。');
       render(false);
     });
   }
@@ -422,6 +449,7 @@
       var lows = r.words.filter(function (x) { return !x.ok; }).map(function (x) { return x.w.replace(/[¿?¡!.,]/g, ''); }).slice(0, 4);
       html += (r.empty ? '' : '<button class="btn primary big" data-sp="drill">进入窄场景重练' + (lows.length ? '（' + esc(lows.join('、')) + '）' : '') + '</button>') +
         '<button class="btn' + (r.empty ? ' primary' : '') + ' big" data-sp="again">再说一遍</button>' +
+        (r.empty ? '<button class="btn link" data-sp="to-self">总是听不到？改成自己对照</button>' : '') +
         (P.tries[P.task] >= 3 ? '<button class="btn link" data-sp="skip">先跳过（这一课就不算过关）</button>' : '<p class="sp-small sp-c">不过关不能跳过，这一句要说对 ' + PASS + '% 的词</p>');
     }
     return html + '</div>';
@@ -555,6 +583,8 @@
       case 'rec': Speech.stop(); startRec(); break;
       case 'rec-stop': stopListen(); break;
       case 'self-done': sfx(e); P.tries[P.task]++; go('feedback'); break;
+      case 'sr-retry': sfx(e); setBroken(false); P.self = false; render(false); break;
+      case 'to-self': sfx(e); setBroken(true); P.self = true; go('produce'); break;
       case 'self-yes': sfx(e); P.done[P.task] = true; nextTask(); break;
       case 'self-no': sfxMiss(e); P.result = null; startDrill(); break;
       case 'word': {
@@ -583,7 +613,7 @@
           P.drill.rec = -1; render(false);
         }, function () {
           if (P !== mineD) return;
-          srBroken = true; P.self = true; P.drill.rec = -1; render(false);
+          setBroken(true); P.self = true; P.drill.rec = -1; render(false);
         });
         break;
       }
@@ -609,6 +639,11 @@
       Store.setSetting('variant', el.getAttribute('data-v'));
       if (Ene.App && Ene.App.route) Ene.App.route();
     } else if (a === 'say') say(el.getAttribute('data-text'), 0.95);
+  });
+
+  // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible' && cur) stopListen();
   });
 
   Ene.Speak = {
