@@ -156,6 +156,33 @@
    * iPhone / iPad（以及没有系统识别的浏览器）改用本地识别 Ene.ASR（js/asr.js：自己录音 + Vosk 在手机上识别）。 */
   function useLocal() { return !!(Ene.ASR && Ene.ASR.supported() && (IS_IOS || !SR || window.__forceLocalASR)); }
   function localReady() { return useLocal() && (Ene.ASR.status() === 'ready' || Ene.ASR.cached()); }
+  // 这一课出现过的所有西语词（两种说法都算）+ 数字词：交给本地识别当“优先候选词”，初学者的发音更容易被认出来
+  var NUM_WORDS = 'cero uno una dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciséis diecisiete dieciocho diecinueve veinte veintiuno veintidós veintitrés veinticuatro veinticinco veintiséis veintisiete veintiocho veintinueve treinta cuarenta cincuenta sesenta setenta ochenta noventa cien ciento doscientos trescientos cuatrocientos quinientos seiscientos setecientos ochocientos novecientos mil y con media cuarto euros euro pesos peso'.split(' ');
+  var gramCache = {};
+  function lessonGrammar() {
+    if (!P || !P.L) return null;
+    if (gramCache[P.day]) return gramCache[P.day];
+    // 只收真正的西语句子（latam / es / text / alt），不收字段名和发音提示里的音节碎片（bue、nos…会让识别乱拆词）
+    // 跳过 note / tip / warm（发音说明、元音听辨里的 a · e · i · o · u 这类会让识别把 hola 听成 “a”）
+    var KEYS = { latam: 1, es: 1, text: 1, alt: 1 }, SKIP = { note: 1, tip: 1, warm: 1 }, texts = [];
+    (function walk(o, k) {
+      if (typeof o === 'string') { if (KEYS[k]) texts.push(o); return; }
+      if (Array.isArray(o)) { o.forEach(function (x) { walk(x, k); }); return; }
+      if (o && typeof o === 'object') Object.keys(o).forEach(function (kk) { if (!SKIP[kk]) walk(o[kk], kk); });
+    })({ tasks: P.L.tasks, dialog: P.L.dialog, drill: P.L.drill }, '');
+    // ↑ 只用“要说的句子 + 对话 + 重练”：语块里的 buenas tardes / buenas noches 会让 buenos 被听成 buenas（测试过）
+    // 单个字母的词只收任务句里真的出现的（y、a、o…）
+    var taskWords = {};
+    P.L.tasks.forEach(function (t) { [t.latam, t.es].concat(t.alt || []).join(' ').toLowerCase().split(/[^a-záéíóúñü]+/).forEach(function (w) { taskWords[w] = 1; }); });
+    var seen = {}, out = [];
+    // 数字词只在这一课出现数字时才加（词越少，识别越准）
+    var hasNum = /\d/.test(texts.join(' '));
+    texts.join(' ').toLowerCase().split(/[^a-záéíóúñü]+/).concat(hasNum ? NUM_WORDS : []).forEach(function (w) {
+      if (!w || seen[w] || w.length > 20 || (w.length === 1 && !taskWords[w])) return;
+      seen[w] = 1; out.push(w);
+    });
+    return (gramCache[P.day] = out);
+  }
   function listenLocal(onInterim, onFinal, onFail, onReady) {
     var log = [], t0 = Date.now();
     function L(x) { log.push(x + '@' + (Date.now() - t0)); lastLog = log.join(' → '); }
@@ -163,6 +190,7 @@
     var c = { r: null };
     var h = Ene.ASR.listen({
       log: L,
+      grammar: lessonGrammar(),
       onInterim: onInterim,
       onReady: onReady,
       onFinal: function (alts) { if (cur === c) cur = null; onFinal(alts); },
@@ -321,6 +349,8 @@
     }
     return flags;
   }
+  var LIGHT = {};
+  ['de', 'del', 'el', 'la', 'los', 'las', 'lo', 'un', 'una', 'a', 'al', 'y', 'e', 'o', 'en', 'con', 'por', 'que', 'se', 'me', 'te'].forEach(function (w) { LIGHT[w] = 1; });
   function grade(text, alternatives) {
     var us = units(text), flat = [], owner = [];
     us.forEach(function (u, k) { u.parts.forEach(function (p) { flat.push(p); owner.push(k); }); });
@@ -332,8 +362,10 @@
     });
     var ok = us.map(function () { return true; });
     best.flags.forEach(function (v, idx) { if (!v) ok[owner[idx]] = false; });
-    var good = ok.filter(Boolean).length;
-    var score = us.length ? Math.round(good / us.length * 100) : 0;
+    // 2026-11-19 用户说“不灵敏”：de / el / la / y 这类很短的虚词，识别程序最容易漏听，只算半个词
+    var good = 0, all = 0;
+    us.forEach(function (u, k) { var wt = LIGHT[norm(u.disp)] ? 0.5 : 1; all += wt; if (ok[k]) good += wt; });
+    var score = all ? Math.round(good / all * 100) : 0;
     return { words: us.map(function (u, k) { return { w: u.disp, ok: ok[k] }; }), score: score, pass: score >= PASS, heard: best.heard };
   }
 
@@ -636,8 +668,8 @@
       for (var i = 0; i < lv.children.length; i++) lv.children[i].style.height = Math.round(4 + amp * 24 * (0.4 + 0.6 * Math.abs(Math.sin(Date.now() / 300 + i)))) + 'px';
     }, 90));
   }
-  function startRec() {
-    P.rec = true; P.recReady = false; P.interim = ''; render(false);
+  function startRec(anim) {
+    P.rec = true; P.recReady = false; P.interim = ''; render(!!anim);
     var mine = P;
     listen(function (txt) {
       if (P !== mine) return;
@@ -656,7 +688,13 @@
       P.result.log = lastLog;
       if (P.result.score > P.best[P.task]) P.best[P.task] = P.result.score;
       P.sel = -1;
+      P.autoNext = P.result.pass && P.task < P.L.tasks.length - 1;
       go('feedback');
+      if (P.autoNext) {
+        loops.push(setTimeout(function () {
+          if (P === mine && P.screen === 'feedback' && P.autoNext) { P.autoNext = false; P.done[P.task] = true; nextTask(); }
+        }, 2200));
+      }
     }, function (why) {
       if (P !== mine) return;
       P.rec = false; stopLoops();
@@ -712,7 +750,8 @@
       (r.empty && r.log ? '<p class="sp-small sp-log">识别记录（收不到音时截图给我们）：' + esc(r.log) + '</p>' : '') + '</div>';
     html += '<div class="sp-grow"></div><div class="sp-actions">';
     if (r.pass) {
-      html += '<button class="btn primary big" data-sp="next">' + (last ? '本课结算' : '下一句') + '</button>' +
+      // 过关后 2 秒自动进下一句（按钮上有进度条；点页面任何地方就停下自动）
+      html += '<button class="btn primary big' + (P.autoNext ? ' sp-auto' : '') + '" data-sp="next"><span>' + (last ? '本课结算' : '下一句') + '</span></button>' +
         '<button class="btn link" data-sp="again">再说一遍</button>';
     } else {
       var lows = r.words.filter(function (x) { return !x.ok; }).map(function (x) { return x.w.replace(/[¿?¡!.,]/g, ''); }).slice(0, 4);
@@ -818,6 +857,11 @@
   }
   function onClick(e) {
     var el = e.target.closest('[data-sp]');
+    // 过关后的自动进下一句：点了别的地方（比如点词听示范）就不自动了
+    if (P && P.autoNext && !(el && el.getAttribute('data-sp') === 'next')) {
+      P.autoNext = false;
+      var auto = box.querySelector('.sp-auto'); if (auto) auto.classList.remove('sp-auto');
+    }
     if (!el || el.disabled || !P) return;
     var a = el.getAttribute('data-sp');
     switch (a) {
@@ -863,8 +907,9 @@
         if (w) say(w.w.replace(/[¿?¡!.,;:]/g, ''), 0.7);
         render(false); break;
       }
-      case 'again': sfx(e); go('produce'); break;
-      case 'next': sfx(e); P.done[P.task] = true; nextTask(); break;
+      // 再说一遍：直接开始录音（少点一下）
+      case 'again': sfx(e); go('produce'); if (!P.self && canRecognize() && (!useLocal() || localReady())) { Speech.stop(); startRec(true); } break;
+      case 'next': sfx(e); P.autoNext = false; P.done[P.task] = true; nextTask(); break;
       case 'skip': sfxMiss(e); P.skipped[P.task] = true; nextTask(); break;
       case 'drill': sfx(e); startDrill(); break;
       case 'drill-rec': {
@@ -932,6 +977,7 @@
     active: function () { return !!P; },
     lessons: LESSONS,
     grade: grade,       // 给测试用
+    lastLog: function () { return lastLog; },
     norm: norm
   };
 })();

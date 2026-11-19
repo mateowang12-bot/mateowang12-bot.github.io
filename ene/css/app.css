@@ -610,3 +610,9 @@ svg { display: block; }
 .sp-dl { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
 .sp-dl i { display: block; height: 100%; width: 0; background: var(--fg); border-radius: 4px; transition: width .3s ease; }
 .sp-warn { color: var(--fg); font-weight: 600; }
+
+/* 过关后自动进下一句：按钮上一条 2.2 秒的进度 */
+.btn.sp-auto { position: relative; overflow: hidden; }
+.btn.sp-auto span { position: relative; z-index: 1; }
+.btn.sp-auto::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: currentColor; opacity: .18; transform-origin: left; animation: sp-auto 2.2s linear both; }
+@keyframes sp-auto { from { transform: scaleX(0); } to { transform: scaleX(1); } }

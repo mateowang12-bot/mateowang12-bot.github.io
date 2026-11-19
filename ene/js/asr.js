@@ -149,36 +149,61 @@
 
   /* ---------- 听一句 ---------- */
   var SILENCE_MS = 1500, NO_SPEECH_MS = 8000, MAX_MS = 15000;
+  /* 2026-11-19 用户说“不灵敏”：给了 h.grammar（这一课的词）时，同时开两个识别器：
+   *   - 一个“优先这一课的词”（带口音也更容易认出来，例如 ¿De dónde eres? 不会被听成 johnny gris）；
+   *   - 一个自由识别（有时候带词表的会漏掉 hola 这种词）。
+   * 两个结果都交给打分，取分高的那个。 */
   function listen(h) {
     var log = h.log || function () {};
-    var done = false, rec = null, text = '', finals = [], partial = '', lastChange = 0, started = 0, timers = [], gotAudio = false, stopping = false;
+    var done = false, recs = [], lastChange = 0, gotFinal = false, started = 0, timers = [], gotAudio = false, stopping = false, logged = false;
     var handle = {
       stop: function () { if (!done && !stopping) { log('stop'); stopping = true; flush(); } },
-      abort: function () { finish(null, 'abort'); }
+      abort: function () { finish('abort'); }
     };
     function clear() { timers.forEach(function (t) { clearTimeout(t); clearInterval(t); }); timers = []; }
-    function current() { return (finals.join(' ') + ' ' + partial).replace(/\s+/g, ' ').trim(); }
-    function finish(result, why) {
+    function textOf(s) { return (s.finals.join(' ') + ' ' + s.partial).replace(/\[unk\]/g, ' ').replace(/\s+/g, ' ').trim(); }
+    // 显示给用户看的：两个里面字多的那个
+    function current() { var best = ''; recs.forEach(function (s) { var t = textOf(s); if (t.length > best.length) best = t; }); return best; }
+    function finish(why) {
       if (done) return; done = true; clear();
       if (active === me) active = null;
-      try { if (rec) rec.remove(); } catch (e) {}
+      recs.forEach(function (s) { try { s.rec.remove(); } catch (e) {} });
       if (why === 'abort') return;
       if (why) { log('fail:' + why); h.onFail && h.onFail(why); return; }
+      var out = [];
+      recs.forEach(function (s) { var t = textOf(s); if (t && out.indexOf(t) < 0) out.push(t); });
       log('end');
-      h.onFinal && h.onFinal(result ? [result] : []);
+      h.onFinal && h.onFinal(out);
     }
     function flush() {
-      // 让识别器把最后一段吐出来，最多等 1.5 秒
-      try { rec.retrieveFinalResult(); } catch (e) {}
-      timers.push(setTimeout(function () { finish(current()); }, 1500));
+      // 让识别器把最后一段吐出来；都吐完就结束，最多等 1.5 秒
+      recs.forEach(function (s) { s.waiting = true; try { s.rec.retrieveFinalResult(); } catch (e) { s.waiting = false; } });
+      timers.push(setTimeout(function () { finish(); }, 1500));
     }
     var me = {
       feed: function (buf) {
-        if (done || stopping || !rec) return;
+        if (done || stopping || !recs.length) return;
         if (!gotAudio) { gotAudio = true; log('audio'); }
-        try { rec.acceptWaveform(buf); } catch (e) {}
+        recs.forEach(function (s) { try { s.rec.acceptWaveform(buf); } catch (e) {} });
       }
     };
+    function makeRec(grammar) {
+      var s = { finals: [], partial: '', waiting: false };
+      s.rec = grammar ? new model.KaldiRecognizer(ctx.sampleRate, JSON.stringify(grammar.concat(['[unk]'])))
+        : new model.KaldiRecognizer(ctx.sampleRate);
+      s.rec.on('partialresult', function (msg) {
+        var p = (msg && msg.result && msg.result.partial) || '';
+        if (p !== s.partial) { s.partial = p; lastChange = Date.now(); if (p) gotFinal = false; if (h.onInterim && current()) h.onInterim(current()); }
+      });
+      s.rec.on('result', function (msg) {
+        var t = (msg && msg.result && msg.result.text) || '';
+        s.partial = '';
+        if (t) { s.finals.push(t); lastChange = Date.now(); gotFinal = true; if (!logged) { logged = true; log('result'); } if (h.onInterim && current()) h.onInterim(current()); }
+        if (stopping) { s.waiting = false; if (recs.every(function (x) { return !x.waiting; })) finish(); }
+      });
+      s.rec.on('error', function (msg) { log('err:' + (msg && msg.error)); });
+      return s;
+    }
 
     log('local');
     Promise.resolve().then(function () {
@@ -189,33 +214,24 @@
     }).then(function () {
       if (done) return;
       hookup();
-      rec = new model.KaldiRecognizer(ctx.sampleRate);
-      rec.on('partialresult', function (msg) {
-        var p = (msg && msg.result && msg.result.partial) || '';
-        if (p !== partial) { partial = p; lastChange = Date.now(); if (h.onInterim && current()) h.onInterim(current()); }
-      });
-      rec.on('result', function (msg) {
-        var t = (msg && msg.result && msg.result.text) || '';
-        partial = '';
-        if (t) { finals.push(t); lastChange = Date.now(); if (!text) log('result'); text = current(); h.onInterim && h.onInterim(text); }
-        if (stopping) finish(current());
-      });
-      rec.on('error', function (msg) { log('err:' + (msg && msg.error)); });
+      recs.push(makeRec(null));
+      if (h.grammar && h.grammar.length) recs.push(makeRec(h.grammar));
       active = me;
       started = Date.now();
-      log('ready');
+      log('ready' + (recs.length > 1 ? '(2)' : ''));
       h.onReady && h.onReady();
-      // 说完安静 1.5 秒自动结束；8 秒都没说话也结束；最长 15 秒
       timers.push(setInterval(function () {
         if (done || stopping) return;
         var now = Date.now(), has = !!current();
-        if (has && now - lastChange > SILENCE_MS) handle.stop();
+        // 识别器判断“这句说完了”（result）之后 1.1 秒没再说话 → 结束；否则安静 1.5 秒结束
+        // （不能太短：初学者词和词之间常停顿，比如 “Hola, … buenos días”）。8 秒没说话也结束；最长 15 秒
+        if (has && now - lastChange > (gotFinal ? 1100 : SILENCE_MS)) handle.stop();
         else if (!has && now - started > NO_SPEECH_MS) handle.stop();
         else if (now - started > MAX_MS) handle.stop();
       }, 200));
     }).catch(function (e) {
       var n = (e && (e.name || e.message)) || 'error';
-      finish(null, /NotAllowed|Permission|denied/i.test(n) ? 'not-allowed' : status === 'error' ? 'model' : 'local-' + n);
+      finish(/NotAllowed|Permission|denied/i.test(n) ? 'not-allowed' : status === 'error' ? 'model' : 'local-' + n);
     });
     return handle;
   }
