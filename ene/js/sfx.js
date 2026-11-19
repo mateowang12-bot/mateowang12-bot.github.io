@@ -53,6 +53,12 @@
       try { if (ctx && ctx.state === 'running') { var p = ctx.suspend(); if (p && p.then) p.then(null, function () {}); } } catch (e) {}
     }, (seconds || 0) * 1000 + 1500);
   }
+  // 彻底关掉 AudioContext（iPhone 上它存在时，语音识别会“在听但不出字”，suspend 不够）。下次点按钮再新建
+  function release() {
+    clearTimeout(idleTimer); idleTimer = null;
+    try { if (ctx && ctx.close && ctx.state !== 'closed') { var p = ctx.close(); if (p && p.then) p.then(null, function () {}); } } catch (e) {}
+    ctx = null; master = null;
+  }
   function suspendNow() {
     clearTimeout(idleTimer); idleTimer = null;
     try { if (ctx && ctx.state === 'running') { var p = ctx.suspend(); if (p && p.then) p.then(null, function () {}); } } catch (e) {}
@@ -120,7 +126,8 @@
       ], e);
       buzz([10, 40, 10], e);
     },
-    quiet: suspendNow, // 录音前调用：马上停掉提示音的声音通道，免得 iPhone 麦克风被占
+    quiet: suspendNow,
+    release: release, // 录音前调用：彻底关掉提示音的声音通道，免得 iPhone 语音识别不出字
     canVibrate: canVibrate,
     soundOn: soundOn,
     vibrateOn: vibrateOn,

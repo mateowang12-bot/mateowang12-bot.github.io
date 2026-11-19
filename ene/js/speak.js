@@ -42,8 +42,11 @@
   function unlocked(d) { return d === 1 || passed(d) || passed(d - 1); }
   function currentDay() { for (var d = 1; d <= TOTAL; d++) if (!passed(d)) return d; return TOTAL; }
   function weekOf(d) { for (var i = 0; i < WEEKS.length; i++) if (d >= WEEKS[i].from && d <= WEEKS[i].to) return WEEKS[i]; return WEEKS[0]; }
-  function sfx(e) { if (Ene.Sfx && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
-  function sfxMiss(e) { if (Ene.Sfx && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
+  // 2026-11-19 录音小测试证实：iPhone 上放过提示音（AudioContext）后，语音识别就一直不出字。
+  // 所以口语课里不放按钮提示音（iPhone / iPad），录音前还会彻底关掉 AudioContext（Sfx.release）
+  var NO_SFX = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  function sfx(e) { if (!NO_SFX && Ene.Sfx && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
+  function sfxMiss(e) { if (!NO_SFX && Ene.Sfx && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
   function say(text, rate, onEnd, pitch, who) { return Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); }
   // 对话里第几个出场的人（0、1、2…）：每个人固定一个声音
   function speakerIndex(L, i) {
@@ -206,7 +209,7 @@
       }
     }, 4000));
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
-    try { if (window.Ene && Ene.Sfx && Ene.Sfx.quiet) Ene.Sfx.quiet(); } catch (e) {}
+    try { if (window.Ene && Ene.Sfx && Ene.Sfx.release) Ene.Sfx.release(); } catch (e) {}
     L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse') + (cont ? ':c1' : ':c0'));
     try { r.start(); }
     catch (e) {
