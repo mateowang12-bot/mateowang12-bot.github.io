@@ -96,6 +96,12 @@
   // 记住哪种方式能收到声音：false = 重复用同一个识别器，true = 每次新建。收不到就换另一种，并记住
   var preferFresh = true;
   try { if (localStorage.getItem('ene-sr-reuse') === '1') preferFresh = false; } catch (e) {}
+  /* 2026-11-19 第二张截图：begin:new → start@15 → audio@15 → 7 秒无结果。新建的识别器也一样，
+   * 说明问题在 continuous=true（网上多处报告 iOS Safari 连续模式第一次后就不出结果）。
+   * iPhone / iPad 改回一次一句（continuous=false）；其他设备如果连续模式“有收音没结果”，也自动改用一次一句并记住。 */
+  var IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var useCont = !IS_IOS;
+  try { if (localStorage.getItem('ene-sr-nocont') === '1') useCont = false; } catch (e) {}
   function setPrefer(fresh) {
     preferFresh = fresh;
     try { if (fresh) localStorage.removeItem('ene-sr-reuse'); else localStorage.setItem('ene-sr-reuse', '1'); } catch (e) {}
@@ -115,14 +121,15 @@
     function L(x) { log.push(x + '@' + (Date.now() - t0)); lastLog = log.join(' → '); }
     try { r = getSR(usedFresh); } catch (e) { onFail('nosr'); return; }
     r.lang = variant() === 'es' ? 'es-ES' : 'es-MX';
-    r.interimResults = true; r.maxAlternatives = 5; r.continuous = true;
+    var cont = useCont;
+    r.interimResults = true; r.maxAlternatives = 5; r.continuous = cont;
     var finals = null, lastText = '', err = '', ended = false, alive = false, heard = false, timers = [], silence = null, noSpeech = null;
     function clear() { timers.forEach(clearTimeout); timers = []; clearTimeout(silence); clearTimeout(noSpeech); }
     function detach() { r.onstart = r.onaudiostart = r.onsoundstart = r.onspeechstart = r.onresult = r.onerror = r.onend = null; }
     function retry(why, delay) {
       // 这种方式不行：换另一种（重复用 ↔ 新建），以后也先用另一种
       var next = !usedFresh;
-      if (why !== 'busy') setPrefer(next);
+      if (why !== 'busy' && why.indexOf('c0') < 0) setPrefer(next);
       L('retry(' + why + (next ? ',new' : ',reuse') + ')');
       needFresh = true;
       try { detach(); r.abort(); } catch (e) {}
@@ -188,13 +195,19 @@
     timers.push(setTimeout(function () {
       if (!ended && !heard && !lastText && !retried && cur && cur.r === r) { ended = true; clear(); cur = null; retry('no-audio', 300); }
     }, 2500));
-    // 重复用的识别器：显示在收音，但 4 秒一个字都没出 → 换新的重来一次（iPhone 上常见）
+    // 显示在收音，但 4 秒一个字都没出 → 连续模式就改成一次一句（并记住）；重复用的就换新的。重来一次
     timers.push(setTimeout(function () {
-      if (!ended && !lastText && !retried && !usedFresh && cur && cur.r === r) { ended = true; clear(); cur = null; retry('no-result', 300); }
+      if (ended || lastText || retried || !cur || cur.r !== r) return;
+      if (!usedFresh) { ended = true; clear(); cur = null; retry('no-result', 300); }
+      else if (cont) {
+        useCont = false;
+        try { localStorage.setItem('ene-sr-nocont', '1'); } catch (e) {}
+        ended = true; clear(); cur = null; retry('no-result,c0', 300);
+      }
     }, 4000));
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
     try { if (window.Ene && Ene.Sfx && Ene.Sfx.quiet) Ene.Sfx.quiet(); } catch (e) {}
-    L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse'));
+    L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse') + (cont ? ':c1' : ':c0'));
     try { r.start(); }
     catch (e) {
       // 上一次还没完全结束（InvalidStateError）：换一个新的
