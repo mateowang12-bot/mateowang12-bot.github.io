@@ -236,7 +236,42 @@
     return handle;
   }
 
+  /* 按键声音走录音用的同一个声音通道（2026-11-19 用户：口语课里点按钮没声音）。
+   * iPhone 上同时开两个 AudioContext（提示音一个、录音一个）时提示音常常出不来；
+   * 而且麦克风开着时这个通道是“录音+播放”模式，手机静音键打开也能听到。
+   * list：[{ freq, to, dur, vol, at }]，和 js/sfx.js 的格式一样。返回 true = 放了 */
+  function tone(list) {
+    if (!ctx || ctx.state === 'closed') return false;
+    if (ctx.state !== 'running') { try { ctx.resume(); } catch (e) {} }
+    try {
+      list.forEach(function (o) {
+        var t0 = ctx.currentTime + (o.at || 0) + 0.005;
+        var osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = o.type || 'sine';
+        osc.frequency.setValueAtTime(o.freq, t0);
+        if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t0 + o.dur);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(o.vol, t0 + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + o.dur);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(t0); osc.stop(t0 + o.dur + 0.03);
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+  // 退出口语课：关掉麦克风（屏幕上方的橙点会消失）和声音通道
+  function release() {
+    if (active) return;
+    try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    stream = null; source = null; proc = null;
+    try { if (ctx) ctx.close(); } catch (e) {}
+    ctx = null;
+  }
+
   Ene.ASR = {
+    tone: tone,
+    release: release,
+    hasAudio: function () { return !!ctx && ctx.state !== 'closed'; },
     supported: supported,
     status: function () { return status; },
     progress: function () { return prog; },

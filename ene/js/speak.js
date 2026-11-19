@@ -47,10 +47,22 @@
   var NO_SFX = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   // 改用本地识别（js/asr.js）以后不受这个问题影响，iPhone 上的按钮声音又打开了（用户：点按钮要有反馈）
   function sfxOk() { return !(NO_SFX && !useLocal()) && Ene.Sfx; }
-  function sfx(e) { if (sfxOk() && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
-  function sfxMiss(e) { if (sfxOk() && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
-  // 打分出来时：过关“叮—咚”，没过“嘟”（不是点击里，iPhone 上偶尔会放不出来）
-  function sfxResult(pass) { if (sfxOk()) { try { if (pass) Ene.Sfx.done(); else Ene.Sfx.miss(); } catch (x) {} } }
+  // 用本地识别时，按键声音走录音的那个声音通道（Ene.ASR.tone），iPhone 上才放得出来；否则用 Ene.Sfx
+  var TONES = {
+    tap: [{ freq: 1500, to: 900, dur: 0.035, vol: 0.06 }],
+    miss: [{ freq: 330, to: 240, dur: 0.09, vol: 0.06 }],
+    done: [{ freq: 880, dur: 0.22, vol: 0.05, at: 0.04 }, { freq: 1318.5, dur: 0.32, vol: 0.05, at: 0.16 }]
+  };
+  function soundSetting() { return !(Ene.Store && Ene.Store.settings().sound === false); }
+  function playKind(kind, e) {
+    if (!soundSetting()) return;
+    if (useLocal() && Ene.ASR.hasAudio() && Ene.ASR.tone(TONES[kind])) return;
+    if (sfxOk()) { try { Ene.Sfx[kind](e); } catch (x) {} }
+  }
+  function sfx(e) { if (e) playKind('tap', e); }
+  function sfxMiss(e) { if (e) playKind('miss', e); }
+  // 打分出来时：过关“叮—咚”，没过“嘟”
+  function sfxResult(pass) { playKind(pass ? 'done' : 'miss'); }
   function say(text, rate, onEnd, pitch, who) {
     afterHold(function () { Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); });
   }
@@ -478,7 +490,11 @@
     var L = LESSONS[day];
     if (!L) return;
     // iPhone：进课就（在这次点击里）打开常开麦克风，和小测试里有效的顺序一样：先常开，再放声音、录音
-    if (useLocal()) { if (localReady() && Ene.ASR.status() === 'none') Ene.ASR.load().catch(function () {}); }
+    if (useLocal()) {
+      if (localReady() && Ene.ASR.status() === 'none') Ene.ASR.load().catch(function () {});
+      // 进课就（在这次点击里）打开录音的声音通道和麦克风：按键声音也走这个通道，iPhone 上才听得到
+      if (localReady()) Ene.ASR.warm();
+    }
     else if (canRecognize()) ensureHold();
     ensureBox();
     P = { L: L, day: day, screen: 'warm', warmPick: -1, speed: 1.0, played: false, lineNow: -1, showLines: false, reveal: {}, checkPick: -1,
@@ -486,17 +502,32 @@
       skipped: L.tasks.map(function () { return false; }), drilled: {}, rec: false, interim: '', result: null, self: !canRecognize(), selfShown: false,
       drill: null };
     document.body.classList.add('in-session');
+    clearTimeout(closeTimer);
+    box.classList.remove('sp-closing');
+    box.innerHTML = '';
     box.hidden = false;
+    // 进课：整页从下面轻轻滑上来
+    box.classList.remove('sp-opening'); void box.offsetWidth; box.classList.add('sp-opening');
     render(true);
   }
+  var closeTimer = null;
   function close() {
     stopAll();
     // 不关常开麦克风：关了再开的空档里一放声音，iPhone 识别又会坏（用户：第二次进课就不行）。关掉 App 时系统会关
+    // （那是系统识别的情况。本地识别没有这个问题：退出课程就关麦克风，橙点消失）
+    if (useLocal()) Ene.ASR.release();
     P = null;
-    if (box) { box.hidden = true; box.innerHTML = ''; }
     document.body.classList.remove('in-session');
     if (Ene.App && Ene.App.route) Ene.App.route();
+    // 退出：淡出、往下滑一点，0.2 秒后再真正隐藏（下面的口语首页已经画好了）
+    if (box && !box.hidden) {
+      box.classList.remove('sp-opening');
+      box.classList.add('sp-closing');
+      clearTimeout(closeTimer);
+      closeTimer = setTimeout(function () { if (!P) { box.hidden = true; box.innerHTML = ''; box.classList.remove('sp-closing'); } }, reducedMotion() ? 0 : 200);
+    }
   }
+  function reducedMotion() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
   function stopAll() { dlgToken++; abortListen(); Speech.stop(); stopLoops(); }
   function stopLoops() { loops.forEach(function (id) { clearInterval(id); }); loops = []; }
   function go(screen) { stopAll(); P.lineNow = -1; P.rec = false; P.screen = screen; render(true); }
@@ -510,12 +541,46 @@
       }).join('') + '</div><div class="sp-seg-name">' + SEGS[cur] + '</div></div>';
   }
 
+  /* 2026-11-19 用户：做一些动画让过渡更平滑。
+   * - 顶部进度条留在原地，只改样式，所以进到下一段时那一格会“滑”着填满；
+   * - 换页时内容一块一块错开淡入（.sp-enter，见 css）；同一页里的小变化不重放动画；
+   * - 打分页的分数从 0 数上去（countUp）。 */
   function render(anim) {
     if (!P) return;
     var fn = { warm: warmHTML, input: inputHTML, chunks: chunksHTML, produce: produceHTML, feedback: feedbackHTML, drill: drillHTML, result: resultHTML }[P.screen];
-    box.innerHTML = '<div class="sp-wrap' + (anim ? ' sp-enter' : '') + '">' + topBar() + fn() + '</div>';
-    if (anim) box.scrollTop = 0;
+    var wrap = box.querySelector('.sp-wrap');
+    if (!wrap) {
+      box.innerHTML = '<div class="sp-wrap">' + topBar() + '<div class="sp-body"></div></div>';
+      wrap = box.querySelector('.sp-wrap');
+    } else updateTop(wrap);
+    var body = wrap.querySelector('.sp-body');
+    if (!anim) body.classList.remove('sp-enter'); // 同一页里的小变化：不重放进场动画
+    body.innerHTML = fn();
+    if (anim) {
+      body.classList.remove('sp-enter'); void body.offsetWidth; body.classList.add('sp-enter');
+      box.scrollTop = 0;
+      if (P.screen === 'feedback') countUp(body.querySelector('.sp-score b'));
+    }
     if (P.screen === 'produce' && P.rec) startLevel();
+  }
+  function updateTop(wrap) {
+    var cur = SEG_OF[P.screen], segs = wrap.querySelectorAll('.sp-segs i');
+    for (var i = 0; i < segs.length; i++) segs[i].className = i < cur ? 'done' : i === cur ? 'now' : '';
+    var nm = wrap.querySelector('.sp-seg-name');
+    if (nm && nm.textContent !== SEGS[cur]) { nm.textContent = SEGS[cur]; nm.classList.remove('sp-fade'); void nm.offsetWidth; nm.classList.add('sp-fade'); }
+  }
+  function countUp(el) {
+    if (!el || reducedMotion()) return;
+    var to = +el.textContent || 0, t0 = 0;
+    if (!to) return;
+    el.textContent = '0';
+    function step(ts) {
+      if (!t0) t0 = ts;
+      var k = Math.min(1, (ts - t0) / 700), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = String(Math.round(to * e));
+      if (k < 1 && el.isConnected) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
   }
 
   function opts(list, picked, answer, act, disabled, text) {

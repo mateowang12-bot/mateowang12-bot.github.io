@@ -624,3 +624,59 @@ svg { display: block; }
 .sp-session .say:active { transform: scale(.92); }
 .sp-session .btn:active:not(:disabled) { transform: scale(.97); opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .sp-session button { transition: none; } }
+
+/* ===== 口语课的过渡动画（2026-11-19：用户要过渡更平滑） ===== */
+/* 进课：整页从下面滑上来；退出：淡出往下 */
+.sp-session.sp-opening { animation: sp-open .34s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes sp-open { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+.sp-session.sp-closing { animation: sp-close .2s cubic-bezier(.4,0,1,1) both; pointer-events: none; }
+@keyframes sp-close { to { opacity: 0; transform: translateY(18px); } }
+
+/* 页面内容：一块一块错开淡入 */
+.sp-body { flex: 1; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.sp-body.sp-enter > * { animation: sp-in .36s cubic-bezier(.22,.61,.36,1) both; }
+.sp-body.sp-enter > :nth-child(2) { animation-delay: .05s; }
+.sp-body.sp-enter > :nth-child(3) { animation-delay: .1s; }
+.sp-body.sp-enter > :nth-child(4) { animation-delay: .15s; }
+.sp-body.sp-enter > :nth-child(5) { animation-delay: .2s; }
+.sp-body.sp-enter > :nth-child(n+6) { animation-delay: .24s; }
+@keyframes sp-fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* 顶部 6 段进度：那一格滑着填满 */
+.sp-segs i, .sp-segs i.done { background: var(--track); }
+.sp-segs i::after, .sp-segs i.now::after { content: ""; position: absolute; inset: 0; width: 100%; background: var(--fg); border-radius: 99px;
+  transform-origin: left center; transform: scaleX(0); transition: transform .5s cubic-bezier(.22,.61,.36,1); }
+.sp-segs i.done::after { transform: scaleX(1); }
+.sp-segs i.now::after { transform: scaleX(.5); }
+.sp-seg-name.sp-fade { animation: sp-fadein .3s ease both; }
+
+/* 第几句的小圆点：当前那颗拉长 */
+.sp-enter .sp-dots i.now { animation: sp-dot .45s .1s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes sp-dot { from { width: 8px; } }
+
+/* 打分：圆环从 0 画到分数，结论弹一下，逐词一个个出来 */
+.sp-enter .sp-score circle:nth-of-type(2) { animation: sp-ring .8s .05s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes sp-ring { from { stroke-dasharray: 0 999; } }
+.sp-enter .sp-verdict { animation: sp-pop .42s .18s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes sp-pop { from { opacity: 0; transform: scale(.85); } 60% { opacity: 1; transform: scale(1.04); } to { transform: none; } }
+.sp-enter .sp-w { animation: sp-in .3s cubic-bezier(.22,.61,.36,1) both; animation-delay: .2s; }
+.sp-enter .sp-w:nth-child(2) { animation-delay: .25s; }
+.sp-enter .sp-w:nth-child(3) { animation-delay: .3s; }
+.sp-enter .sp-w:nth-child(4) { animation-delay: .35s; }
+.sp-enter .sp-w:nth-child(5) { animation-delay: .4s; }
+.sp-enter .sp-w:nth-child(n+6) { animation-delay: .45s; }
+
+/* 选择题：选对弹一下，选错晃一下 */
+.sp-opt.ok { animation: sp-pop .38s cubic-bezier(.22,.61,.36,1) both; }
+.sp-opt.bad { animation: sp-shake .38s ease both; }
+@keyframes sp-shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+
+/* 开始录音：麦克风弹一下，音量条淡入 */
+.sp-mic.rec { animation: sp-pop .32s cubic-bezier(.22,.61,.36,1) both; }
+.sp-level { animation: sp-fadein .3s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-session.sp-opening, .sp-session.sp-closing, .sp-body.sp-enter > *, .sp-enter .sp-w, .sp-enter .sp-verdict, .sp-enter .sp-dots i.now,
+  .sp-enter .sp-score circle:nth-of-type(2), .sp-opt.ok, .sp-opt.bad, .sp-mic.rec, .sp-level, .sp-seg-name.sp-fade { animation: none; }
+  .sp-segs i::after { transition: none; }
+}
