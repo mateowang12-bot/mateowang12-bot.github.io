@@ -44,7 +44,13 @@
   function weekOf(d) { for (var i = 0; i < WEEKS.length; i++) if (d >= WEEKS[i].from && d <= WEEKS[i].to) return WEEKS[i]; return WEEKS[0]; }
   function sfx(e) { if (Ene.Sfx && e) { try { Ene.Sfx.tap(e); } catch (x) {} } }
   function sfxMiss(e) { if (Ene.Sfx && e) { try { Ene.Sfx.miss(e); } catch (x) {} } }
-  function say(text, rate, onEnd, pitch) { return Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch); }
+  function say(text, rate, onEnd, pitch, who) { return Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); }
+  // 对话里第几个出场的人（0、1、2…）：每个人固定一个声音
+  function speakerIndex(L, i) {
+    var seen = [];
+    for (var k = 0; k <= i; k++) { var w = L.dialog[k].who; if (seen.indexOf(w) < 0) seen.push(w); }
+    return seen.indexOf(L.dialog[i].who);
+  }
 
   var I = {
     close: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
@@ -69,27 +75,51 @@
    * - 开始后 5 秒内一点反应都没有（没有 onstart / 声音 / 结果）→ 当作这台设备不能用，改成自己对照；
    * - 按停止：调用 stop()，1.5 秒内还没结束就强制结束，用已经听到的部分打分；
    * - 最长 15 秒自动停。 */
-  var cur = null; // 正在进行的识别 { r, finish(force) }
-  function listen(onInterim, onFinal, onFail) {
-    var r;
+  /* 2026-11-19 用户说“有时收不到音”。改为：
+   * - continuous = true：说话中间停一下不会马上结束；最后一次听到内容后安静 1.6 秒才自动停（自己计时）；
+   * - 识别真正开始（onstart / onaudiostart）才告诉页面“现在说吧”（onReady），免得一开口就被漏掉；
+   * - 开始收音后 8 秒都没听到任何内容 → 自动停（显示“没听到声音”）；
+   * - network 错误（电脑 Chrome 要连谷歌，国内常连不上）单独提示，不当作“这台设备不能用”。 */
+  var cur = null; // 正在进行的识别 { r, finish(kind), stop() }
+  var SILENCE_MS = 1600;
+  function listen(onInterim, onFinal, onFail, onReady, retried) {
+    var r, t0 = Date.now();
     try { r = new SR(); } catch (e) { onFail('nosr'); return; }
     r.lang = variant() === 'es' ? 'es-ES' : 'es-MX';
-    r.interimResults = true; r.maxAlternatives = 5; r.continuous = false;
-    var finals = null, lastText = '', err = '', ended = false, alive = false, timers = [];
-    function clear() { timers.forEach(clearTimeout); timers = []; }
+    r.interimResults = true; r.maxAlternatives = 5; r.continuous = true;
+    var finals = null, lastText = '', err = '', ended = false, alive = false, timers = [], silence = null, noSpeech = null;
+    function clear() { timers.forEach(clearTimeout); timers = []; clearTimeout(silence); clearTimeout(noSpeech); }
     function finish(kind) {
       if (ended) return; ended = true; clear();
       if (cur && cur.r === r) cur = null;
       if (kind === 'hang') { try { r.onend = null; r.abort(); } catch (e) {} onFail('hang'); return; }
       if (kind === 'force') { try { r.onend = null; r.abort(); } catch (e) {} }
-      if (finals && finals.length) onFinal(finals);
-      else if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture' || err === 'language-not-supported') onFail(err);
-      else onFinal(lastText ? [lastText] : []);
+      // iPhone 连着录第二次时，识别有时刚开始就自己结束、什么都没听到：悄悄重新开始一次
+      if (kind === 'end' && !lastText && !retried && Date.now() - t0 < 1500 &&
+          ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'network'].indexOf(err) < 0) {
+        listen(onInterim, onFinal, onFail, onReady, true);
+        return;
+      }
+      if (finals && finals.length && finals[0] === lastText) onFinal(finals);
+      else if (lastText) onFinal([lastText].concat(finals || []));
+      else if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'audio-capture' || err === 'language-not-supported' || err === 'network') onFail(err);
+      else onFinal([]);
     }
-    function wake() { alive = true; }
+    var readySent = false;
+    function wake() {
+      alive = true;
+      if (!readySent) {
+        readySent = true;
+        if (onReady) { try { onReady(); } catch (e) {} }
+        noSpeech = setTimeout(function () { if (!lastText && cur && cur.r === r) cur.stop(); }, 8000);
+      }
+    }
     r.onstart = wake; r.onaudiostart = wake; r.onsoundstart = wake; r.onspeechstart = wake;
     r.onresult = function (ev) {
-      alive = true;
+      wake();
+      clearTimeout(noSpeech);
+      clearTimeout(silence);
+      silence = setTimeout(function () { if (cur && cur.r === r) cur.stop(); }, SILENCE_MS);
       var res = ev.results, joined = '';
       for (var i = 0; i < res.length; i++) joined += (i ? ' ' : '') + res[i][0].transcript;
       lastText = joined;
@@ -324,7 +354,7 @@
       if (i >= D.length) { P.lineNow = -1; P.played = true; stopLoops(); render(false); return; }
       P.lineNow = i; render(false); animateWave();
       var l = D[i];
-      say(V(l), P.speed, function () { if (P && token === dlgToken) setTimeout(function () { step(i + 1); }, 320); }, i % 2 ? 0.92 : 1.1);
+      say(V(l), P.speed, function () { if (P && token === dlgToken) setTimeout(function () { step(i + 1); }, 320); }, null, speakerIndex(P.L, i));
     }
     step(from || 0);
   }
@@ -370,7 +400,8 @@
     } else if (P.rec) {
       inner = '<div class="sp-level" id="sp-level">' + new Array(16).join('<i></i>') + '</div>' +
         '<button class="sp-mic rec" data-sp="rec-stop" aria-label="停止"><span class="sp-stop"></span></button>' +
-        '<p class="sp-heard-live" lang="es">' + esc(P.interim || '正在听……') + '</p>';
+        '<p class="sp-heard-live' + (P.recReady ? ' ready' : '') + '" lang="es">' + esc(P.interim || (P.recReady ? '现在说吧' : '请稍等…')) + '</p>' +
+        '<p class="sp-small sp-c">说完停一下会自动结束，也可以点方块结束</p>';
     } else {
       inner = '<button class="sp-mic" data-sp="rec" aria-label="开始说">' + I.mic + '</button>' +
         '<p class="sp-muted sp-c">' + (P.tries[P.task] ? '再说一遍' : '点一下，开始说') + '</p>';
@@ -389,7 +420,7 @@
     }, 90));
   }
   function startRec() {
-    P.rec = true; P.interim = ''; render(false);
+    P.rec = true; P.recReady = false; P.interim = ''; render(false);
     var mine = P;
     listen(function (txt) {
       if (P !== mine) return;
@@ -410,12 +441,24 @@
       go('feedback');
     }, function (why) {
       if (P !== mine) return;
-      setBroken(true); P.self = true; P.rec = false; stopLoops();
+      P.rec = false; stopLoops();
+      if (why === 'network') {
+        toast(NET_MSG);
+        render(false);
+        return;
+      }
+      setBroken(true); P.self = true;
       toast(why === 'hang' ? '语音识别没有反应，先改成自己对照：说完看答案、听示范，自己判断。'
         : '这里不能用语音识别，改成自己对照：说完看答案、听示范，自己判断。');
       render(false);
+    }, function () {
+      if (P !== mine) return;
+      P.recReady = true;
+      var el = box.querySelector('.sp-heard-live');
+      if (el) { el.classList.add('ready'); if (!P.interim) el.textContent = '现在说吧'; }
     });
   }
+  var NET_MSG = '语音识别连不上网。电脑上的 Chrome 要连谷歌的服务，国内常常连不上，建议换 Edge 浏览器或用手机。';
 
   // ⑤ 纠错打分
   function feedbackHTML() {
@@ -571,7 +614,7 @@
         dlgToken++; stopLoops();
         var li = +el.getAttribute('data-i'), mine = P;
         P.lineNow = li; render(false);
-        say(V(P.L.dialog[li]), Math.max(0.6, P.speed - 0.2), function () { if (P === mine && P.lineNow === li) { P.lineNow = -1; P.played = true; render(false); } });
+        say(V(P.L.dialog[li]), Math.max(0.6, P.speed - 0.2), function () { if (P === mine && P.lineNow === li) { P.lineNow = -1; P.played = true; render(false); } }, null, speakerIndex(P.L, li));
         break;
       }
       case 'reveal': P.reveal[+el.getAttribute('data-i')] = true; render(false); break;
@@ -613,7 +656,9 @@
           P.drill.rec = -1; render(false);
         }, function () {
           if (P !== mineD) return;
-          setBroken(true); P.self = true; P.drill.rec = -1; render(false);
+          P.drill.rec = -1;
+          if (arguments[0] === 'network') { toast(NET_MSG); render(false); return; }
+          setBroken(true); P.self = true; render(false);
         });
         break;
       }

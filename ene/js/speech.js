@@ -234,15 +234,42 @@
     return list[0] || null;
   }
   function estMs(text, rate) { return Math.max(900, String(text).split(/\s+/).length * 380 / (rate || 1)); }
-  function speakAs(text, rate, variant, onEnd, pitch) {
+
+  /* 对话里不同的人用不同的声音（用户 2026-11-19 要求）：
+   * 第 1 个人 = 平常用的声音；第 2 个人 = 同一地区（拉美 / 西班牙）的另一个**本机**声音，尽量是相反性别；
+   * 只用本机声音（在线声音开口慢）。找不到第二个声音就返回 null，由调用方改音高区分。 */
+  var FEMALE = /paulina|m[oó]nica|sabina|dalia|elena|helena|laura|luc[ií]a|marisol|paloma|angélica|angelica|isabela|isabella|camila|valentina|elvira|ximena|renata|catalina|soledad|esperanza|ana\b|sof[ií]a|female|mujer/i;
+  var MALE = /juan|jorge|ra[uú]l|diego|pablo|[aá]lvaro|carlos|gerardo|alonso|enrique|andr[eé]s|tom[aá]s|jos[eé]|antonio|luis|male|hombre/i;
+  function gender(v) { var n = (v && v.name) || ''; return MALE.test(n) && !FEMALE.test(n) ? 'm' : FEMALE.test(n) ? 'f' : ''; }
+  function baseVoice(variant) { return variant === 'es' ? (spainVoice() || voice) : voice; }
+  function partnerVoice(variant) {
+    var first = baseVoice(variant);
+    if (!first) return null;
+    var wantES = variant === 'es';
+    var pool = spanishVoices().filter(function (v) {
+      return v.localService && v !== first && voiceId(v) !== voiceId(first) && (region(v.lang) === 'ES') === wantES;
+    });
+    if (!pool.length) return null;
+    var g = gender(first);
+    var opposite = pool.filter(function (v) { var x = gender(v); return g && x && x !== g; });
+    return (opposite[0] || pool[0]);
+  }
+
+  function speakAs(text, rate, variant, onEnd, pitch, who) {
     var done = false;
     function fin() { if (done) return; done = true; if (onEnd) { try { onEnd(); } catch (e) {} } }
     if (!synth || !text) { setTimeout(fin, estMs(text || '', rate)); return false; }
     try {
       begin();
       var u = new SpeechSynthesisUtterance(String(text));
+      // who：对话里的第几个人（0 / 1 / 2…）。单数用第二个声音；没有第二个声音就用音高区分
+      var v = baseVoice(variant);
+      if (who) {
+        var p2 = who % 2 ? partnerVoice(variant) : null;
+        if (p2) v = p2;
+        else pitch = [1, 0.8, 1.25, 0.9][who % 4];
+      }
       u.rate = rate || 1; u.pitch = pitch || 1;
-      var v = variant === 'es' ? (spainVoice() || voice) : voice;
       u.lang = v ? v.lang : (variant === 'es' ? 'es-ES' : 'es-MX');
       if (v) u.voice = v;
       u.onend = fin; u.onerror = fin;
@@ -303,6 +330,8 @@
     speak: speak,
     speakAs: speakAs,
     stop: stop,
+    isSpeaking: function () { try { return !!(synth && (synth.speaking || synth.pending)); } catch (e) { return false; } },
+    partnerVoice: partnerVoice,
     test: test,
     voiceList: voiceList,
     choose: choose,
