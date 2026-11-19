@@ -3,7 +3,7 @@
  * 并重新生成 FILES 清单。所以只要内容变了，版本号一定会变，手机上就会换成新文件。
  * （这里手写的内容只是在没用 build 时的后备。）
  */
-var VERSION = 'ene-afb326da6a1b'; // BUILD:VERSION
+var VERSION = 'ene-74dedda9af00'; // BUILD:VERSION
 
 /* BUILD:FILES-START */
 var FILES = [
@@ -12,6 +12,7 @@ var FILES = [
   'manifest.webmanifest',
   'css/app.css',
   'js/app.js',
+  'js/asr.js',
   'js/cloud.js',
   'js/cloud-config.js',
   'js/data.js',
@@ -105,6 +106,17 @@ self.addEventListener('fetch', function (event) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // 云同步（Supabase）的请求不经过缓存
+  // 识别模型（约 40MB）不放进离线缓存：识别程序自己会存到手机里（IndexedDB）
+  if (url.pathname.indexOf('/models/') >= 0) return;
+  // 识别程序 vendor/vosk.js（约 6MB）：放进一个不随版本删除的缓存，App 更新时不用重新下载
+  if (url.pathname.indexOf('/vendor/') >= 0) {
+    event.respondWith(caches.open('vendor-v1').then(function (c) {
+      return c.match(req, { ignoreSearch: true }).then(function (hit) {
+        return hit || fetch(req).then(function (res) { if (res && res.ok) c.put(req, res.clone()); return res; });
+      });
+    }));
+    return;
+  }
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then(function (hit) {
       if (hit) return hit;

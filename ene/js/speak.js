@@ -73,7 +73,8 @@
   var SR_KEY = 'ene-sr-broken';
   var srBroken = (function () { try { return localStorage.getItem(SR_KEY) === '1'; } catch (e) { return false; } })();
   function setBroken(v) { srBroken = v; try { if (v) localStorage.setItem(SR_KEY, '1'); else localStorage.removeItem(SR_KEY); } catch (e) {} }
-  function canRecognize() { return !!SR && !srBroken; }
+  // 本地识别（iPhone）不看 srBroken：那是系统识别坏了的记号
+  function canRecognize() { return useLocal() || (!!SR && !srBroken); }
 
   /* 2026-11-19 用户在 iPhone 上“一直正在听、停止也按不掉”：iOS 的识别有时既不给结果也不触发 onend。
    * 所以加了几道保险：
@@ -151,7 +152,27 @@
     }
     return shared;
   }
+  /* 2026-11-19 用户：“自己做一个收音的插件，不用 iPhone 自带的”。
+   * iPhone / iPad（以及没有系统识别的浏览器）改用本地识别 Ene.ASR（js/asr.js：自己录音 + Vosk 在手机上识别）。 */
+  function useLocal() { return !!(Ene.ASR && Ene.ASR.supported() && (IS_IOS || !SR || window.__forceLocalASR)); }
+  function localReady() { return useLocal() && (Ene.ASR.status() === 'ready' || Ene.ASR.cached()); }
+  function listenLocal(onInterim, onFinal, onFail, onReady) {
+    var log = [], t0 = Date.now();
+    function L(x) { log.push(x + '@' + (Date.now() - t0)); lastLog = log.join(' → '); }
+    Ene.ASR.warm(); // 在点击里打开声音通道和麦克风
+    var c = { r: null };
+    var h = Ene.ASR.listen({
+      log: L,
+      onInterim: onInterim,
+      onReady: onReady,
+      onFinal: function (alts) { if (cur === c) cur = null; onFinal(alts); },
+      onFail: function (why) { if (cur === c) cur = null; onFail(why); }
+    });
+    c.stop = h.stop; c.abort = h.abort;
+    cur = c;
+  }
   function listen(onInterim, onFinal, onFail, onReady, retried, log, fresh) {
+    if (useLocal()) { listenLocal(onInterim, onFinal, onFail, onReady); return; }
     var r, t0 = Date.now();
     log = log || [];
     var usedFresh = fresh != null ? fresh : preferFresh;
@@ -256,7 +277,9 @@
   function stopListen() { if (cur) cur.stop(); }
   function abortListen() {
     if (!cur) return;
-    var c = cur; cur = null; needFresh = true;
+    var c = cur; cur = null;
+    if (c.abort) { try { c.abort(); } catch (e) {} return; } // 本地识别
+    needFresh = true;
     try { c.r.onend = null; c.r.abort(); } catch (e) {}
   }
 
@@ -352,6 +375,15 @@
       }
       html += '</div>';
     });
+    // 本地识别程序（iPhone）：状态 / 下载
+    if (useLocal()) {
+      var as = Ene.ASR.status();
+      if (as === 'none' && Ene.ASR.cached()) { Ene.ASR.load().catch(function () {}); as = Ene.ASR.status(); }
+      html += '<h2 class="section-title">录音识别 <span>装在手机里，不用系统自带的</span></h2><section class="card">' +
+        (as === 'ready' ? '<p class="sp-muted">识别程序已经准备好了，录音会直接在手机上识别。</p>'
+          : (as === 'loading' && Ene.ASR.cached()) ? '<p class="sp-muted">正在从手机里读取识别程序…</p>'
+          : asrBlock()) + '</section>';
+    }
     // 录音小测试（2026-11-19 排查 iPhone“第二次录不进”：分别试 连录 / 放提示音后录 / 放西语后录）
     html += '<h2 class="section-title">录音小测试 <span>录不进去时用</span></h2><section class="card sp-test">' +
       '<p class="sp-small">每次点“录一句”后说 <b lang="es">hola, buenos días</b>。看看哪一步之后就录不进了。</p>' +
@@ -410,7 +442,8 @@
     var L = LESSONS[day];
     if (!L) return;
     // iPhone：进课就（在这次点击里）打开常开麦克风，和小测试里有效的顺序一样：先常开，再放声音、录音
-    if (canRecognize()) ensureHold();
+    if (useLocal()) { if (localReady() && Ene.ASR.status() === 'none') Ene.ASR.load().catch(function () {}); }
+    else if (canRecognize()) ensureHold();
     ensureBox();
     P = { L: L, day: day, screen: 'warm', warmPick: -1, speed: 1.0, played: false, lineNow: -1, showLines: false, reveal: {}, checkPick: -1,
       task: 0, tries: L.tasks.map(function () { return 0; }), best: L.tasks.map(function () { return 0; }), done: L.tasks.map(function () { return false; }),
@@ -540,9 +573,42 @@
       return '<i class="' + (P.done[i] || P.skipped[i] ? 'done' : i === P.task ? 'now' : '') + '"></i>';
     }).join('') + '</div>';
   }
+  // 本地识别程序还没下载时显示的下载块（课程里和口语首页共用）
+  function mb(n) { return (n / 1048576).toFixed(0); }
+  function asrBlock() {
+    var s = Ene.ASR.status(), p = Ene.ASR.progress();
+    if (s === 'loading') {
+      var pct = p.total ? Math.min(100, Math.round(p.loaded * 100 / p.total)) : 0;
+      return '<div class="sp-asr"><p class="sp-muted">正在下载识别程序，下载完就能录音了（只需要下载这一次）</p>' +
+        '<div class="sp-dl"><i id="sp-dl-bar" style="width:' + pct + '%"></i></div>' +
+        '<p class="sp-small" id="sp-dl-txt">' + dlText(p) + '</p></div>';
+    }
+    return '<div class="sp-asr"><p class="sp-muted">录音打分要用一个装在手机里的识别程序，第一次用需要下载（约 40MB，只需一次，建议连 Wi-Fi）。</p>' +
+      (s === 'error' ? '<p class="sp-small sp-warn">上次没下载成功：' + esc(Ene.ASR.error() || '网络问题') + '。检查网络后再点一次。</p>' : '') +
+      '<button class="btn primary" data-sp="asr-get">下载识别程序</button></div>';
+  }
+  function dlText(p) {
+    if (p.loaded >= p.total && p.total) return '下载完了，正在准备…';
+    return '已下载 ' + mb(p.loaded) + ' / ' + mb(p.total) + ' MB';
+  }
+  if (window.Ene && Ene.ASR) Ene.ASR.onChange(function (s, p) {
+    var bar = document.getElementById('sp-dl-bar'), txt = document.getElementById('sp-dl-txt');
+    if (s === 'loading' && bar) {
+      bar.style.width = (p.total ? Math.min(100, Math.round(p.loaded * 100 / p.total)) : 0) + '%';
+      if (txt) txt.textContent = dlText(p);
+      return;
+    }
+    if (s === lastAsrStatus) return;
+    lastAsrStatus = s;
+    if (P) { if (P.screen === 'produce' && !P.rec) render(false); }
+    else if (/^#\/speak/.test(location.hash) && Ene.App && Ene.App.route) Ene.App.route();
+  });
+  var lastAsrStatus = '';
   function produceHTML() {
     var t = P.L.tasks[P.task], inner;
-    if (P.self) {
+    if (!P.self && useLocal() && !localReady()) {
+      inner = asrBlock() + '<button class="btn link" data-sp="to-self">先不下载，自己对照</button>';
+    } else if (P.self) {
       inner = '<p class="sp-muted sp-c">大声说出来，说完点下面的按钮。</p>' +
         '<button class="sp-mic" data-sp="self-done" aria-label="说完了">' + I.check + '</button><p class="sp-small sp-c">说完了，看答案</p>' +
         (SR ? '<button class="btn link" data-sp="sr-retry">再试一次语音识别</button>' : '');
@@ -565,7 +631,9 @@
     loops.push(setInterval(function () {
       var lv = document.getElementById('sp-level');
       if (!lv) return;
-      for (var i = 0; i < lv.children.length; i++) lv.children[i].style.height = Math.round(4 + Math.random() * 24 * (0.4 + 0.6 * Math.abs(Math.sin(Date.now() / 300 + i)))) + 'px';
+      // 本地识别：用真的音量；系统识别拿不到音量，只能做个动画
+      var amp = useLocal() ? Math.min(1, Ene.ASR.level() * 1.5) : Math.random();
+      for (var i = 0; i < lv.children.length; i++) lv.children[i].style.height = Math.round(4 + amp * 24 * (0.4 + 0.6 * Math.abs(Math.sin(Date.now() / 300 + i)))) + 'px';
     }, 90));
   }
   function startRec() {
@@ -594,6 +662,13 @@
       P.rec = false; stopLoops();
       if (why === 'network') {
         toast(NET_MSG);
+        render(false);
+        return;
+      }
+      if (useLocal()) {
+        toast(why === 'not-allowed' ? '没有麦克风权限：请在弹出的提示里点“允许”。如果没弹出，到 iPhone 设置 → Safari → 麦克风 里打开。'
+          : why === 'model' ? '识别程序没准备好，检查网络后再试一次。'
+          : '录音出了问题（' + why + '），再试一次；还不行可以先“改成自己对照”。');
         render(false);
         return;
       }
@@ -775,6 +850,7 @@
         render(false); break;
       }
       case 'rec': Speech.stop(); startRec(); break;
+      case 'asr-get': Ene.ASR.load().catch(function () {}); render(false); break;
       case 'rec-stop': stopListen(); break;
       case 'self-done': sfx(e); P.tries[P.task]++; go('feedback'); break;
       case 'sr-retry': sfx(e); setBroken(false); P.self = false; render(false); break;
@@ -836,6 +912,7 @@
       if (Ene.App && Ene.App.route) Ene.App.route();
     } else if (a === 'say') say(el.getAttribute('data-text'), 0.95);
     else if (a === 't-rec') { Speech.stop(); testRec(el); }
+    else if (a === 'asr-get') { Ene.ASR.load().catch(function () {}); }
     else if (a === 't-hold') testHold(el);
     else if (a === 't-reload') { testAdd('刷新了页面'); setTimeout(function () { location.reload(); }, 50); }
     else if (a === 't-say') { testAdd('放了一句西语'); say('Hola, ¿cómo estás?', 0.95); }
@@ -845,7 +922,7 @@
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') { if (cur) stopListen(); }
-    else if (holdEver || (P && !P.self)) ensureHold(); // 回到 App：常开麦克风被系统关了就重新打开
+    else if (!useLocal() && (holdEver || (P && !P.self))) ensureHold(); // 回到 App：常开麦克风被系统关了就重新打开
   });
 
   Ene.Speak = {

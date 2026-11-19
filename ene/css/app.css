@@ -604,3 +604,9 @@ svg { display: block; }
 .sp-test-btns .btn { flex: 1 1 auto; min-width: 0; }
 .sp-test-log { margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: var(--text-2); word-break: break-all; }
 .sp-test-log li { margin: 4px 0; }
+
+/* 本地识别程序下载 */
+.sp-asr { display: flex; flex-direction: column; gap: 10px; align-items: stretch; text-align: left; }
+.sp-dl { height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.sp-dl i { display: block; height: 100%; width: 0; background: var(--fg); border-radius: 4px; transition: width .3s ease; }
+.sp-warn { color: var(--fg); font-weight: 600; }
