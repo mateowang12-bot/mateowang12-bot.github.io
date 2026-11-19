@@ -3,7 +3,8 @@
  * 并重新生成 FILES 清单。所以只要内容变了，版本号一定会变，手机上就会换成新文件。
  * （这里手写的内容只是在没用 build 时的后备。）
  */
-var VERSION = 'ene-74dedda9af00'; // BUILD:VERSION
+var VERSION = 'ene-2dbf282b196d'; // BUILD:VERSION
+var VENDOR_CACHE = 'vendor-v2'; // 识别程序 vendor/vosk.js 的缓存；改了 vosk.js 就和 js/asr.js 的 VOSK_VER 一起加 1
 
 /* BUILD:FILES-START */
 var FILES = [
@@ -96,6 +97,7 @@ self.addEventListener('activate', function (event) {
     caches.keys().then(function (keys) {
       return Promise.all(keys.map(function (k) {
         if (k !== VERSION && k.indexOf('ene-') === 0) return caches.delete(k);
+        if (k !== VENDOR_CACHE && k.indexOf('vendor-') === 0) return caches.delete(k);
       }));
     }).then(function () { return self.clients.claim(); })
   );
@@ -110,8 +112,8 @@ self.addEventListener('fetch', function (event) {
   if (url.pathname.indexOf('/models/') >= 0) return;
   // 识别程序 vendor/vosk.js（约 6MB）：放进一个不随版本删除的缓存，App 更新时不用重新下载
   if (url.pathname.indexOf('/vendor/') >= 0) {
-    event.respondWith(caches.open('vendor-v1').then(function (c) {
-      return c.match(req, { ignoreSearch: true }).then(function (hit) {
+    event.respondWith(caches.open(VENDOR_CACHE).then(function (c) {
+      return c.match(req).then(function (hit) {
         return hit || fetch(req).then(function (res) { if (res && res.ok) c.put(req, res.clone()); return res; });
       });
     }));

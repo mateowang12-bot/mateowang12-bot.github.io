@@ -25,6 +25,7 @@
 
   var MODEL_PARTS = 5, MODEL_SIZE = 39802207; // 每块 8MB（GitHub 网页上传一次太大会失败） // 改模型时一起改（tools/build.ps1 会打印）
   var MODEL_VER = 'es-small-0.42';
+  var VOSK_VER = 2; // 改了 vendor/vosk.js 就加 1（同时改 sw.js 里的 VENDOR_CACHE）
   var CACHED_KEY = 'ene-asr-ok';
   var AC = window.AudioContext || window.webkitAudioContext;
 
@@ -55,6 +56,16 @@
     });
   }
 
+  // 模型几块的地址。标准位置：ene/models/es.tar.gz.0…；
+  // 2026-11-19 第一次上传时模型落在了网站根目录的 models-a/ene/models（0–2）和 models-b/ene/models（3–4），也认
+  function modelUrls() {
+    var std = [], alt = [], root = base().replace(/[^/]*\/$/, '');
+    for (var k = 0; k < MODEL_PARTS; k++) {
+      std.push(base() + 'models/es.tar.gz.' + k);
+      alt.push(root + (k < 3 ? 'models-a' : 'models-b') + '/ene/models/es.tar.gz.' + k);
+    }
+    return fetch(std[0], { method: 'HEAD', cache: 'no-store' }).then(function (r) { return r.ok ? std : alt; }, function () { return alt; });
+  }
   function load() {
     if (status === 'ready') return Promise.resolve(model);
     if (loading) return loading;
@@ -62,9 +73,9 @@
     lastErr = '';
     prog = { loaded: 0, total: MODEL_SIZE };
     setStatus('loading');
-    loading = loadScript(base() + 'vendor/vosk.js').then(function () {
+    loading = loadScript(base() + 'vendor/vosk.js?v=' + VOSK_VER).then(modelUrls).then(function (urls) {
       return new Promise(function (res, rej) {
-        var url = base() + 'models/es.tar.gz#parts=' + MODEL_PARTS + '&size=' + MODEL_SIZE;
+        var url = base() + 'models/es.tar.gz#list=' + encodeURIComponent(JSON.stringify(urls)) + '&size=' + MODEL_SIZE;
         var m;
         try { m = new window.Vosk.Model(url, window.__voskLog != null ? window.__voskLog : -1); } catch (e) { rej(e); return; }
         m.on('progress', function (msg) {
