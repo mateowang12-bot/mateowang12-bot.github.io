@@ -38,7 +38,9 @@
   // sound：按键声音；vibrate：震动（只在支持的安卓手机上有用）
   // mode：学习方式 'shanbay' 扇贝式（默认）/ 'view' 只看
   // reviewBatch：一轮最多复习几个到期的词（10 / 20 / 50，0 = 全部）
-  var DEFAULT_SETTINGS = { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true, mode: 'shanbay', reviewBatch: 20, book: '' }; // book：现在学的课本（'' = 还没选，第一次打开先选书）
+  var DEFAULT_SETTINGS = { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true, mode: 'shanbay', reviewBatch: 20, book: '', variant: 'latam' };
+  // book：现在学的课本（'' = 还没选，第一次打开先选书）
+  // variant：口语课的西语变体 'latam' 拉美（默认）/ 'es' 西班牙半岛
 
   function rid() {
     return 'd' + Math.random().toString(36).slice(2, 10) + time.now().toString(36);
@@ -52,9 +54,10 @@
       createdAt: now,
       updatedAt: now,
       words: {},     // id -> { box, due, seen, lastReview, reps, lapses, easy, updatedAt }
-      settings: { newPerDay: 10, rate: 'slow', autoplay: true, theme: 'system', voice: '', sound: true, vibrate: true, mode: 'shanbay', reviewBatch: 20, book: '', updatedAt: 0 },
+      settings: (function () { var s = {}; for (var k in DEFAULT_SETTINGS) s[k] = DEFAULT_SETTINGS[k]; s.updatedAt = 0; return s; })(),
       log: {},       // 'YYYY-MM-DD' -> { cards, newWords, updatedAt }
-      streak: { days: 0, last: null, updatedAt: 0 }
+      streak: { days: 0, last: null, updatedAt: 0 },
+      speak: {}      // 口语课：'5' -> { passed: true, passedAt, tries, scores: {pron, conj, phrase, listen}, updatedAt }
     };
   }
 
@@ -73,6 +76,7 @@
     }
     if (isObj(o.log)) b.log = o.log;
     if (isObj(o.streak)) b.streak = o.streak;
+    if (isObj(o.speak)) b.speak = o.speak;
     return b;
   }
 
@@ -168,6 +172,17 @@
     },
     streak: function () { return computeStreak(); },
 
+    // 口语课进度
+    speakDay: function (day) { var r = data.speak[String(day)]; return isObj(r) ? r : null; },
+    allSpeak: function () { return data.speak; },
+    setSpeakDay: function (day, rec) {
+      rec.updatedAt = time.now();
+      data.speak[String(day)] = rec;
+      save();
+      emit('speak');
+      return rec;
+    },
+
     /* ---------- 给以后的同步用 ---------- */
     exportData: function () { return JSON.parse(JSON.stringify(data)); },
     // 合并远端数据：每个单词 / 每天 / 设置，谁的 updatedAt 新就用谁
@@ -192,6 +207,16 @@
         };
       }
       if ((r.settings.updatedAt || 0) > (data.settings.updatedAt || 0)) data.settings = r.settings;
+      // 口语课：每一课谁的 updatedAt 新用谁；过关了就不会变回没过关
+      for (var sd in r.speak) {
+        var sa = data.speak[sd], sb = r.speak[sd];
+        if (!isObj(sb)) continue;
+        if (!isObj(sa) || (Number(sb.updatedAt) || 0) > (Number(sa.updatedAt) || 0)) {
+          var keep = isObj(sa) && sa.passed;
+          data.speak[sd] = sb;
+          if (keep && !sb.passed) { data.speak[sd].passed = true; data.speak[sd].passedAt = sa.passedAt; }
+        }
+      }
       data.streak = { days: computeStreak(), last: time.today(), updatedAt: time.now() };
       save();
       emit('merge');

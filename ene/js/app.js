@@ -35,6 +35,7 @@
     cycle: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 11A7.5 7.5 0 0 0 6 6.6L4.5 8"/><path d="M4.5 3.5V8H9"/><path d="M4.5 13A7.5 7.5 0 0 0 18 17.4l1.5-1.4"/><path d="M19.5 20.5V16H15"/></svg>',
     user: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>',
     check: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z"/></svg>',
     logo: '<svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="116" fill="#000"/><path d="M150 404V196h52l108 136V196h52v208h-52L202 268v136z" fill="#fff"/><path d="M168 152c26-36 58-38 88-18s62 18 88-18" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round"/></svg>'
   };
@@ -64,6 +65,7 @@
     if (page === 'books' || firstTime) { currentTab = firstTime ? 'books-first' : 'me'; renderBooks(firstTime); }
     else if (page === 'unit' && Data.unit(parts[1])) { currentTab = 'learn'; renderUnit(parts[1]); }
     else if (page === 'review') { currentTab = 'review'; renderReview(); }
+    else if (page === 'speak' && Ene.Speak) { currentTab = 'speak'; Ene.Speak.renderHome(view); }
     else if (page === 'me') { currentTab = 'me'; renderMe(); }
     else { currentTab = 'learn'; renderHome(); }
     var tabs = tabbar.querySelectorAll('[data-tab]');
@@ -119,6 +121,7 @@
     tabbar.innerHTML =
       '<a href="#/learn" data-tab="learn">' + I.book + '<span>学习</span></a>' +
       '<a href="#/review" data-tab="review">' + I.cycle + '<span>复习</span></a>' +
+      '<a href="#/speak" data-tab="speak">' + I.mic + '<span>口语</span></a>' +
       '<a href="#/me" data-tab="me">' + I.user + '<span>我的</span></a>';
   }
 
@@ -362,6 +365,7 @@
       '<span class="set-go">换一本' + I.chev + '</span></a>' +
       '<div class="set-row col"><div class="set-k">学习方式<small>' + (st.mode === 'view' ? '只看：每张卡全部显示，按“下一个”' : '四选一：看西语和例句，从 4 个中文意思里选；选错的词会多出现几次') + '</small></div>' +
       seg('mode', [['shanbay', '四选一（推荐）'], ['view', '只看']], st.mode) + '</div>' +
+      '<div class="set-row col"><div class="set-k">口语课说法<small>拉美（默认）/ 西班牙：只替换两边说法不一样的地方</small></div>' + seg('variant', [['latam', '拉美'], ['es', '西班牙']], st.variant) + '</div>' +
       '<div class="set-row col"><div class="set-k">外观</div>' + seg('theme', [['system', '跟随系统'], ['light', '白色'], ['dark', '黑色']], st.theme) + '</div>' +
       '<div class="set-row col"><div class="set-k">每天学几个新词</div>' + seg('newPerDay', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], st.newPerDay) + '</div>' +
       '<div class="set-row col"><div class="set-k">朗读速度</div>' + seg('rate', [['vslow', '很慢'], ['slow', '慢'], ['normal', '正常']], st.rate) + '</div>' +

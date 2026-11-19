@@ -225,6 +225,34 @@
     }
   }
 
+  /* 口语课用：按变体选声音（'es' = 优先西班牙的声音，'latam' = 平常选的拉美声音），
+   * rate 直接给数字；读完调用 onEnd（有的浏览器不触发 onend，所以加一个兜底计时）。
+   * 和 speak 一样在点击里同步调用。 */
+  function spainVoice() {
+    var list = spanishVoices().filter(function (v) { return region(v.lang) === 'ES'; });
+    list.sort(function (a, b) { return (b.localService ? 1 : 0) - (a.localService ? 1 : 0); });
+    return list[0] || null;
+  }
+  function estMs(text, rate) { return Math.max(900, String(text).split(/\s+/).length * 380 / (rate || 1)); }
+  function speakAs(text, rate, variant, onEnd, pitch) {
+    var done = false;
+    function fin() { if (done) return; done = true; if (onEnd) { try { onEnd(); } catch (e) {} } }
+    if (!synth || !text) { setTimeout(fin, estMs(text || '', rate)); return false; }
+    try {
+      begin();
+      var u = new SpeechSynthesisUtterance(String(text));
+      u.rate = rate || 1; u.pitch = pitch || 1;
+      var v = variant === 'es' ? (spainVoice() || voice) : voice;
+      u.lang = v ? v.lang : (variant === 'es' ? 'es-ES' : 'es-MX');
+      if (v) u.voice = v;
+      u.onend = fin; u.onerror = fin;
+      synth.speak(u);
+      setTimeout(fin, estMs(text, rate) * 2.5 + 1500);
+      return true;
+    } catch (e) { setTimeout(fin, estMs(text, rate)); return false; }
+  }
+  function stop() { try { if (synth && (synth.speaking || synth.pending)) synth.cancel(); } catch (e) {} }
+
   function regionZh(lang) {
     var r = region(lang);
     return REGION_ZH[r] || (r ? '其他地区' : '通用');
@@ -273,6 +301,8 @@
     isIOS: isIOS,
     RATES: RATES,
     speak: speak,
+    speakAs: speakAs,
+    stop: stop,
     test: test,
     voiceList: voiceList,
     choose: choose,
