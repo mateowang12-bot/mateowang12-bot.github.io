@@ -80,8 +80,11 @@
     osc.stop(t0 + o.dur + 0.03);
   }
 
+  // iPhone：用过语音识别之后，这一次打开 App 期间不再放提示音（放了识别就一直不出字，关掉 AudioContext 也救不回来）
+  var locked = false;
+  function lock() { if (isIOS) locked = true; release(); }
   function play(list, e) {
-    if (!soundOn() || !trusted(e)) return;
+    if (locked || !soundOn() || !trusted(e)) return;
     try { if (document.visibilityState === 'hidden') return; } catch (x) {}
     var c = getCtx();
     if (!c) return;
@@ -127,7 +130,9 @@
       buzz([10, 40, 10], e);
     },
     quiet: suspendNow,
-    release: release, // 录音前调用：彻底关掉提示音的声音通道，免得 iPhone 语音识别不出字
+    release: release,
+    lock: lock,
+    locked: function () { return locked; },// 录音前调用：彻底关掉提示音的声音通道，免得 iPhone 语音识别不出字
     canVibrate: canVibrate,
     soundOn: soundOn,
     vibrateOn: vibrateOn,

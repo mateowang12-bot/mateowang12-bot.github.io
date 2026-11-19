@@ -209,7 +209,7 @@
       }
     }, 4000));
     timers.push(setTimeout(function () { if (!ended && cur && cur.r === r) cur.stop(); }, 15000));
-    try { if (window.Ene && Ene.Sfx && Ene.Sfx.release) Ene.Sfx.release(); } catch (e) {}
+    try { if (window.Ene && Ene.Sfx && Ene.Sfx.lock) Ene.Sfx.lock(); } catch (e) {}
     L((retried ? 'begin(new)' : 'begin') + (usedFresh ? ':new' : ':reuse') + (cont ? ':c1' : ':c0'));
     try { r.start(); }
     catch (e) {
@@ -787,7 +787,7 @@
     } else if (a === 'say') say(el.getAttribute('data-text'), 0.95);
     else if (a === 't-rec') { Speech.stop(); testRec(el); }
     else if (a === 't-say') { testAdd('放了一句西语'); say('Hola, ¿cómo estás?', 0.95); }
-    else if (a === 't-beep') { testAdd('放了提示音'); if (Ene.Sfx) { try { Ene.Sfx.tap(e); } catch (x) {} } }
+    else if (a === 't-beep') { testAdd(Ene.Sfx && Ene.Sfx.locked && Ene.Sfx.locked() ? '提示音已关（录过音后不再放）' : '放了提示音');if (Ene.Sfx) { try { Ene.Sfx.tap(e); } catch (x) {} } }
   });
 
   // 离开页面（切到后台、锁屏）时停止识别，免得回来后卡在“正在听”
