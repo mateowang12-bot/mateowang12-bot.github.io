@@ -56,13 +56,15 @@
   function soundSetting() { return !(Ene.Store && Ene.Store.settings().sound === false); }
   function playKind(kind, e) {
     if (!soundSetting()) return;
-    if (useLocal() && Ene.ASR.hasAudio() && Ene.ASR.tone(TONES[kind])) return;
+    // 正在录音时（麦克风开着）才走录音的声音通道；平时用 Ene.Sfx，和背单词那边一样
+    if (useLocal() && cur && Ene.ASR.hasAudio() && Ene.ASR.tone(TONES[kind])) return;
     if (sfxOk()) { try { Ene.Sfx[kind](e); } catch (x) {} }
   }
   function sfx(e) { if (e) playKind('tap', e); }
   function sfxMiss(e) { if (e) playKind('miss', e); }
   // 打分出来时：过关“叮—咚”，没过“嘟”
-  function sfxResult(pass) { playKind(pass ? 'done' : 'miss'); }
+  // 等 0.25 秒：刚关麦克风，iPhone 要一下才把声音切回扬声器
+  function sfxResult(pass) { setTimeout(function () { playKind(pass ? 'done' : 'miss'); }, 250); }
   function say(text, rate, onEnd, pitch, who) {
     afterHold(function () { Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); });
   }
@@ -209,10 +211,12 @@
       grammar: lessonGrammar(),
       onInterim: onInterim,
       onReady: onReady,
-      onFinal: function (alts) { if (cur === c) cur = null; onFinal(alts); },
-      onFail: function (why) { if (cur === c) cur = null; onFail(why); }
+      // 说完马上关麦克风（2026-11-19 用户：口语课里按按钮没声音——iPhone 麦克风开着时声音从听筒小声出）
+      onFinal: function (alts) { if (cur === c) cur = null; Ene.ASR.release(); onFinal(alts); },
+      onFail: function (why) { if (cur === c) cur = null; Ene.ASR.release(); onFail(why); }
     });
-    c.stop = h.stop; c.abort = h.abort;
+    c.stop = h.stop;
+    c.abort = function () { h.abort(); Ene.ASR.release(); };
     cur = c;
   }
   function listen(onInterim, onFinal, onFail, onReady, retried, log, fresh) {
@@ -492,8 +496,8 @@
     // iPhone：进课就（在这次点击里）打开常开麦克风，和小测试里有效的顺序一样：先常开，再放声音、录音
     if (useLocal()) {
       if (localReady() && Ene.ASR.status() === 'none') Ene.ASR.load().catch(function () {});
-      // 进课就（在这次点击里）打开录音的声音通道和麦克风：按键声音也走这个通道，iPhone 上才听得到
-      if (localReady()) Ene.ASR.warm();
+      // （不再进课就开麦克风：iPhone 上麦克风开着时，网页的声音会改从听筒小声放，按键声音就听不到了。
+      //   现在只在说话时开麦克风，说完马上关，见 listenLocal）
     }
     else if (canRecognize()) ensureHold();
     ensureBox();
