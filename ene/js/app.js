@@ -255,7 +255,7 @@
       // 点这一行 = 读这个词，并展开 / 收起它的例句
       html += '<li class="word-row" data-act="row" data-id="' + esc(w.id) + '">' +
         '<i class="dot l' + l + '" title="' + DOT[l] + '"></i>' +
-        '<div class="wr-main"><div class="wr-es" lang="es">' + esc(Data.display(w)) + '</div><div class="wr-zh">' + esc(w.zh) + '</div>' +
+        '<div class="wr-main"><div class="wr-es"><span lang="es">' + esc(Data.display(w)) + '</span>' + posTag(w) + conjBtn(w, true) + '</div><div class="wr-zh">' + esc(w.zh) + '</div>' +
         (w.example && w.example.es ? '<div class="wr-ex tap" data-act="say-row-ex" data-id="' + esc(w.id) + '"><span lang="es">' + esc(w.example.es) + '</span><span>' + esc(w.example.zh || '') + '</span></div>' : '') +
         '</div>' +
         '<button class="say" data-act="say-word" data-id="' + esc(w.id) + '" aria-label="朗读">' + I.speaker + '</button></li>';
@@ -590,6 +590,59 @@
   }
 
   /* ---------- 卡片的各个部分 ---------- */
+  // 词性小标签（空心圆角框）：例如“动词”、“名词·阴性”
+  function posTag(w) { var p = Data.posLabel(w); return p ? '<span class="pos-tag">' + esc(p) + '</span>' : ''; }
+  // 动词才有的“变位”按钮（点开底部的变位表）
+  function conjBtn(w, small) {
+    if (!Ene.Conj || !Ene.Conj.table(w)) return '';
+    return '<button class="' + (small ? 'cj-btn' : 'say slow cj-open') + '" data-act="conj" data-id="' + esc(w.id) + '">变位</button>';
+  }
+
+  /* ---------- 动词变位表（从底部滑上来） ---------- */
+  var cj = null;   // { w, t, tab }
+  var GUSTAR_P = ['(a mí)', '(a ti)', '(a él / ella / usted)', '(a nosotros)', '(a ellos / ustedes)'];
+  function openConj(w) {
+    var t = Ene.Conj && Ene.Conj.table(w);
+    if (!t) return;
+    cj = { w: w, t: t, tab: cj && cj.w === w ? cj.tab : 0 };
+    var m = document.getElementById('cj');
+    if (!m) { m = document.createElement('div'); m.id = 'cj'; m.className = 'cj-mask'; document.body.appendChild(m); }
+    renderConj();
+    m.hidden = false;
+    void m.offsetWidth;          // 先画出来再加 on，才有滑上来的动画
+    m.classList.add('on');
+  }
+  function renderConj() {
+    var m = document.getElementById('cj');
+    if (!m || !cj) return;
+    var t = cj.t, r = t.rows[cj.tab], P = Ene.Conj.persons;
+    var list = r.forms.map(function (f, p) {
+      var who = t.kind === 'impersonal' ? '' : t.kind === 'third' ? ['它（一个）', '它们（几个）'][p] : P[p].zh + ' <i lang="es">' + esc(t.kind === 'gustar' ? GUSTAR_P[p] : P[p].es) + '</i>';
+      return '<li' + (f === '—' ? ' class="none"' : ' class="tap" data-act="cj-say" data-i="' + p + '" role="button"') + '>' +
+        (who ? '<span class="cj-p">' + who + '</span>' : '') + '<b lang="es">' + esc(f) + '</b></li>';
+    }).join('');
+    m.innerHTML = '<div class="cj-sheet" role="dialog" aria-modal="true" aria-label="动词变位">' +
+      '<div class="cj-head"><div><div class="cj-inf" lang="es">' + esc(cj.w.es) + '</div><div class="cj-zh">' + esc(cj.w.zh) + '</div></div>' +
+      '<button class="icon-btn" data-act="cj-close" aria-label="关闭">' + I.close + '</button></div>' +
+      '<div class="cj-tabs">' + t.rows.map(function (x, i) {
+        return '<button class="cj-tab' + (i === cj.tab ? ' on' : '') + '" data-act="cj-tab" data-i="' + i + '">' + esc(x.zh) + '</button>';
+      }).join('') + '</div>' +
+      '<p class="cj-hint">' + esc(r.hint) + '</p>' +
+      '<ul class="cj-list' + (t.kind === 'impersonal' ? ' one' : '') + '">' + list + '</ul>' +
+      (t.note ? '<p class="cj-note">' + esc(t.note) + '</p>' : '') +
+      '<p class="cj-tip">点一行可以听发音</p></div>';
+  }
+  function closeConj() {
+    var m = document.getElementById('cj');
+    if (!m || m.hidden) return;
+    m.classList.remove('on');
+    setTimeout(function () { if (!m.classList.contains('on')) m.hidden = true; }, 220);
+  }
+  function conjOpen() { var m = document.getElementById('cj'); return !!(m && !m.hidden && m.classList.contains('on')); }
+  // 点变位表外面的灰色部分 = 关掉；Esc 也关掉
+  document.addEventListener('click', function (e) { if (e.target && e.target.id === 'cj') closeConj(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && conjOpen()) closeConj(); });
+  window.addEventListener('hashchange', closeConj);
   function topBar(done, total, label) {
     return '<div class="s-top">' +
       '<button class="icon-btn" data-act="exit" aria-label="退出">' + I.close + '</button>' +
@@ -602,14 +655,15 @@
     var alt = Array.isArray(w.alt) ? w.alt : [];
     var ex = (w.example && w.example.es) ? w.example : null;
     var html = '<div class="s-body' + (o.front ? ' front' : '') + '"><div class="w-top">' +
-      '<div class="w-meta"><span>' + o.kind + '</span>' + (Data.posLabel(w) ? '<span>' + Data.posLabel(w) + '</span>' : '') +
+      '<div class="w-meta"><span>' + o.kind + '</span>' + posTag(w) +
       (o.verdict ? '<span class="verdict">' + o.verdict + '</span>' : '') + '</div>' +
       '<div class="word tap" lang="es" data-act="say" role="button" aria-label="点单词朗读"><span class="nw">' + esc(w.es) + '</span>' +
       (w.fem ? ' <span class="nw">/ ' + esc(w.fem) + '</span>' : '') + '</div>' +
       (o.front ? '' : '<div class="meaning">' + esc(w.zh) + '</div>') +
       '<div class="say-row">' +
       '<button class="say big" data-act="say" aria-label="朗读">' + I.speaker + '</button>' +
-      '<button class="say slow" data-act="say-slow" aria-label="慢速朗读">' + I.turtle + '<span>慢速</span></button></div>';
+      '<button class="say slow" data-act="say-slow" aria-label="慢速朗读">' + I.turtle + '<span>慢速</span></button>' +
+      (!o.front ? conjBtn(w) : '') + '</div>';
     if (!o.front) {
       if (alt.length) html += '<div class="extra">' + alt.map(function (a) {
         return '<p>' + esc(a.where || '其他地区') + '：<span lang="es">' + esc(a.es) + '</span></p>';
@@ -957,7 +1011,7 @@
       body = '<p class="end-line">这一轮：' + S.words.length + ' 个词 · 一次就选对 ' + once + ' 个 · 不熟 ' + weak.length + ' 个</p>' +
         (weak.length ? '<ul class="weak-list">' + weak.map(function (x) {
           var w = Data.word(x.id);
-          return '<li class="tap" data-act="say-word" data-id="' + esc(x.id) + '" role="button"><span class="wl-es" lang="es">' + esc(Data.display(w)) + '</span><span class="wl-zh">' + esc(w.zh) + '</span></li>';
+          return '<li class="tap" data-act="say-word" data-id="' + esc(x.id) + '" role="button"><span class="wl-es"><span lang="es">' + esc(Data.display(w)) + '</span>' + posTag(w) + '</span><span class="wl-zh">' + esc(w.zh) + '</span></li>';
         }).join('') + '</ul>' : '');
     } else {
       var log = Store.getLog();
@@ -1017,7 +1071,7 @@
   var gestureEvent = null; // 当前正在处理的用户操作（给结束页的“叮—咚”判断是不是真的用户操作）
   function markGesture(e) { gestureEvent = e; setTimeout(function () { if (gestureEvent === e) gestureEvent = null; }, 0); }
   var TAP_ACTS = ['next', 'prev', 'start', 'extra', 'review', 'pick-book', 'unit-learn', 'unit-review', 'continue', 'exit',
-    'set', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open'];
+    'set', 'conj', 'cj-tab', 'cj-close', 'toggle-autoplay', 'toggle-sound', 'toggle-vibrate', 'cloud-open', 'voice-diag-open'];
   document.addEventListener('click', function (e) {
     markGesture(e);
     if (!Sfx || !e.target.closest) return;
@@ -1052,6 +1106,18 @@
         e.stopPropagation();
         var xw = Data.word(el.getAttribute('data-id'));
         if (xw && xw.example) Speech.speak(xw.example.es, null, 'sentence');
+        break;
+      }
+      case 'conj': {
+        var cw = Data.word(el.getAttribute('data-id'));
+        if (cw) openConj(cw);
+        break;
+      }
+      case 'cj-tab': cj.tab = Number(el.getAttribute('data-i')); renderConj(); break;
+      case 'cj-close': closeConj(); break;
+      case 'cj-say': {
+        var f = cj && cj.t.rows[cj.tab].forms[Number(el.getAttribute('data-i'))];
+        if (f && f !== '—') Speech.speak(f, null, 'sentence');
         break;
       }
       case 'say-word': {

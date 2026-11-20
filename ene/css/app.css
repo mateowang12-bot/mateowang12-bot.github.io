@@ -181,6 +181,9 @@ svg { display: block; }
 .word-row { display: flex; align-items: center; gap: 14px; padding: 10px 0 10px 2px; min-height: 60px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .wr-main { flex: 1; min-width: 0; }
 .wr-es { font-weight: 700; font-size: 17px; }
+/* 词性小标签：空心圆角框（黑白风格，不用彩色） */
+.pos-tag { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid var(--mid); border-radius: 999px; font-size: 11px; font-weight: 500; line-height: 1.5; color: var(--text-2); letter-spacing: 0; vertical-align: 2px; white-space: nowrap; }
+.w-meta .pos-tag { margin-left: 0; font-size: 12px; color: var(--fg); vertical-align: baseline; }
 .wr-zh { color: var(--text-2); font-size: 14px; }
 .wr-ex { display: none; margin-top: 6px; font-size: 14px; }
 .wr-ex span { display: block; }
@@ -683,3 +686,35 @@ svg { display: block; }
 
 /* 顶部 6 段条：每格填多少由 --f（0–1）决定，只进不退（js/speak.js segFills） */
 .sp-segs i::after, .sp-segs i.now::after, .sp-segs i.done::after { transform: scaleX(var(--f, 0)); }
+
+/* 动词变位：卡片上的“变位”按钮、词表里的小按钮、底部滑上来的变位表 */
+.say.slow.cj-open { padding: 0 16px; font-weight: 600; }
+.cj-btn { margin-left: 8px; padding: 2px 10px; border: 1px solid var(--fg); border-radius: 999px; background: transparent; color: var(--fg); font: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; vertical-align: 2px; cursor: pointer; }
+.cj-btn:active { background: var(--soft); }
+.cj-mask { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0); display: flex; align-items: flex-end; justify-content: center; transition: background .22s ease; }
+.cj-mask.on { background: rgba(0, 0, 0, .38); }
+.cj-sheet { width: 100%; max-width: var(--maxw); max-height: 86vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  background: var(--bg); border-radius: 20px 20px 0 0; padding: 14px 16px calc(18px + var(--sab)); box-shadow: 0 -1px 0 var(--line);
+  transform: translateY(100%); transition: transform .24s cubic-bezier(.2, .8, .2, 1); }
+.cj-mask.on .cj-sheet { transform: none; }
+.cj-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.cj-head .icon-btn { margin: -6px -10px 0 0; }
+.cj-inf { font-size: 26px; font-weight: 800; line-height: 1.2; }
+.cj-zh { color: var(--text-2); font-size: 14px; margin-top: 2px; }
+.cj-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.cj-tabs::-webkit-scrollbar { display: none; }
+.cj-tab { flex: 0 0 auto; min-height: 36px; padding: 0 14px; border: 1.5px solid var(--line); border-radius: 999px; background: transparent; color: var(--text-2); font: inherit; font-size: 14px; cursor: pointer; }
+.cj-tab.on { background: var(--fg); border-color: var(--fg); color: var(--bg); font-weight: 600; }
+.cj-hint { margin: 10px 0 4px; font-size: 13px; color: var(--text-3); }
+.cj-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.cj-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.cj-list li.tap { cursor: pointer; }
+.cj-list li.tap:active { background: var(--soft); }
+.cj-list li.none b { color: var(--mid); }
+.cj-list.one li { justify-content: center; }
+.cj-p { font-size: 14px; color: var(--text-2); }
+.cj-p i { font-style: normal; color: var(--text-3); font-size: 12px; margin-left: 4px; }
+.cj-list b { font-size: 18px; font-weight: 700; text-align: right; }
+.cj-note { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--soft); font-size: 13px; line-height: 1.6; color: var(--text-2); }
+.cj-tip { margin: 10px 0 0; font-size: 12px; color: var(--text-3); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .cj-mask, .cj-sheet { transition: none; } }
