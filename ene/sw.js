@@ -3,7 +3,7 @@
  * 并重新生成 FILES 清单。所以只要内容变了，版本号一定会变，手机上就会换成新文件。
  * （这里手写的内容只是在没用 build 时的后备。）
  */
-var VERSION = 'ene-b6260b498ae4'; // BUILD:VERSION
+var VERSION = 'ene-a74f501c0d66'; // BUILD:VERSION
 var VENDOR_CACHE = 'vendor-v2'; // 识别程序 vendor/vosk.js 的缓存；改了 vosk.js 就和 js/asr.js 的 VOSK_VER 一起加 1
 
 /* BUILD:FILES-START */

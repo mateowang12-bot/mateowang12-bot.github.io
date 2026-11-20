@@ -74,9 +74,14 @@
       for (var i = 0; i < len && s0 + i < n; i++) {
         var t = i / rate, f = o.to ? o.freq * Math.pow(o.to / o.freq, t / o.dur) : o.freq;
         var env = Math.min(1, i / (rate * 0.005)) * Math.pow(1 - i / len, 2);
-        data[s0 + i] += Math.sin(2 * Math.PI * f * t) * env * o.vol * 4;
+        // 加一点二次泛音，手机小喇叭上听得更清楚
+        data[s0 + i] += (Math.sin(2 * Math.PI * f * t) + 0.3 * Math.sin(4 * Math.PI * f * t)) * env;
       }
     });
+    // 2026-11-19 用户：打分声音太小没注意 → 统一放大到接近最大音量（0.9）
+    var peak = 0;
+    for (var q = 0; q < n; q++) peak = Math.max(peak, Math.abs(data[q]));
+    if (peak > 0) for (q = 0; q < n; q++) data[q] *= 0.9 / peak;
     var buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
     function str(o, s) { for (var k = 0; k < s.length; k++) v.setUint8(o + k, s.charCodeAt(k)); }
     str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
@@ -87,7 +92,10 @@
   }
   var RESULT_SRC = {};
   function resultSrc(kind) {
-    if (!RESULT_SRC[kind]) RESULT_SRC[kind] = kind === 'done' ? wavURL(TONES.done, 0.6) : wavURL(TONES.miss, 0.2);
+    // 打分音比按键音长一点：过关“叮—咚”（两个音更长），没过“嘟—嘟”
+    if (!RESULT_SRC[kind]) RESULT_SRC[kind] = kind === 'done'
+      ? wavURL([{ freq: 880, dur: 0.3, at: 0.02 }, { freq: 1318.5, dur: 0.5, at: 0.18 }], 0.75)
+      : wavURL([{ freq: 330, to: 260, dur: 0.16, at: 0.02 }, { freq: 300, to: 220, dur: 0.22, at: 0.2 }], 0.45);
     return RESULT_SRC[kind];
   }
   // 在点击里调用：静音播一下，把这个 <audio> 解锁
@@ -101,7 +109,7 @@
       if (p && p.then) p.then(function () { resultAudio.pause(); resultAudio.currentTime = 0; resultAudio.muted = false; }, function () {});
     } catch (e) {}
   }
-  // 等 0.25 秒：刚关麦克风，iPhone 要一下才把声音切回扬声器
+  // 等 0.45 秒：刚关麦克风，iPhone 要一下才把声音切回扬声器（太早放会从听筒出来，很小声）
   function sfxResult(pass) {
     setTimeout(function () {
       if (!soundSetting()) return;
@@ -116,7 +124,7 @@
         } catch (e) {}
       }
       playKind(kind);
-    }, 250);
+    }, 450);
   }
   function say(text, rate, onEnd, pitch, who) {
     afterHold(function () { Speech.speakAs(text, rate || 0.95, variant(), onEnd, pitch, who); });
