@@ -590,11 +590,25 @@
   function go(screen) { stopAll(); P.lineNow = -1; P.rec = false; P.screen = screen; render(true); }
 
   var SEG_OF = { warm: 0, input: 1, chunks: 2, produce: 3, feedback: 4, drill: 4, result: 5 };
+  /* 顶部 6 段条每一格填多少（0–1）。
+   * 2026-11-19 用户：进度条“一闪一闪”——说 5 句时在“产出”和“纠错”两屏之间来回，条就前进、后退、前进……
+   * 现在“产出 + 纠错”两格合起来按“已经完成几句”往前走，只进不退。 */
+  function segFills() {
+    var cur = SEG_OF[P.screen], f = SEGS.map(function (_, i) { return i < cur ? 1 : i === cur ? 0.5 : 0; });
+    if (cur === 3 || cur === 4) {
+      var n = P.L.tasks.length, fin = 0;
+      for (var k = 0; k < n; k++) if (P.done[k] || P.skipped[k]) fin++;
+      if (P.screen === 'feedback' && P.result && P.result.pass && !P.done[P.task]) fin++;
+      var x = Math.max(0.15, fin / n) * 2; // 两格一共 2
+      f[3] = Math.min(1, x); f[4] = Math.max(0, Math.min(1, x - 1));
+    }
+    return f;
+  }
   function topBar() {
-    var cur = SEG_OF[P.screen];
+    var cur = SEG_OF[P.screen], f = segFills();
     return '<div class="sp-lesson-top"><button class="icon-btn" data-sp="close" aria-label="退出这一课">' + I.close + '</button>' +
       '<div class="sp-segs" aria-label="本课进度">' + SEGS.map(function (n, i) {
-        return '<i class="' + (i < cur ? 'done' : i === cur ? 'now' : '') + '" title="' + n + '"></i>';
+        return '<i style="--f:' + f[i] + '" title="' + n + '"></i>';
       }).join('') + '</div><div class="sp-seg-name">' + SEGS[cur] + '</div></div>';
   }
 
@@ -621,10 +635,15 @@
     if (P.screen === 'produce' && P.rec) startLevel();
   }
   function updateTop(wrap) {
-    var cur = SEG_OF[P.screen], segs = wrap.querySelectorAll('.sp-segs i');
-    for (var i = 0; i < segs.length; i++) segs[i].className = i < cur ? 'done' : i === cur ? 'now' : '';
+    var cur = SEG_OF[P.screen], segs = wrap.querySelectorAll('.sp-segs i'), f = segFills();
+    for (var i = 0; i < segs.length; i++) { var v = String(f[i]); if (segs[i].style.getPropertyValue('--f') !== v) segs[i].style.setProperty('--f', v); }
     var nm = wrap.querySelector('.sp-seg-name');
-    if (nm && nm.textContent !== SEGS[cur]) { nm.textContent = SEGS[cur]; nm.classList.remove('sp-fade'); void nm.offsetWidth; nm.classList.add('sp-fade'); }
+    if (nm && nm.textContent !== SEGS[cur]) {
+      var loop = (cur === 3 || cur === 4) && /产出|纠错/.test(nm.textContent);
+      nm.textContent = SEGS[cur];
+      // 产出 ↔ 纠错 来回切换时不做淡入，免得一闪一闪
+      if (!loop) { nm.classList.remove('sp-fade'); void nm.offsetWidth; nm.classList.add('sp-fade'); }
+    }
   }
   function countUp(el) {
     if (!el || reducedMotion()) return;

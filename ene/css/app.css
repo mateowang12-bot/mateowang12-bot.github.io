@@ -680,3 +680,6 @@ svg { display: block; }
   .sp-enter .sp-score circle:nth-of-type(2), .sp-opt.ok, .sp-opt.bad, .sp-mic.rec, .sp-level, .sp-seg-name.sp-fade { animation: none; }
   .sp-segs i::after { transition: none; }
 }
+
+/* 顶部 6 段条：每格填多少由 --f（0–1）决定，只进不退（js/speak.js segFills） */
+.sp-segs i::after, .sp-segs i.now::after, .sp-segs i.done::after { transform: scaleX(var(--f, 0)); }
